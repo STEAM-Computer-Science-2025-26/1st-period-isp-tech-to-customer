@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  --background-main: #F4F4F6;
+  --background-primary: #E6E6E9;
+  --background-secondary: #C0C0C5;
+  --background-tertiary: #9999A1;
+  --foreground: #1A1A1C;
+  --text-main: #333337;
+  --text-primary: #4D4D53;
+  --text-secondary: #66666E;
+  --text-tertiary: #808088;
+  --destructive-background: #c9184a;
+  --destructive-foreground: #a4133c;
+  --destructive-text: #800f2f;
+  --warning-background: #ffe566;
+  --warning-foreground: #ffa200;
+  --warning-text: #c97500;
+  --info-background: #00b4d8;
+  --info-foreground: #0077b6;
+  --info-text: #023e8a;
+  --success-background: #52b788;
+  --success-foreground: #2d6a4f;
+  --success-text: #1b4332;
+  --font-sans: 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Geist Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+@theme inline {
+  --color-background-main: var(--background-main);
+  --color-background-primary: var(--background-primary);
+  --color-background-secondary: var(--background-secondary);
+  --color-background-tertiary: var(--background-tertiary);
+  --color-foreground-main: var(--foreground);
+  --color-text-main: var(--text-main);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-destructive-background: var(--destructive-background);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-text: var(--destructive-text);
+  --color-warning-background: var(--warning-background);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-text: var(--warning-text);
+  --color-info-background: var(--info-background);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-text: var(--info-text);
+  --color-success-background: var(--success-background);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-text: var(--success-text);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --default-transition-duration: 300ms;
+}
+
+body {
+  background: var(--background-main);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+}
