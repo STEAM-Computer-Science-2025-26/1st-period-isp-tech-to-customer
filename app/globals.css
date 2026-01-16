@@ -2,7 +2,7 @@
 
 :root {
   --background-main: #F4F4F6;
-  --background-primary: #E6E6E9;
+  --background-primary: #ededed;
   --background-secondary: #C0C0C5;
   --background-tertiary: #9999A1;
   --foreground: #1A1A1C;
@@ -22,6 +22,8 @@
   --success-background: #52b788;
   --success-foreground: #2d6a4f;
   --success-text: #1b4332;
+  --accent-main: #53abb1;
+  --accent-text: #6C959D;
   --font-sans: 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'Geist Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
@@ -49,6 +51,8 @@
   --color-success-foreground: var(--success-foreground);
   --color-success-text: var(--success-text);
   --color-foreground: var(--foreground);
+  --color-accent-main: var(--accent-main);
+  --color-accent-text: var(--accent-text);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --default-transition-duration: 300ms;
