@@ -156,13 +156,13 @@ npm run lint
 
 ## Key Features
 
-- ✅ Role-based authentication
-- ✅ Real-time job assignment
-- ✅ Employee availability tracking
-- ✅ Distance-based tech matching
-- ✅ Job status workflow (unassigned → assigned → in_progress → completed)
-- ✅ Multi-branch support
-- ✅ TypeScript type safety across frontend/backend
+- Role-based authentication
+- Real-time job assignment
+- Employee availability tracking
+- Distance-based tech matching
+- Job status workflow (unassigned → assigned → in_progress → completed)
+- Multi-branch support
+- TypeScript type safety across frontend/backend
 
 ## API Routes
 
