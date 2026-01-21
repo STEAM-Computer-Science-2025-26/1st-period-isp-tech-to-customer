@@ -1,7 +1,27 @@
 // /server/db/connection.ts
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
+import dotenv from 'dotenv';
+import fs from 'node:fs';
+import path from 'node:path';
 
 let cachedSql: NeonQueryFunction<false, false> | null = null;
+
+function tryLoadDatabaseUrlFromDotenv(): void {
+  if (process.env.DATABASE_URL) return;
+
+  const candidates = [
+    path.resolve(process.cwd(), '.env.local'),
+    path.resolve(process.cwd(), '.env'),
+    path.resolve(process.cwd(), 'app', '.env.local'),
+    path.resolve(process.cwd(), 'app', '.env'),
+  ];
+
+  for (const envPath of candidates) {
+    if (!fs.existsSync(envPath)) continue;
+    dotenv.config({ path: envPath });
+    if (process.env.DATABASE_URL) return;
+  }
+}
 
 /**
  * Lazily create the SQL query function.
@@ -10,6 +30,7 @@ let cachedSql: NeonQueryFunction<false, false> | null = null;
  * Next.js `next build` evaluates route modules while collecting data.
  */
 export function getSql(): NeonQueryFunction<false, false> {
+  tryLoadDatabaseUrlFromDotenv();
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     throw new Error('DATABASE_URL environment variable is not set');
