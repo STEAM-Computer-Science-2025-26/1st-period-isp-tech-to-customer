@@ -32,6 +32,24 @@ export type DataCardProps = BaseCardProps & {
 	children: ReactNode;
 };
 
+export type TableColumn<Row extends Record<string, unknown> = Record<string, unknown>> = {
+	key: keyof Row & string;
+	header: ReactNode;
+	align?: "left" | "center" | "right";
+	className?: string;
+	headerClassName?: string;
+	cell?: (row: Row, rowIndex: number) => ReactNode;
+};
+
+export type TableCardProps<Row extends Record<string, unknown> = Record<string, unknown>> = BaseCardProps & {
+	type: "table";
+	toolbar?: ReactNode;
+	columns: TableColumn<Row>[];
+	rows: Row[];
+	getRowKey?: (row: Row, rowIndex: number) => string | number;
+	emptyState?: ReactNode;
+};
+
 export type ListCardItem = {
 	id?: string | number;
 	label: ReactNode;
@@ -48,7 +66,7 @@ export type ListCardProps = BaseCardProps & {
 	children?: ReactNode;
 };
 
-export type CardProps = KpiCardProps | DataCardProps | ListCardProps;
+export type CardProps = KpiCardProps | DataCardProps | ListCardProps | TableCardProps<any>;
 
 export function Card(props: CardProps) {
 	const { title, subtitle, actions, className, bodyClassName, footer } = props;
@@ -73,6 +91,7 @@ export function Card(props: CardProps) {
 				{props.type === "kpi" ? <KpiBody {...props} /> : null}
 				{props.type === "data" ? <DataBody {...props} /> : null}
 				{props.type === "list" ? <ListBody {...props} /> : null}
+				{props.type === "table" ? <TableBody {...props} /> : null}
 			</div>
 
 			{footer ? (
@@ -94,6 +113,12 @@ export function ListCard(props: Omit<ListCardProps, "type">) {
 	return <Card {...props} type="list" />;
 }
 
+export function TableCard<Row extends Record<string, unknown>>(
+	props: Omit<TableCardProps<Row>, "type">
+) {
+	return <Card {...(props as TableCardProps<any>)} type="table" />;
+}
+
 function KpiBody({ value, meta, trend, icon }: KpiCardProps) {
 	return (
 		<div className="flex items-start gap-3">
@@ -101,7 +126,7 @@ function KpiBody({ value, meta, trend, icon }: KpiCardProps) {
 			<div className="flex flex-row items-center">
 				<div className="text-3xl font-semibold leading-none text-text-main">{value}</div>
 				{icon ? (
-				<div className="shrink-0 p-1.5 h-full aspect-square bg-red-300/15">
+				<div className="shrink-0 p-1.5 h-full aspect-square">
 					{icon}
 				</div>
 			) : null}
@@ -131,6 +156,82 @@ function DataBody({ toolbar, children }: DataCardProps) {
 			{toolbar ? <div className="flex items-center justify-between gap-2">{toolbar}</div> : null}
 			<div className="rounded-lg bg-background-primary/50 border border-background-secondary/50 p-3">
 				{children}
+			</div>
+		</div>
+	);
+}
+
+function TableBody<Row extends Record<string, unknown>>({
+	toolbar,
+	columns,
+	rows,
+	getRowKey,
+	emptyState,
+}: TableCardProps<Row>) {
+	return (
+		<div className="flex flex-col gap-3">
+			{toolbar ? <div className="flex items-center justify-between gap-2">{toolbar}</div> : null}
+			<div className="rounded-lg bg-background-primary/50 border border-background-secondary/50">
+				<div className="overflow-x-auto">
+					<table className="w-full text-sm">
+						<thead className="text-text-secondary">
+							<tr>
+								{columns.map(col => (
+									<th
+										key={col.key}
+										className={clsx(
+											"py-2 px-3 font-medium",
+											col.align === "center"
+												? "text-center"
+												: col.align === "right"
+													? "text-right"
+													: "text-left",
+											col.headerClassName
+										)}
+									>
+										{col.header}
+									</th>
+								))}
+							</tr>
+						</thead>
+						<tbody>
+							{rows.length === 0 ? (
+								<tr>
+									<td
+										colSpan={Math.max(columns.length, 1)}
+										className="px-3 py-6 text-center text-text-tertiary"
+									>
+										{emptyState ?? "No rows"}
+									</td>
+								</tr>
+							) : (
+								rows.map((row, rowIndex) => (
+									<tr
+										key={getRowKey ? getRowKey(row, rowIndex) : rowIndex}
+										className="border-t border-background-secondary/50"
+									>
+										{columns.map(col => (
+											<td
+												key={col.key}
+												className={clsx(
+													"py-2 px-3 text-text-main",
+													col.align === "center"
+														? "text-center"
+														: col.align === "right"
+															? "text-right"
+															: "text-left",
+													col.className
+												)}
+											>
+												{col.cell ? col.cell(row, rowIndex) : (row[col.key] as ReactNode)}
+											</td>
+										))}
+									</tr>
+								))
+							)}
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 	);

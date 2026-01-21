@@ -47,12 +47,12 @@ export default function Sidebar({
 		}));
 	}, [items]);
 
-	const { mdUp } = useBreakpoints();
-	const activeVariant = mobile === true ? "mobile" : mobile === false ? "desktop" : mdUp ? "desktop" : "mobile";
+	const { lgUp } = useBreakpoints();
+	const activeVariant = mobile === true ? "mobile" : mobile === false ? "desktop" : lgUp ? "desktop" : "mobile";
 	const showMobile = mobile !== false;
 	const showDesktop = mobile !== true;
-	const mobileVisibilityClass = mobile === true ? "" : "md:hidden";
-	const desktopVisibilityClass = mobile === false ? "" : "hidden md:block";
+	const mobileVisibilityClass = mobile === true ? "" : "lg:hidden";
+	const desktopVisibilityClass = mobile === false ? "" : "hidden lg:block";
 
 	useEffect(() => {
 		if (activeVariant !== "desktop") return;
@@ -109,7 +109,7 @@ function DesktopSidebar({
 					: ""
 			)}
 		>
-			<div className="w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3 px-1.5 py-2">
+			<div className="shadow-md w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3 px-1.5 py-2">
 				<div className="flex items-center gap-1 px-2 pt-1">
 					<button
 						type="button"
@@ -216,7 +216,7 @@ function MobileSidebar({
 			>
 				<div
 					className={clsx(
-						"w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3",
+						"shadow-md w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3",
 						isStripCollapsed ? "px-1 py-2" : "px-1.5 py-2",
 					)}
 				>

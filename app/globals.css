@@ -9,7 +9,7 @@
   --breakpoint-2xl: 1536px;
 
   /* Layout */
-  --sidebar-desktop-width: calc(var(--spacing) * 72);
+  --sidebar-desktop-width: calc(var(--spacing) * 96);
   --sidebar-main-gap: calc(var(--spacing) * 4);       /* Tailwind gap-4 */
 
   --background-main: #F4F4F6;
@@ -69,8 +69,50 @@
   --default-transition-duration: 300ms;
 }
 
+/* Optional parent-variant helper (Tailwind v4): allows `same:` utilities via a `.same` parent. */
+@custom-variant same (&:where(.same &));
+
 body {
   background: var(--background-main);
   color: var(--text-main);
   font-family: var(--font-sans);
+}
+
+@layer base {
+  button {
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  /*
+    Debug backgrounds
+
+    Usage:
+      <div className="dev"> ... </div>
+      <div className="dev"><div className="dev"> ... </div></div>
+
+    - Cycles by nesting depth (mod 3): red -> blue -> green -> red ...
+    - If an ancestor has `.same`, alpha increases each level: /20, /30, /40, ...
+  */
+
+  /* Default: alpha fixed at /20 */
+  .dev { @apply bg-red-300/20; }
+  .dev .dev { @apply bg-blue-300/20; }
+  .dev .dev .dev { @apply bg-green-300/20; }
+  .dev .dev .dev .dev { @apply bg-red-300/20; }
+  .dev .dev .dev .dev .dev { @apply bg-blue-300/20; }
+  .dev .dev .dev .dev .dev .dev { @apply bg-green-300/20; }
+  .dev .dev .dev .dev .dev .dev .dev { @apply bg-red-300/20; }
+  .dev .dev .dev .dev .dev .dev .dev .dev { @apply bg-blue-300/20; }
+  .dev .dev .dev .dev .dev .dev .dev .dev .dev { @apply bg-green-300/20; }
+
+  /* same mode: alpha increases each nesting level (/20, /30, /40, ...) */
+  .same .dev { @apply bg-red-300/20; }
+  .same .dev .dev { @apply bg-blue-300/30; }
+  .same .dev .dev .dev { @apply bg-green-300/40; }
+  .same .dev .dev .dev .dev { @apply bg-red-300/50; }
+  .same .dev .dev .dev .dev .dev { @apply bg-blue-300/60; }
+  .same .dev .dev .dev .dev .dev .dev { @apply bg-green-300/70; }
+  .same .dev .dev .dev .dev .dev .dev .dev { @apply bg-red-300/80; }
 }
