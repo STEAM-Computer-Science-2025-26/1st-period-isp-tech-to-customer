@@ -9,6 +9,7 @@ export type SidebarItemParams = {
 
 export type SidebarParams =  {
 	autoCollapse?: boolean;
+	mobile?: boolean;
 	title?: string;
 	items?: SidebarItemParams[];
 }
