@@ -39,10 +39,10 @@ export default function Home() {
                         : "pl-6"
             )}
         >
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 max-w-xl">
             <Card
                 type="kpi"
-                title="Tickets Today"
+                title="Total Jobs Today"
                 subtitle="Support queue"
                 value="27"
                 trend={{ value: "+12%", tone: "success" }}
@@ -56,7 +56,6 @@ export default function Home() {
                 footer="Updated 2 minutes ago"
             />
 
-            {/* ========== KPI (using the KpiCard wrapper) ========== */}
             <KpiCard
                 title="Avg. Response Time"
                 subtitle="Last 7 days"
@@ -66,7 +65,6 @@ export default function Home() {
                 icon={<ArrowUpRight className="h-5 w-5 text-text-secondary" />}
             />
 
-            {/* ========== Data (using the generic Card) ========== */}
             <Card
                 type="data"
                 title="Weekly Volume"
@@ -82,13 +80,11 @@ export default function Home() {
                     </div>
                 }
             >
-                {/* Replace with your chart/table component */}
                 <div className="h-32 grid place-items-center text-xs text-text-secondary">
                     Chart/Table goes here
                 </div>
             </Card>
 
-            {/* ========== Data (using the DataCard wrapper) ========== */}
             <DataCard
                 title="Open Tickets Table"
                 subtitle="Top 5 by priority"
@@ -140,7 +136,6 @@ export default function Home() {
                 ]}
             />
 
-            {/* ========== List (using the ListCard wrapper; ordered + onClick actions) ========== */}
             <ListCard
                 title="Next Steps"
                 subtitle="Do these in order"
