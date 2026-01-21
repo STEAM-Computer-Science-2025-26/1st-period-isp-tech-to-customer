@@ -77,6 +77,8 @@ export default function LoginForm({ defaultMode = 'login' }: LoginFormProps = {}
 	const verificationRefs = useRef<Array<HTMLInputElement | null>>([]);
 	const registerSliderViewportRef = useRef<HTMLDivElement | null>(null);
 	const [registerPanelWidth, setRegisterPanelWidth] = useState<number>(0);
+	const registerPanelRefs = useRef<Array<HTMLDivElement | null>>([]);
+	const [registerViewportHeight, setRegisterViewportHeight] = useState<number>(0);
 	const [registerPassword, setRegisterPassword] = useState('');
 	const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
 	const [showRegisterPassword, setShowRegisterPassword] = useState(false);
@@ -336,14 +338,34 @@ export default function LoginForm({ defaultMode = 'login' }: LoginFormProps = {}
 		return () => ro.disconnect();
 	}, [mode]);
 
+	useLayoutEffect(() => {
+		if (mode !== 'register') {
+			setRegisterViewportHeight(0);
+			return;
+		}
+
+		const activePanel = registerPanelRefs.current[registerStep - 1] ?? null;
+		if (!activePanel) return;
+
+		const update = () => {
+			const height = Math.ceil(activePanel.getBoundingClientRect().height);
+			setRegisterViewportHeight(height);
+		};
+
+		update();
+		const ro = new ResizeObserver(() => update());
+		ro.observe(activePanel);
+		return () => ro.disconnect();
+	}, [mode, registerStep]);
+
 	return (
-		<div className="bg-background-primary rounded-3xl p-6 max-w-lg w-full min-h-96 shadow-md flex flex-col overflow-hidden">
-			<form className="w-full flex flex-col flex-1 items-center" onSubmit={onSubmit}>
+		<div className="bg-background-primary rounded-3xl p-6 max-w-lg w-full shadow-md flex flex-col">
+			<form className="w-full flex flex-col items-center" onSubmit={onSubmit}>
 				<h2 className="text-2xl font-semibold text-center w-full">
 					{isRegister ? 'Create an Account' : 'Login to Your Account'}
 				</h2>
 
-				<div className="flex-1 w-full flex flex-col justify-center items-center min-h-0">
+				<div className="w-full flex flex-col items-center mt-4">
 					{notice ? (
 						<p className="text-green-700 text-sm mb-4 text-center">{notice}</p>
 					) : null}
@@ -353,7 +375,11 @@ export default function LoginForm({ defaultMode = 'login' }: LoginFormProps = {}
 
 					{isRegister ? (
 						<div className="w-full max-w-96">
-							<div ref={registerSliderViewportRef} className="w-full overflow-hidden min-w-0">
+							<div
+								ref={registerSliderViewportRef}
+								className="w-full overflow-hidden min-w-0 transition-[height] duration-500 ease-in-out"
+								style={registerViewportHeight > 0 ? { height: `${registerViewportHeight}px` } : undefined}
+							>
 								<div
 									className="flex w-full transition-transform duration-500 ease-in-out"
 									style={
@@ -362,13 +388,23 @@ export default function LoginForm({ defaultMode = 'login' }: LoginFormProps = {}
 												width: `${registerPanelWidth * 3}px`,
 												transform: `translateX(-${(registerStep - 1) * registerPanelWidth}px)`,
 											}
-											: { transform: `translateX(-${(registerStep - 1) * 100}%)` }
+										: {
+											width: '300%',
+											transform: `translateX(-${(registerStep - 1) * (100 / 3)}%)`,
+										}
 									}
 								>
 									{/* Step 1: email */}
 									<div
+										ref={(el) => {
+											registerPanelRefs.current[0] = el;
+										}}
 										className="shrink-0 w-full"
-										style={registerPanelWidth > 0 ? { width: `${registerPanelWidth}px` } : { width: '100%' }}
+										style={
+											registerPanelWidth > 0
+												? { width: `${registerPanelWidth}px` }
+												: { width: `${100 / 3}%` }
+										}
 									>
 										<div className="mb-4 relative group w-full">
 											<input
@@ -399,8 +435,15 @@ export default function LoginForm({ defaultMode = 'login' }: LoginFormProps = {}
 
 									{/* Step 2: verify */}
 									<div
+										ref={(el) => {
+											registerPanelRefs.current[1] = el;
+										}}
 										className="shrink-0 w-full"
-										style={registerPanelWidth > 0 ? { width: `${registerPanelWidth}px` } : { width: '100%' }}
+										style={
+											registerPanelWidth > 0
+												? { width: `${registerPanelWidth}px` }
+												: { width: `${100 / 3}%` }
+										}
 									>
 										<div className="w-full flex flex-col items-center">
 											<p className="text-center font-medium mb-2">Check your inbox</p>
@@ -489,8 +532,15 @@ export default function LoginForm({ defaultMode = 'login' }: LoginFormProps = {}
 
 									{/* Step 3: create password */}
 									<div
+										ref={(el) => {
+											registerPanelRefs.current[2] = el;
+										}}
 										className="shrink-0 w-full"
-										style={registerPanelWidth > 0 ? { width: `${registerPanelWidth}px` } : { width: '100%' }}
+										style={
+											registerPanelWidth > 0
+												? { width: `${registerPanelWidth}px` }
+												: { width: `${100 / 3}%` }
+										}
 									>
 										<div className="w-full flex flex-col items-center">
 											<p className="text-center font-medium mb-2">Create a password</p>

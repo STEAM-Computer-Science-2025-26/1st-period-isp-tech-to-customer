@@ -11,7 +11,9 @@ import {
 	Headset,
 	History,
 	Home,
-	Pin,
+	PanelLeft,
+	PanelLeftClose,
+	PanelLeftOpen,
 	PinOff,
 	Settings,
 	User,
@@ -43,7 +45,7 @@ export default function Sidebar({
 			)}
 		>
 			<div className="w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3 px-1.5 py-2">
-				<div className="flex items-center gap-2 px-2 pt-1">
+				<div className="flex items-center gap-1 px-2 pt-1">
 					<button
 						type="button"
 						onClick={() => setIsAutoCollapse((v) => !v)}
@@ -51,10 +53,9 @@ export default function Sidebar({
 						aria-label="Toggle sidebar"
 						title={isAutoCollapse ? "Pin sidebar open" : "Enable auto-collapse"}
 					>
-						{isAutoCollapse ? <PinOff className="h-5 w-5" /> : <Pin className="h-5 w-5" />}
+						{isAutoCollapse ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
 					</button>
-					<div className="flex items-center gap-2 min-w-0">
-						<div className="h-2 w-2 rounded-full bg-text-main/70" aria-hidden="true" />
+					<div className="flex items-center min-w-0">
 						<h2 className="text-sm font-semibold tracking-wide opacity-90 truncate">{title}</h2>
 					</div>
 				</div>
@@ -85,8 +86,7 @@ function SidebarItem({ title, icon: Icon, onClick }: SidebarItemParams) {
 		<li
 			onClick={onClick}
 			className={clsx(
-				"grid col-span-2 grid-cols-subgrid w-full transition-colors duration-200 h-9 items-center rounded-md px-2",
-				onClick ? "cursor-pointer hover:bg-background-secondary/50" : "opacity-80"
+				"cursor-pointer hover:bg-background-secondary/50 grid col-span-2 grid-cols-subgrid w-full transition-colors duration-200 h-9 items-center rounded-md px-2",
 			)}
 		>
 			<div className="grid place-items-center">
@@ -100,9 +100,9 @@ function SidebarItem({ title, icon: Icon, onClick }: SidebarItemParams) {
 
 function AccountItem() {
 	return (
-		<div className="grid grid-cols-[2rem_1fr] gap-2 w-full h-10 items-center rounded-md px-2 hover:bg-background-secondary/50 transition-colors duration-200 cursor-pointer">
+		<div className="group grid grid-cols-[2rem_1fr] gap-2 w-full h-12 items-center rounded-md px-2 hover:bg-background-secondary/50 transition-colors duration-200 cursor-pointer">
 			<div className="grid place-items-center">
-				<div className="h-7 w-7 rounded-full bg-background-secondary/60 border border-background-secondary/80" />
+				<div className="h-7 w-7 rounded-full group-hover:bg-background-tertiary/50 bg-background-secondary/60 border group-hover:border-background-tertiary/70 ease duration-300 border-background-secondary/80" />
 			</div>
 			<div className="flex flex-col leading-tight">
 				<span className="text-sm font-medium">Account</span>
