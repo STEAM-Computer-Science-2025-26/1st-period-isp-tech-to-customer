@@ -19,15 +19,26 @@ import {
 	User,
 	Wrench,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useBreakpoints } from "@/lib/hooks/useBreakpoints";
+
+export type SidebarFlags = {
+	autoCollapse: boolean;
+	isStrip: boolean;
+};
 
 export default function Sidebar({
 	autoCollapse = true,
 	mobile,
 	title = "Tech to Customer",
 	items = [],
-}: SidebarParams = {}) {
+	onFlagsChange,
+}: SidebarParams & { onFlagsChange?: (flags: SidebarFlags) => void } = {}) {
 	const [isAutoCollapse, setIsAutoCollapse] = useState(autoCollapse);
+
+	useEffect(() => {
+		setIsAutoCollapse(autoCollapse);
+	}, [autoCollapse]);
 
 	const sidebarItems = useMemo(() => {
 		return items.map((item) => ({
@@ -36,11 +47,17 @@ export default function Sidebar({
 		}));
 	}, [items]);
 
-
+	const { mdUp } = useBreakpoints();
+	const activeVariant = mobile === true ? "mobile" : mobile === false ? "desktop" : mdUp ? "desktop" : "mobile";
 	const showMobile = mobile !== false;
 	const showDesktop = mobile !== true;
 	const mobileVisibilityClass = mobile === true ? "" : "md:hidden";
 	const desktopVisibilityClass = mobile === false ? "" : "hidden md:block";
+
+	useEffect(() => {
+		if (activeVariant !== "desktop") return;
+		onFlagsChange?.({ autoCollapse: isAutoCollapse, isStrip: false });
+	}, [activeVariant, isAutoCollapse, onFlagsChange]);
 
 	return (
 		<>
@@ -51,6 +68,8 @@ export default function Sidebar({
 					items={sidebarItems}
 					isAutoCollapse={isAutoCollapse}
 					setIsAutoCollapse={setIsAutoCollapse}
+					onFlagsChange={onFlagsChange}
+					isActive={activeVariant === "mobile"}
 				/>
 			) : null}
 
@@ -83,7 +102,7 @@ function DesktopSidebar({
 	return (
 		<aside
 			className={clsx(
-				"w-1/4 max-w-76 min-w-56 absolute inset-y-0 left-0 px-4 pr-8 py-4 pointer-events-auto",
+				"w-(--sidebar-desktop-width) fixed inset-y-0 left-0 px-4 pr-8 py-4 pointer-events-auto",
 				visibilityClass,
 				isAutoCollapse
 					? "pointer-events-auto -translate-x-[calc(100%-1rem)] hover:translate-x-0 transition-transform duration-300"
@@ -133,12 +152,16 @@ function MobileSidebar({
 	items,
 	isAutoCollapse,
 	setIsAutoCollapse,
+	onFlagsChange,
+	isActive,
 }: {
 	visibilityClass: string;
 	title: string;
 	items: Array<SidebarItemParams & { icon: LucideIcon }>;
 	isAutoCollapse: boolean;
 	setIsAutoCollapse: React.Dispatch<React.SetStateAction<boolean>>;
+	onFlagsChange?: (flags: SidebarFlags) => void;
+	isActive: boolean;
 }) {
 	const [isExpanded, setIsExpanded] = useState(false);
 
@@ -146,6 +169,11 @@ function MobileSidebar({
 	const isMobileDrawerMode = isAutoCollapse;
 	const showLabels = isExpanded;
 	const isStripCollapsed = isMobileStripMode && !isExpanded;
+
+	useEffect(() => {
+		if (!isActive) return;
+		onFlagsChange?.({ autoCollapse: isAutoCollapse, isStrip: isStripCollapsed });
+	}, [isActive, isAutoCollapse, isStripCollapsed, onFlagsChange]);
 
 	const toggleExpanded = () => setIsExpanded((v) => !v);
 	const toggleAutoCollapse = () => {

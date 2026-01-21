@@ -1,6 +1,17 @@
 @import "tailwindcss";
 
 :root {
+  /* Breakpoints (override these to customize responsive logic in JS hooks) */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  /* Layout */
+  --sidebar-desktop-width: calc(var(--spacing) * 72);
+  --sidebar-main-gap: calc(var(--spacing) * 4);       /* Tailwind gap-4 */
+
   --background-main: #F4F4F6;
   --background-primary: #ededed;
   --background-secondary: #C0C0C5;
