@@ -7,6 +7,7 @@ import { SidebarItemParams } from "@/app/types/types"
 import { Calendar, Headset, History, Home as HomeIcon, Settings, Wrench, BarChart3, ArrowUpRight, ChevronRight, TrendingUp } from "lucide-react";
 import { Card, KpiCard, DataCard, ListCard, TableCard } from "@/components/ui/Card";
 import { useBreakpoints } from "@/lib/hooks/useBreakpoints";
+import { BarChart } from "@/components/ui/Chart";
 
 const sidebarItems: SidebarItemParams[] = [
   { id: 1, title: "Home", icon: HomeIcon },
@@ -42,15 +43,20 @@ export default function Home() {
             className={clsx(
                 "bg-background-main text-text-main w-full min-h-screen py-8 transition-[padding] duration-300 absolute mb-6 px-6",
                 lgUp
-                    ? sidebarAutoCollapse
-                        ? "pl-6"
-                        : "pl-[calc(var(--sidebar-desktop-width)-var(--sidebar-main-gap))]"
-                    : sidebarIsStrip
-                        ? "pl-20"
-                        
-                        : "pl-6"
+                ? sidebarAutoCollapse
+                ? "pl-6"
+                : "pl-[calc(var(--sidebar-desktop-width)-var(--sidebar-main-gap))]"
+                : sidebarIsStrip
+                ? "pl-20"
+                
+                : "pl-6"
             )}
         >
+            <BarChart
+                yAxisLabel="Jobs"
+                Groups={['Mon', 'Tue', 'Wed', 'Thu', 'Fri']}
+                GroupsData={[5, 10, 7, 12, 8]}
+            />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 mx-auto">
             <Card
                 type="kpi"
