@@ -22,6 +22,7 @@
     "prettier": "^3.7.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "regression": "^2.0.1",
     "zod": "^4.3.5"
   },
   "devDependencies": {
@@ -31,6 +32,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/regression": "^2.0.6",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",

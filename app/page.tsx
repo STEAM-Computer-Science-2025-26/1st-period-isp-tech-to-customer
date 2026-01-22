@@ -7,7 +7,7 @@ import { SidebarItemParams } from "@/app/types/types"
 import { Calendar, Headset, History, Home as HomeIcon, Settings, Wrench, BarChart3, ArrowUpRight, ChevronRight, TrendingUp } from "lucide-react";
 import { Card, KpiCard, DataCard, ListCard, TableCard } from "@/components/ui/Card";
 import { useBreakpoints } from "@/lib/hooks/useBreakpoints";
-import { BarChart } from "@/components/ui/Chart";
+import { BarChart, LineGraph } from "@/components/ui/Chart";
 
 const sidebarItems: SidebarItemParams[] = [
   { id: 1, title: "Home", icon: HomeIcon },
@@ -56,6 +56,18 @@ export default function Home() {
                 yAxisLabel="Jobs"
                 Groups={['Mon', 'Tue', 'Wed', 'Thu', 'Fri']}
                 GroupsData={[5, 10, 7, 12, 8]}
+            />
+            <LineGraph
+                points={[
+                    { x: 0, y: 0 },
+                    { x: 1, y: 2 },
+                    { x: 2, y: 4 },
+                    { x: 3, y: 6 },
+                    { x: 4, y: 100 },
+                ]}
+                lineType="connect"
+                width={300}
+                height={150}
             />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 mx-auto">
             <Card
