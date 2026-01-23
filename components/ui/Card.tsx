@@ -3,6 +3,8 @@
 import clsx from "clsx";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type { BarChartProps, LineGraphProps } from "@/app/types/types";
+import { BarChart, LineGraph } from "@/components/ui/Chart";
 
 type CardTone = "neutral" | "success" | "info" | "warning" | "destructive";
 
@@ -13,6 +15,7 @@ type BaseCardProps = {
 	className?: string;
 	bodyClassName?: string;
 	footer?: ReactNode;
+	children?: ReactNode;
 };
 
 export type KpiCardProps = BaseCardProps & {
@@ -26,11 +29,25 @@ export type KpiCardProps = BaseCardProps & {
 	icon?: ReactNode;
 };
 
-export type DataCardProps = BaseCardProps & {
-	type: "data";
-	toolbar?: ReactNode;
-	children: ReactNode;
-};
+export type DataCardProps =
+	| (BaseCardProps & {
+			type: "data";
+			toolbar?: ReactNode;
+			dataType: "bar";
+			data: BarChartProps;
+	  })
+	| (BaseCardProps & {
+			type: "data";
+			toolbar?: ReactNode;
+			dataType: "line";
+			data: LineGraphProps;
+	  })
+	| (BaseCardProps & {
+			type: "data";
+			toolbar?: ReactNode;
+			dataType: "graph";
+			data: LineGraphProps;
+	  });
 
 export type TableColumn<Row extends Record<string, unknown> = Record<string, unknown>> = {
 	key: keyof Row & string;
@@ -66,7 +83,11 @@ export type ListCardProps = BaseCardProps & {
 	children?: ReactNode;
 };
 
-export type CardProps = KpiCardProps | DataCardProps | ListCardProps | TableCardProps<any>;
+export type CardProps =
+	| KpiCardProps
+	| DataCardProps
+	| ListCardProps
+	| TableCardProps<Record<string, unknown>>;
 
 export function Card(props: CardProps) {
 	const { title, subtitle, actions, className, bodyClassName, footer } = props;
@@ -105,7 +126,18 @@ export function KpiCard(props: Omit<KpiCardProps, "type">) {
 	return <Card {...props} type="kpi" />;
 }
 
-export function DataCard(props: Omit<DataCardProps, "type">) {
+type DataCardComponentProps =
+	| Omit<Extract<DataCardProps, { dataType: "bar" }>, "type">
+	| Omit<Extract<DataCardProps, { dataType: "line" }>, "type">
+	| Omit<Extract<DataCardProps, { dataType: "graph" }>, "type">;
+
+export function DataCard(props: DataCardComponentProps) {
+	if (props.dataType === "bar") {
+		return <Card {...props} type="data" />;
+	}
+	if (props.dataType === "line") {
+		return <Card {...props} type="data" />;
+	}
 	return <Card {...props} type="data" />;
 }
 
@@ -116,7 +148,7 @@ export function ListCard(props: Omit<ListCardProps, "type">) {
 export function TableCard<Row extends Record<string, unknown>>(
 	props: Omit<TableCardProps<Row>, "type">
 ) {
-	return <Card {...(props as TableCardProps<any>)} type="table" />;
+	return <Card {...(props as TableCardProps<Record<string, unknown>>)} type="table" />;
 }
 
 function KpiBody({ value, meta, trend, icon }: KpiCardProps) {
@@ -150,12 +182,29 @@ function KpiBody({ value, meta, trend, icon }: KpiCardProps) {
 	);
 }
 
-function DataBody({ toolbar, children }: DataCardProps) {
+function DataBody({ toolbar, children, dataType, data }: DataCardProps) {
+	if (children) {
+		return (
+			<div className="flex flex-col gap-3">
+				{toolbar ? <div className="flex items-center justify-between gap-2">{toolbar}</div> : null}
+				<div className="rounded-lg bg-background-primary/50 border border-background-secondary/50 p-3">
+					{children}
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="flex flex-col gap-3">
 			{toolbar ? <div className="flex items-center justify-between gap-2">{toolbar}</div> : null}
-			<div className="rounded-lg bg-background-primary/50 border border-background-secondary/50 p-3">
-				{children}
+			<div className="rounded-lg bg-background-primary/50 border border-background-secondary/50 p-1.5">
+				{dataType === "bar" ? (
+					<BarChart {...data} />
+				) : (
+					<div className="w-full min-h-56 aspect-video">
+						<LineGraph {...data} />
+					</div>
+				)}
 			</div>
 		</div>
 	);

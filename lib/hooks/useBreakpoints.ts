@@ -46,13 +46,6 @@ function readBreakpointsFromCss(): Partial<BreakpointMap> {
 	return result;
 }
 
-function buildMediaQuery(minPx?: number, maxPx?: number) {
-	const parts: string[] = [];
-	if (typeof minPx === "number") parts.push(`(min-width: ${minPx}px)`);
-	if (typeof maxPx === "number") parts.push(`(max-width: ${maxPx}px)`);
-	return parts.join(" and ");
-}
-
 export type UseBreakpointsResult = {
 	ready: boolean;
 	width: number;
@@ -93,21 +86,19 @@ export type UseBreakpointsResult = {
  * Falls back to Tailwind defaults if not present.
  */
 export function useBreakpoints(): UseBreakpointsResult {
-	const [ready, setReady] = useState(false);
-	const [width, setWidth] = useState(0);
-	const [breakpoints, setBreakpoints] = useState<BreakpointMap>(TAILWIND_DEFAULT_BREAKPOINTS_PX);
+	const isClient = typeof window !== "undefined";
+	const [ready] = useState(isClient);
+	const [width, setWidth] = useState(() => (isClient ? window.innerWidth : 0));
+	const [breakpoints] = useState<BreakpointMap>(() => ({
+		...TAILWIND_DEFAULT_BREAKPOINTS_PX,
+		...readBreakpointsFromCss(),
+	}));
 
 	useEffect(() => {
-		setBreakpoints({
-			...TAILWIND_DEFAULT_BREAKPOINTS_PX,
-			...readBreakpointsFromCss(),
-		});
-
-		const update = () => setWidth(window.innerWidth);
-		update();
-		setReady(true);
+		if (!isClient) return;
 
 		let raf = 0;
+		const update = () => setWidth(window.innerWidth);
 		const onResize = () => {
 			cancelAnimationFrame(raf);
 			raf = requestAnimationFrame(update);
@@ -118,7 +109,7 @@ export function useBreakpoints(): UseBreakpointsResult {
 			cancelAnimationFrame(raf);
 			window.removeEventListener("resize", onResize);
 		};
-	}, []);
+	}, [isClient]);
 
 	return useMemo(() => {
 		const up = (bp: BreakpointKey) => width >= breakpoints[bp];
