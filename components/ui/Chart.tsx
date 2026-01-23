@@ -432,8 +432,8 @@ export function LineGraph({
 			className="w-full h-full py-2"
 			style={{
 				minHeight: minH,
-				width: typeof width === "number" ? width : "100%",
-				height: typeof height === "number" ? height : "100%",
+				width: "100%",
+				height: "100%",
 			}}
 		>
 			<div
