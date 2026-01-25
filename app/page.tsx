@@ -7,6 +7,7 @@ import { SidebarItemParams, Point } from "@/app/types/types"
 import { Calendar, Headset, History, Home as HomeIcon, Settings, Wrench, BarChart3, ArrowUpRight, ChevronRight, TrendingUp } from "lucide-react";
 import { Card, KpiCard, DataCard, ListCard, TableCard } from "@/components/ui/Card";
 import { useBreakpoints } from "@/lib/hooks/useBreakpoints";
+import Header from "@/components/layout/Header";
 
 const lineData: Point[] = [
   { x: 0, y: 42 }, { x: 1, y: 44 }, { x: 2, y: 43 }, { x: 3, y: 45 },
@@ -77,9 +78,10 @@ export default function Home() {
 
   return (
     <>
+        <Header sidebarAutoCollapse={sidebarAutoCollapse} sidebarIsStrip={sidebarIsStrip} />
         <main
             className={clsx(
-                "bg-background-main text-text-main w-full min-h-screen py-8 transition-[padding] duration-300 absolute mb-6 px-6",
+                "bg-background-main text-text-main w-full min-h-screen py-4 pt-24 transition-[padding] duration-300 absolute mb-6 px-6",
                 lgUp
                 ? sidebarAutoCollapse
                 ? "pl-6"

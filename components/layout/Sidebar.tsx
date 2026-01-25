@@ -102,7 +102,7 @@ function DesktopSidebar({
 	return (
 		<aside
 			className={clsx(
-				"w-(--sidebar-desktop-width) fixed inset-y-0 left-0 px-4 pr-8 py-4 pointer-events-auto",
+				"z-50 w-(--sidebar-desktop-width) fixed inset-y-0 left-0 px-4 pr-8 py-4 pointer-events-auto",
 				visibilityClass,
 				isAutoCollapse
 					? "pointer-events-auto -translate-x-[calc(100%-1rem)] hover:translate-x-0 transition-transform duration-300"
@@ -188,7 +188,7 @@ function MobileSidebar({
 					type="button"
 					onClick={toggleExpanded}
 					className={clsx(
-						"fixed top-5 left-4 z-50 h-8 w-8 grid place-items-center rounded-md backdrop-blur-md border cursor-pointer transition-colors duration-200",
+						"fixed top-5 z-50 left-4 h-8 w-8 grid place-items-center rounded-md backdrop-blur-md border cursor-pointer transition-colors duration-200",
 						visibilityClass,
 						isExpanded ? "bg-transparent border-transparent hover:bg-background-secondary/50" : "bg-background-secondary/70 border-background-secondary/70 hover:bg-background-secondary"
 					)}
@@ -201,7 +201,7 @@ function MobileSidebar({
 
 			<aside
 				className={clsx(
-					"inset-y-0 left-0 pointer-events-auto z-40 fixed ease duration-300",
+					"inset-y-0 left-0 pointer-events-auto z-50 fixed ease duration-300",
 					visibilityClass,
 					isStripCollapsed
 						? "w-16 p-2"

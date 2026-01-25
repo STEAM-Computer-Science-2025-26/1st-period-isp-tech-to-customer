@@ -87,8 +87,12 @@ export type UseBreakpointsResult = {
  */
 export function useBreakpoints(): UseBreakpointsResult {
 	const isClient = typeof window !== "undefined";
-	const [ready] = useState(isClient);
-	const [width, setWidth] = useState(() => (isClient ? window.innerWidth : 0));
+	// IMPORTANT: keep the initial render identical between SSR and client hydration.
+	// If we read `window.innerWidth` during the first client render, the computed
+	// breakpoint booleans (and any className branches) can differ from SSR output,
+	// causing React hydration warnings.
+	const [ready, setReady] = useState(false);
+	const [width, setWidth] = useState(0);
 	const [breakpoints] = useState<BreakpointMap>(() => ({
 		...TAILWIND_DEFAULT_BREAKPOINTS_PX,
 		...readBreakpointsFromCss(),
@@ -96,6 +100,9 @@ export function useBreakpoints(): UseBreakpointsResult {
 
 	useEffect(() => {
 		if (!isClient) return;
+
+		setReady(true);
+		setWidth(window.innerWidth);
 
 		let raf = 0;
 		const update = () => setWidth(window.innerWidth);

@@ -82,6 +82,9 @@ body {
   button {
     cursor: pointer;
   }
+  a {
+    cursor: pointer;
+  }
 }
 
 @layer utilities {
