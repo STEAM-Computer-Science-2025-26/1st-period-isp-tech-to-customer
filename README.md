@@ -1,6 +1,6 @@
 # Tech to Customer – ISP Project
 
-Tech to Customer is a comprehensive HVAC management system that connects customers with HVAC suppliers and handles job assignment to employees. An all-in-one solution for managers, administration, and employees with statistics, charts, and multi-branch support.
+Tech to Customer is a HVAC management system that connects customers with HVAC suppliers and handles job assignment to employees. An all-in-one solution for managers, administration, and employees with statistics, charts, and multi-branch support. Basically, its a web service we're selling to air conditioning companies to help them manage jobs, their employees, statistics, and many other things.
 
 ## Overview
 
@@ -8,13 +8,14 @@ This project provides:
 
 - Customer-to-technician job assignment
 - Admin dashboard with analytics
-- Employee management across multiple branches
+- Employee management
 - Real-time job tracking and status updates
 - Role-based access control (Company Owner, Admin, Employee)
+- Custom routing and ETA according to gas prices, mileage, and other factors
 
 ## Tech Stack
 
-This is a [Next.js 16](https://nextjs.org) project that combines React frontend and Node.js backend in one codebase for full-stack development with our team.
+This is a [Next.js 16](https://nextjs.org) project that combines React for the frontend and Node.js for the backend in one codebase to allow everyone in our team to work together.
 
 **Dependencies:**
 
@@ -137,11 +138,11 @@ Run the development server:
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the application.
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
 The app will auto-reload when you edit files.
 
-### Build for Production
+### Build for Production (for actual official publishing)
 
 ```bash
 npm run build
@@ -153,6 +154,7 @@ npm start
 ```bash
 npm run lint
 ```
+This checks for errors, shows a custom message if no errors are found, and also runs a Prettier check to make sure your code is formatted 
 
 ## User Roles
 
@@ -162,12 +164,12 @@ npm run lint
 
 ## Key Features
 
-- Role-based authentication
+- Role-based auth
 - Real-time job assignment
 - Employee availability tracking
-- Distance-based tech matching
+- Distance/price-based tech matching
 - Job status workflow (unassigned → assigned → in_progress → completed)
-- Multi-branch support
+- Multi-branch support (If companies have more than one location)
 - TypeScript type safety across frontend/backend
 
 ## API Routes
@@ -199,4 +201,4 @@ All API routes are in `app/api/`:
 
 ## License
 
-Computer Science II ISP Project by Nathan, Tanay, and Brendan.
+Computer Science II ISP Project by Nathan Barcroft, Tanay Shah, and Brendan Hancock.
