@@ -1,7 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { query } from "@/db";
 
-
 /** Register the GET /jobs endpoint (runs when a client requests GET /jobs). */
 export function lisJobs(fastify: FastifyInstance) {
 	fastify.get("/jobs", async () => {
