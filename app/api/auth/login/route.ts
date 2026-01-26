@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'; // Import Next.js server utility types
-import { queryOne } from '@/server/db/connection'; // Import database connection utilities
+import { queryOne } from '@/backend/server/db/connection'; // Import database connection utilities
 import { LoginInput, LoginSuccess, UserDTO } from '@/lib/types/userTypes'; // Import user-related types
 import { getPublicError } from '@/lib/publicErrors'; // Import function to get public error messages
 

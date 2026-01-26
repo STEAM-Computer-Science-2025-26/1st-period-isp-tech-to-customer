@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSql, queryOne, toCamelCase } from '@/server/db/connection';
+import { getSql, queryOne, toCamelCase } from '@/backend/server/db/connection';
 import { AssignTechInput, AssignTechSuccess, JobDTO } from '@/lib/types/jobTypes';
 import { getPublicError } from '@/lib/publicErrors';
 
