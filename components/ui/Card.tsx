@@ -49,7 +49,9 @@ export type DataCardProps =
 			data: LineGraphProps;
 	  });
 
-export type TableColumn<Row extends Record<string, unknown> = Record<string, unknown>> = {
+export type TableColumn<
+	Row extends Record<string, unknown> = Record<string, unknown>
+> = {
 	key: keyof Row & string;
 	header: ReactNode;
 	align?: "left" | "center" | "right";
@@ -58,7 +60,9 @@ export type TableColumn<Row extends Record<string, unknown> = Record<string, unk
 	cell?: (row: Row, rowIndex: number) => ReactNode;
 };
 
-export type TableCardProps<Row extends Record<string, unknown> = Record<string, unknown>> = BaseCardProps & {
+export type TableCardProps<
+	Row extends Record<string, unknown> = Record<string, unknown>
+> = BaseCardProps & {
 	type: "table";
 	toolbar?: ReactNode;
 	columns: TableColumn<Row>[];
@@ -102,8 +106,12 @@ export function Card(props: CardProps) {
 		>
 			<header className="flex items-start justify-between gap-3 px-4 pt-4">
 				<div className="min-w-0">
-					<h3 className="text-sm font-semibold tracking-wide text-text-main truncate">{title}</h3>
-					{subtitle ? <p className="text-xs text-text-secondary mt-0.5">{subtitle}</p> : null}
+					<h3 className="text-sm font-semibold tracking-wide text-text-main truncate">
+						{title}
+					</h3>
+					{subtitle ? (
+						<p className="text-xs text-text-secondary mt-0.5">{subtitle}</p>
+					) : null}
 				</div>
 				{actions ? <div className="shrink-0">{actions}</div> : null}
 			</header>
@@ -116,7 +124,9 @@ export function Card(props: CardProps) {
 			</div>
 
 			{footer ? (
-				<footer className="px-4 pb-4 pt-0 text-xs text-text-secondary">{footer}</footer>
+				<footer className="px-4 pb-4 pt-0 text-xs text-text-secondary">
+					{footer}
+				</footer>
 			) : null}
 		</section>
 	);
@@ -148,22 +158,27 @@ export function ListCard(props: Omit<ListCardProps, "type">) {
 export function TableCard<Row extends Record<string, unknown>>(
 	props: Omit<TableCardProps<Row>, "type">
 ) {
-	return <Card {...(props as TableCardProps<Record<string, unknown>>)} type="table" />;
+	return (
+		<Card
+			{...(props as TableCardProps<Record<string, unknown>>)}
+			type="table"
+		/>
+	);
 }
 
 function KpiBody({ value, meta, trend, icon }: KpiCardProps) {
 	return (
 		<div className="flex items-start gap-3">
 			<div className="min-w-0">
-			<div className="flex flex-row items-center">
-				<div className="text-3xl font-semibold leading-none text-text-main">{value}</div>
-				{icon ? (
-				<div className="shrink-0 p-1.5 h-full aspect-square">
-					{icon}
+				<div className="flex flex-row items-center">
+					<div className="text-3xl font-semibold leading-none text-text-main">
+						{value}
+					</div>
+					{icon ? (
+						<div className="shrink-0 p-1.5 h-full aspect-square">{icon}</div>
+					) : null}
 				</div>
-			) : null}
-			</div>
-			
+
 				<div className="mt-2 flex items-center gap-2">
 					{trend ? (
 						<span
@@ -175,7 +190,9 @@ function KpiBody({ value, meta, trend, icon }: KpiCardProps) {
 							{trend.value}
 						</span>
 					) : null}
-					{meta ? <span className="text-xs text-text-secondary">{meta}</span> : null}
+					{meta ? (
+						<span className="text-xs text-text-secondary">{meta}</span>
+					) : null}
 				</div>
 			</div>
 		</div>
@@ -186,7 +203,11 @@ function DataBody({ toolbar, children, dataType, data }: DataCardProps) {
 	if (children) {
 		return (
 			<div className="flex flex-col gap-3">
-				{toolbar ? <div className="flex items-center justify-between gap-2">{toolbar}</div> : null}
+				{toolbar ? (
+					<div className="flex items-center justify-between gap-2">
+						{toolbar}
+					</div>
+				) : null}
 				<div className="rounded-lg bg-background-primary/50 border border-background-secondary/50 p-3">
 					{children}
 				</div>
@@ -196,7 +217,9 @@ function DataBody({ toolbar, children, dataType, data }: DataCardProps) {
 
 	return (
 		<div className="flex flex-col gap-3">
-			{toolbar ? <div className="flex items-center justify-between gap-2">{toolbar}</div> : null}
+			{toolbar ? (
+				<div className="flex items-center justify-between gap-2">{toolbar}</div>
+			) : null}
 			<div className="rounded-lg bg-background-primary/50 border border-background-secondary/50 p-1.5">
 				{dataType === "bar" ? (
 					<BarChart {...data} />
@@ -215,17 +238,19 @@ function TableBody<Row extends Record<string, unknown>>({
 	columns,
 	rows,
 	getRowKey,
-	emptyState,
+	emptyState
 }: TableCardProps<Row>) {
 	return (
 		<div className="flex flex-col gap-3">
-			{toolbar ? <div className="flex items-center justify-between gap-2">{toolbar}</div> : null}
+			{toolbar ? (
+				<div className="flex items-center justify-between gap-2">{toolbar}</div>
+			) : null}
 			<div className="rounded-lg bg-background-primary/50 border border-background-secondary/50">
 				<div className="overflow-x-auto">
 					<table className="w-full text-sm">
 						<thead className="text-text-secondary">
 							<tr>
-								{columns.map(col => (
+								{columns.map((col) => (
 									<th
 										key={col.key}
 										className={clsx(
@@ -259,7 +284,7 @@ function TableBody<Row extends Record<string, unknown>>({
 										key={getRowKey ? getRowKey(row, rowIndex) : rowIndex}
 										className="border-t border-background-secondary/50"
 									>
-										{columns.map(col => (
+										{columns.map((col) => (
 											<td
 												key={col.key}
 												className={clsx(
@@ -272,7 +297,9 @@ function TableBody<Row extends Record<string, unknown>>({
 													col.className
 												)}
 											>
-												{col.cell ? col.cell(row, rowIndex) : (row[col.key] as ReactNode)}
+												{col.cell
+													? col.cell(row, rowIndex)
+													: (row[col.key] as ReactNode)}
 											</td>
 										))}
 									</tr>
@@ -292,7 +319,11 @@ function ListBody({ items, ordered = false, children }: ListCardProps) {
 	const ListTag = ordered ? "ol" : "ul";
 
 	return (
-		<ListTag className={clsx("flex flex-col gap-1", ordered ? "list-decimal pl-4" : "list-none")}
+		<ListTag
+			className={clsx(
+				"flex flex-col gap-1",
+				ordered ? "list-decimal pl-4" : "list-none"
+			)}
 		>
 			{(items ?? []).map((item, index) => {
 				const key = item.id ?? index;
@@ -306,12 +337,18 @@ function ListBody({ items, ordered = false, children }: ListCardProps) {
 						)}
 					>
 						<div className="min-w-0">
-							<div className="text-sm text-text-main truncate">{item.label}</div>
+							<div className="text-sm text-text-main truncate">
+								{item.label}
+							</div>
 							{item.description ? (
-								<div className="text-xs text-text-secondary mt-0.5">{item.description}</div>
+								<div className="text-xs text-text-secondary mt-0.5">
+									{item.description}
+								</div>
 							) : null}
 						</div>
-						{item.right ? <div className="shrink-0 text-text-tertiary">{item.right}</div> : null}
+						{item.right ? (
+							<div className="shrink-0 text-text-tertiary">{item.right}</div>
+						) : null}
 					</div>
 				);
 
@@ -352,4 +389,3 @@ function toneChipClasses(tone: CardTone) {
 			return "bg-background-primary/50 text-text-secondary border border-background-secondary/60";
 	}
 }
-

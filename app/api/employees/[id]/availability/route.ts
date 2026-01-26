@@ -1,26 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSql, toCamelCase } from '@/backend/server/db/connection';
-import { EmployeeDataType, UpdateEmployeeAvailabilityInput, UpdateEmployeeAvailabilitySuccess } from '@/lib/types/employeeTypes';
-import { getPublicError } from '@/lib/publicErrors';
+import { NextRequest, NextResponse } from "next/server";
+import { getSql, toCamelCase } from "@/db/connection";
+import {
+	EmployeeDataType,
+	UpdateEmployeeAvailabilityInput,
+	UpdateEmployeeAvailabilitySuccess
+} from "@/types/employeeTypes";
+import { getPublicError } from "@/services/publicErrors";
 
 // Update employee availability
 export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+	request: NextRequest,
+	context: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const sql = getSql();
-    const { id } = await context.params;
-    const body: UpdateEmployeeAvailabilityInput = await request.json();
+	try {
+		const sql = getSql();
+		const { id } = await context.params;
+		const body: UpdateEmployeeAvailabilityInput = await request.json();
 
-    if (typeof body.isAvailable !== 'boolean') {
-      return NextResponse.json(
-        getPublicError('MISSING_REQUIRED_FIELD'),
-        { status: 400 }
-      );
-    }
+		if (typeof body.isAvailable !== "boolean") {
+			return NextResponse.json(getPublicError("MISSING_REQUIRED_FIELD"), {
+				status: 400
+			});
+		}
 
-    const updatedRows = await sql`
+		const updatedRows = await sql`
       UPDATE employees
       SET 
         is_available = ${body.isAvailable},
@@ -48,21 +51,20 @@ export async function PATCH(
         created_at
     `;
 
-    if (updatedRows.length === 0) {
-      return NextResponse.json(
-        getPublicError('NOT_FOUND'),
-        { status: 404 }
-      );
-    }
+		if (updatedRows.length === 0) {
+			return NextResponse.json(getPublicError("NOT_FOUND"), { status: 404 });
+		}
 
-    const employee = toCamelCase<EmployeeDataType>(updatedRows[0] as Record<string, unknown>);
-    const response: UpdateEmployeeAvailabilitySuccess = { success: true, profile: employee };
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('Update availability error:', error);
-    return NextResponse.json(
-      getPublicError('SERVER_ERROR'),
-      { status: 500 }
-    );
-  }
+		const employee = toCamelCase<EmployeeDataType>(
+			updatedRows[0] as Record<string, unknown>
+		);
+		const response: UpdateEmployeeAvailabilitySuccess = {
+			success: true,
+			profile: employee
+		};
+		return NextResponse.json(response);
+	} catch (error) {
+		console.error("Update availability error:", error);
+		return NextResponse.json(getPublicError("SERVER_ERROR"), { status: 500 });
+	}
 }

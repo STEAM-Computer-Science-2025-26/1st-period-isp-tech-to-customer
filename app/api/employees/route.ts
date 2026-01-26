@@ -1,23 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { queryAll } from '@/backend/server/db/connection';
-import { EmployeeDataType } from '@/lib/types/employeeTypes';
-import { getPublicError } from '@/lib/publicErrors';
+import { NextRequest, NextResponse } from "next/server";
+import { queryAll } from "@/db/connection";
+import { EmployeeDataType } from "@/types/employeeTypes";
+import { getPublicError } from "@/services/publicErrors";
 
 // List all employees
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const companyId = searchParams.get('companyId');
+	try {
+		const { searchParams } = new URL(request.url);
+		const companyId = searchParams.get("companyId");
 
-    const employees = companyId
-	/* 
+		const employees = companyId
+			? /* 
   	Code Review said this:
     	The type assertion as never[] bypasses TypeScript's type checking in an unsafe way. Consider
     	using a more specific type or restructuring the function signature to properly handle
     	the parameter spread.
   	*/
- // TODO: Refactor to avoid unsafe type assertion
-      ? await queryAll<EmployeeDataType>`
+				// TODO: Refactor to avoid unsafe type assertion
+				await queryAll<EmployeeDataType>`
           SELECT
             id,
             user_id,
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
           WHERE company_id = ${companyId}
           ORDER BY created_at DESC
         `
-      : await queryAll<EmployeeDataType>`
+			: await queryAll<EmployeeDataType>`
           SELECT
             id,
             user_id,
@@ -67,12 +67,9 @@ export async function GET(request: NextRequest) {
           ORDER BY created_at DESC
         `;
 
-    return NextResponse.json(employees);
-  } catch (error) {
-    console.error('Get employees error:', error);
-    return NextResponse.json(
-      getPublicError('SERVER_ERROR'),
-      { status: 500 }
-    );
-  }
+		return NextResponse.json(employees);
+	} catch (error) {
+		console.error("Get employees error:", error);
+		return NextResponse.json(getPublicError("SERVER_ERROR"), { status: 500 });
+	}
 }

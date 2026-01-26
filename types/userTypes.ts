@@ -19,58 +19,57 @@ Types:
 
 export type UserRole = "admin" | "tech";
 
-
-import { PaginationInput, PaginationOutput } from './commonTypes';
+import { PaginationInput, PaginationOutput } from "./commonTypes";
 
 /**
  * Canonical user shape exposed via API
  * (never includes secrets)
  */
 export type UserDTO = {
-  id: string;
-  email: string;
-  role: UserRole;
-  companyId: string;
-  createdAt: string; // ISO date string
-  updatedAt?: string; // ISO date string, optional
+	id: string;
+	email: string;
+	role: UserRole;
+	companyId: string;
+	createdAt: string; // ISO date string
+	updatedAt?: string; // ISO date string, optional
 };
 
 /**
  * Create user
  */
 export type CreateUserInput = {
-  email: string;
-  password: string;
-  role: UserRole;
-  companyId: string;
+	email: string;
+	password: string;
+	role: UserRole;
+	companyId: string;
 };
 
 export type CreateUserSuccess = {
-  userId: string;
+	userId: string;
 };
 
 /**
  * Login
  */
 export type LoginInput = {
-  email: string;
-  password: string;
+	email: string;
+	password: string;
 };
 
 export type LoginSuccess = {
-  token: string;
-  user: UserDTO;
+	token: string;
+	user: UserDTO;
 };
 
 /**
  * Get user
  */
 export type GetUserInput = {
-  userId: string;
+	userId: string;
 };
 
 export type GetUserSuccess = {
-  user: UserDTO;
+	user: UserDTO;
 };
 /*
 CRUD ops for users
@@ -83,24 +82,24 @@ all fields optional bc we only update whats given to us
 
 // Update user, updates name, role, email, password, and provides a success message
 export type UpdateUserInput = {
-  userId: string;
-  email?: string;
-  password?: string;
-  role?: UserRole;
+	userId: string;
+	email?: string;
+	password?: string;
+	role?: UserRole;
 };
 export type UpdateUserSuccess = {
-  userId: string;
-  message: string;
+	userId: string;
+	message: string;
 };
 
 // Delete user, provides a success message, not optional, user must need a id before deleting
 export type DeleteUserInput = {
-  userId: string;
+	userId: string;
 };
 
 export type DeleteUserSuccess = {
-  userId: string;
-  message: string;
+	userId: string;
+	message: string;
 };
 
 // lists users, provides an array of users
@@ -109,9 +108,9 @@ CompanyID: Required
 Role, limit (number of people to return), offset (takes out first n results): Optional
 
 */
-export type ListUsersInput = PaginationInput<'createdAt' | 'updatedAt'> & {
-  companyId: string;
-  role?: UserRole;
+export type ListUsersInput = PaginationInput<"createdAt" | "updatedAt"> & {
+	companyId: string;
+	role?: UserRole;
 };
 
 export type ListUsersSuccess = PaginationOutput<UserDTO>;

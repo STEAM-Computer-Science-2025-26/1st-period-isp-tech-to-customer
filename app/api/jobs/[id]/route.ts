@@ -1,16 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { queryOne } from '@/backend/server/db/connection';
-import { JobDTO } from '@/lib/types/jobTypes';
-import { getPublicError } from '@/lib/publicErrors';
+import { NextRequest, NextResponse } from "next/server";
+import { queryOne } from "@/db/connection";
+import { JobDTO } from "@/types/jobTypes";
+import { getPublicError } from "@/services/publicErrors";
 
 // Get single job
 export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+	request: NextRequest,
+	context: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await context.params;
-    const job = await queryOne<JobDTO>`
+	try {
+		const { id } = await context.params;
+		const job = await queryOne<JobDTO>`
       SELECT
         id,
         company_id,
@@ -30,19 +30,13 @@ export async function GET(
       WHERE id = ${id}
     `;
 
-    if (!job) {
-      return NextResponse.json(
-        getPublicError('NOT_FOUND'),
-        { status: 404 }
-      );
-    }
+		if (!job) {
+			return NextResponse.json(getPublicError("NOT_FOUND"), { status: 404 });
+		}
 
-    return NextResponse.json(job);
-  } catch (error) {
-    console.error('Get job error:', error);
-    return NextResponse.json(
-      getPublicError('SERVER_ERROR'),
-      { status: 500 }
-    );
-  }
+		return NextResponse.json(job);
+	} catch (error) {
+		console.error("Get job error:", error);
+		return NextResponse.json(getPublicError("SERVER_ERROR"), { status: 500 });
+	}
 }

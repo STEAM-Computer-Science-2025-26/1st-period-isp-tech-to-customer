@@ -1,50 +1,56 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSql, toCamelCase, queryOne } from '@/backend/server/db/connection';
-import { AvailableTechDataType, GetAvailableTechsSuccess } from '@/lib/types/employeeTypes';
-import { getPublicError } from '@/lib/publicErrors';
+import { NextRequest, NextResponse } from "next/server";
+import { getSql, toCamelCase, queryOne } from "@/db/connection";
+import {
+	AvailableTechDataType,
+	GetAvailableTechsSuccess
+} from "@/types/employeeTypes";
+import { getPublicError } from "@/services/publicErrors";
 
 // Get available techs for a job
 export async function GET(request: NextRequest) {
-  try {
-    const sql = getSql();
-    const { searchParams } = new URL(request.url);
-    const jobId = searchParams.get('jobId');
-    const companyId = searchParams.get('companyId');
+	try {
+		const sql = getSql();
+		const { searchParams } = new URL(request.url);
+		const jobId = searchParams.get("jobId");
+		const companyId = searchParams.get("companyId");
 
-    if (!jobId && !companyId) {
-      return NextResponse.json(
-        { message: 'Either jobId or companyId is required', code: 'MISSING_REQUIRED_FIELD' },
-        { status: 400 }
-      );
-    }
+		if (!jobId && !companyId) {
+			return NextResponse.json(
+				{
+					message: "Either jobId or companyId is required",
+					code: "MISSING_REQUIRED_FIELD"
+				},
+				{ status: 400 }
+			);
+		}
 
-    let job: { companyId: string } | null = null;
-    if (jobId) {
-      job = await queryOne<{ companyId: string }>`
+		let job: { companyId: string } | null = null;
+		if (jobId) {
+			job = await queryOne<{ companyId: string }>`
         SELECT
           company_id
         FROM jobs
         WHERE id = ${jobId}
       `;
 
-      if (!job) {
-        return NextResponse.json(
-          getPublicError('NOT_FOUND'),
-          { status: 404 }
-        );
-      }
-    }
+			if (!job) {
+				return NextResponse.json(getPublicError("NOT_FOUND"), { status: 404 });
+			}
+		}
 
-    const targetCompanyId = job?.companyId || companyId;
+		const targetCompanyId = job?.companyId || companyId;
 
-    if (!targetCompanyId) {
-      return NextResponse.json(
-        { message: 'companyId could not be determined', code: 'MISSING_REQUIRED_FIELD' },
-        { status: 400 }
-      );
-    }
+		if (!targetCompanyId) {
+			return NextResponse.json(
+				{
+					message: "companyId could not be determined",
+					code: "MISSING_REQUIRED_FIELD"
+				},
+				{ status: 400 }
+			);
+		}
 
-    const rows = await sql`
+		const rows = await sql`
       SELECT
         e.id,
         e.user_id,
@@ -78,17 +84,14 @@ export async function GET(request: NextRequest) {
       ORDER BY e.rating DESC
     `;
 
-    const techs: AvailableTechDataType[] = (rows as Array<Record<string, unknown>>).map((row) =>
-      toCamelCase<AvailableTechDataType>(row)
-    );
+		const techs: AvailableTechDataType[] = (
+			rows as Array<Record<string, unknown>>
+		).map((row) => toCamelCase<AvailableTechDataType>(row));
 
-    const response: GetAvailableTechsSuccess = { techs };
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('Get available employees error:', error);
-    return NextResponse.json(
-      getPublicError('SERVER_ERROR'),
-      { status: 500 }
-    );
-  }
+		const response: GetAvailableTechsSuccess = { techs };
+		return NextResponse.json(response);
+	} catch (error) {
+		console.error("Get available employees error:", error);
+		return NextResponse.json(getPublicError("SERVER_ERROR"), { status: 500 });
+	}
 }

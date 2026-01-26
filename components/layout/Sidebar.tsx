@@ -4,7 +4,6 @@ import { SidebarItemParams, SidebarParams } from "@/app/types/types";
 import clsx from "clsx";
 import type { LucideIcon } from "lucide-react";
 
-
 import {
 	BarChart3,
 	Calendar,
@@ -17,10 +16,10 @@ import {
 	PanelLeftOpen,
 	Settings,
 	User,
-	Wrench,
+	Wrench
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useBreakpoints } from "@/lib/hooks/useBreakpoints";
+import { useBreakpoints } from "@/app/hooks/useBreakpoints";
 
 export type SidebarFlags = {
 	autoCollapse: boolean;
@@ -32,7 +31,7 @@ export default function Sidebar({
 	mobile,
 	title = "Tech to Customer",
 	items = [],
-	onFlagsChange,
+	onFlagsChange
 }: SidebarParams & { onFlagsChange?: (flags: SidebarFlags) => void } = {}) {
 	const [isAutoCollapse, setIsAutoCollapse] = useState(autoCollapse);
 
@@ -43,12 +42,19 @@ export default function Sidebar({
 	const sidebarItems = useMemo(() => {
 		return items.map((item) => ({
 			...item,
-			icon: resolveIcon(item.icon),
+			icon: resolveIcon(item.icon)
 		}));
 	}, [items]);
 
 	const { lgUp } = useBreakpoints();
-	const activeVariant = mobile === true ? "mobile" : mobile === false ? "desktop" : lgUp ? "desktop" : "mobile";
+	const activeVariant =
+		mobile === true
+			? "mobile"
+			: mobile === false
+				? "desktop"
+				: lgUp
+					? "desktop"
+					: "mobile";
 	const showMobile = mobile !== false;
 	const showDesktop = mobile !== true;
 	const mobileVisibilityClass = mobile === true ? "" : "lg:hidden";
@@ -91,7 +97,7 @@ function DesktopSidebar({
 	title,
 	items,
 	isAutoCollapse,
-	setIsAutoCollapse,
+	setIsAutoCollapse
 }: {
 	visibilityClass: string;
 	title: string;
@@ -118,10 +124,16 @@ function DesktopSidebar({
 						aria-label="Toggle sidebar"
 						title={isAutoCollapse ? "Pin sidebar open" : "Enable auto-collapse"}
 					>
-						{isAutoCollapse ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
+						{isAutoCollapse ? (
+							<PanelLeftOpen className="h-5 w-5" />
+						) : (
+							<PanelLeft className="h-5 w-5" />
+						)}
 					</button>
 					<div className="flex items-center min-w-0">
-						<h2 className="text-sm font-semibold tracking-wide opacity-90 truncate">{title}</h2>
+						<h2 className="text-sm font-semibold tracking-wide opacity-90 truncate">
+							{title}
+						</h2>
 					</div>
 				</div>
 
@@ -153,7 +165,7 @@ function MobileSidebar({
 	isAutoCollapse,
 	setIsAutoCollapse,
 	onFlagsChange,
-	isActive,
+	isActive
 }: {
 	visibilityClass: string;
 	title: string;
@@ -172,7 +184,10 @@ function MobileSidebar({
 
 	useEffect(() => {
 		if (!isActive) return;
-		onFlagsChange?.({ autoCollapse: isAutoCollapse, isStrip: isStripCollapsed });
+		onFlagsChange?.({
+			autoCollapse: isAutoCollapse,
+			isStrip: isStripCollapsed
+		});
 	}, [isActive, isAutoCollapse, isStripCollapsed, onFlagsChange]);
 
 	const toggleExpanded = () => setIsExpanded((v) => !v);
@@ -190,12 +205,18 @@ function MobileSidebar({
 					className={clsx(
 						"fixed top-5 z-50 left-4 h-8 w-8 grid place-items-center rounded-md backdrop-blur-md border cursor-pointer transition-colors duration-200",
 						visibilityClass,
-						isExpanded ? "bg-transparent border-transparent hover:bg-background-secondary/50" : "bg-background-secondary/70 border-background-secondary/70 hover:bg-background-secondary"
+						isExpanded
+							? "bg-transparent border-transparent hover:bg-background-secondary/50"
+							: "bg-background-secondary/70 border-background-secondary/70 hover:bg-background-secondary"
 					)}
 					aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
 					title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
 				>
-					{isExpanded ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+					{isExpanded ? (
+						<ChevronLeft className="h-5 w-5" />
+					) : (
+						<ChevronRight className="h-5 w-5" />
+					)}
 				</button>
 			) : null}
 
@@ -203,21 +224,19 @@ function MobileSidebar({
 				className={clsx(
 					"inset-y-0 left-0 pointer-events-auto z-50 fixed ease duration-300",
 					visibilityClass,
-					isStripCollapsed
-						? "w-16 p-2"
-						: "p-2 w-full",
+					isStripCollapsed ? "w-16 p-2" : "p-2 w-full",
 					isMobileDrawerMode
 						? clsx(
-							"transition-transform duration-300",
-							isExpanded ? "translate-x-0" : "-translate-x-full"
-						)
+								"transition-transform duration-300",
+								isExpanded ? "translate-x-0" : "-translate-x-full"
+							)
 						: ""
 				)}
 			>
 				<div
 					className={clsx(
 						"shadow-md w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3",
-						isStripCollapsed ? "px-1 py-2" : "px-1.5 py-2",
+						isStripCollapsed ? "px-1 py-2" : "px-1.5 py-2"
 					)}
 				>
 					<div
@@ -225,18 +244,24 @@ function MobileSidebar({
 							"flex items-center pb-2 gap-0 border-b border-background-secondary/50",
 							isStripCollapsed ? "flex-col px-1 pt-1" : "px-1 pt-1",
 							isMobileDrawerMode ? "pl-8" : ""
-
 						)}
 					>
 						{isMobileStripMode ? (
 							<button
 								type="button"
 								onClick={toggleExpanded}
-								className={clsx(isExpanded ? "w-5" : "w-8", "h-8 grid place-items-center rounded-md hover:bg-background-secondary/50 transition-colors duration-200")}
+								className={clsx(
+									isExpanded ? "w-5" : "w-8",
+									"h-8 grid place-items-center rounded-md hover:bg-background-secondary/50 transition-colors duration-200"
+								)}
 								aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
 								title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
 							>
-								{isExpanded ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+								{isExpanded ? (
+									<ChevronLeft className="h-5 w-5" />
+								) : (
+									<ChevronRight className="h-5 w-5" />
+								)}
 							</button>
 						) : null}
 
@@ -245,14 +270,24 @@ function MobileSidebar({
 							onClick={toggleAutoCollapse}
 							className="h-8 w-8 cursor-pointer grid place-items-center rounded-md hover:bg-background-secondary/50 transition-colors duration-200"
 							aria-label="Toggle auto-collapse"
-							title={isAutoCollapse ? "Disable auto-collapse" : "Enable auto-collapse"}
+							title={
+								isAutoCollapse
+									? "Disable auto-collapse"
+									: "Enable auto-collapse"
+							}
 						>
-							{isAutoCollapse ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
+							{isAutoCollapse ? (
+								<PanelLeftOpen className="h-5 w-5" />
+							) : (
+								<PanelLeft className="h-5 w-5" />
+							)}
 						</button>
 
 						{showLabels ? (
 							<div className="flex items-center min-w-0 ml-1">
-								<h2 className="text-sm font-semibold tracking-wide opacity-90 truncate">{title}</h2>
+								<h2 className="text-sm font-semibold tracking-wide opacity-90 truncate">
+									{title}
+								</h2>
 							</div>
 						) : null}
 					</div>
@@ -260,7 +295,9 @@ function MobileSidebar({
 					<ul
 						className={clsx(
 							"w-full px-1",
-							showLabels ? "grid grid-cols-[2rem_1fr] gap-2" : "flex flex-col gap-2"
+							showLabels
+								? "grid grid-cols-[2rem_1fr] gap-2"
+								: "flex flex-col gap-2"
 						)}
 					>
 						{items.map((item) => (
@@ -285,7 +322,12 @@ function MobileSidebar({
 	);
 }
 
-function SidebarItem({ title, icon: Icon, onClick, showLabel = true }: SidebarItemParams & { showLabel?: boolean }) {
+function SidebarItem({
+	title,
+	icon: Icon,
+	onClick,
+	showLabel = true
+}: SidebarItemParams & { showLabel?: boolean }) {
 	return (
 		<li
 			onClick={onClick}
@@ -345,7 +387,7 @@ function resolveIcon(icon: string | LucideIcon): LucideIcon {
 		headset: Headset,
 		dispatch: Headset,
 		stats: BarChart3,
-		statistics: BarChart3,
+		statistics: BarChart3
 	};
 
 	return map[key] ?? User;

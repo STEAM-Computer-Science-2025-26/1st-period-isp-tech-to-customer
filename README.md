@@ -5,6 +5,7 @@ Tech to Customer is a comprehensive HVAC management system that connects custome
 ## Overview
 
 This project provides:
+
 - Customer-to-technician job assignment
 - Admin dashboard with analytics
 - Employee management across multiple branches
@@ -16,6 +17,7 @@ This project provides:
 This is a [Next.js 16](https://nextjs.org) project that combines React frontend and Node.js backend in one codebase for full-stack development with our team.
 
 **Dependencies:**
+
 - **Next.js** - Full-stack React framework
 - **TypeScript** - Type-safe JavaScript
 - **Tailwind CSS** - Utility-first styling
@@ -42,19 +44,18 @@ This is a [Next.js 16](https://nextjs.org) project that combines React frontend 
 │   ├── ui/                      # Small reusable components (buttons, inputs)
 │   └── layout/                  # Layout components (nav, footer, sidebar)
 │
-├── lib/                         # Shared utilities (frontend + backend)
-│   ├── types/                   # TypeScript type definitions
-│   │   ├── userTypes.ts
-│   │   ├── jobTypes.ts
-│   │   └── employeeTypes.ts
-│   ├── constants.ts             # App-wide constants
+├── types/                       # Shared TypeScript types (DTOs, API contracts)
+│   ├── userTypes.ts
+│   ├── jobTypes.ts
+│   └── employeeTypes.ts
+│
+├── services/                    # Server-side helpers / business logic
 │   └── publicErrors.ts          # User-friendly error messages
 │
-├── server/                      # Backend code
-│   └── db/                      # Database logic
-│       ├── connection.ts        # Neon DB connection + helpers
-│       ├── schema.sql           # Database schema
-│       └── test-connection.ts   # DB connection test script
+├── db/                          # Database logic
+│   ├── connection.ts            # Neon DB connection + helpers
+│   ├── schema.sql               # Database schema
+│   └── test-connection.ts       # DB connection test script
 │
 ├── .env.example                 # Example environment variables
 ├── next.config.ts               # Next.js configuration
@@ -91,29 +92,34 @@ users
 ### Installation
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/Lunar-arch/tech-to-customer-isp.git
    cd tech-to-customer-isp
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables:**
+
    ```bash
    cp .env.example .env
    ```
-   
+
    Then edit `.env` and add your database connection string:
+
    ```
    DATABASE_URL=your_neon_database_url_here
    ```
 
 4. **Set up the database:**
-   
+
    Run the schema in your Neon SQL Editor:
+
    ```bash
    # Copy the contents of server/db/schema.sql and run it in Neon
    ```

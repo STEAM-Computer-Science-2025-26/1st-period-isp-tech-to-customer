@@ -11,10 +11,13 @@ const TAILWIND_DEFAULT_BREAKPOINTS_PX: BreakpointMap = {
 	md: 768,
 	lg: 1024,
 	xl: 1280,
-	"2xl": 1536,
+	"2xl": 1536
 };
 
-function parseCssSizeToPx(value: string, rootFontSizePx: number): number | undefined {
+function parseCssSizeToPx(
+	value: string,
+	rootFontSizePx: number
+): number | undefined {
 	const raw = value.trim();
 	if (!raw) return undefined;
 
@@ -22,7 +25,8 @@ function parseCssSizeToPx(value: string, rootFontSizePx: number): number | undef
 	if (!Number.isFinite(numeric)) return undefined;
 
 	if (raw.endsWith("px")) return numeric;
-	if (raw.endsWith("rem") || raw.endsWith("em")) return numeric * rootFontSizePx;
+	if (raw.endsWith("rem") || raw.endsWith("em"))
+		return numeric * rootFontSizePx;
 
 	// If unit-less, assume px
 	return numeric;
@@ -95,12 +99,13 @@ export function useBreakpoints(): UseBreakpointsResult {
 	const [width, setWidth] = useState(0);
 	const [breakpoints] = useState<BreakpointMap>(() => ({
 		...TAILWIND_DEFAULT_BREAKPOINTS_PX,
-		...readBreakpointsFromCss(),
+		...readBreakpointsFromCss()
 	}));
 
 	useEffect(() => {
 		if (!isClient) return;
 
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setReady(true);
 		setWidth(window.innerWidth);
 
@@ -177,13 +182,16 @@ export function useBreakpoints(): UseBreakpointsResult {
 			up,
 			down,
 			between,
-			query,
+			query
 		};
 	}, [breakpoints, ready, width]);
 }
 
 /** Convenience helper for a single boolean, e.g. useBreakpoint("md", "up") */
-export function useBreakpoint(bp: BreakpointKey, direction: "up" | "down" | "only" = "up") {
+export function useBreakpoint(
+	bp: BreakpointKey,
+	direction: "up" | "down" | "only" = "up"
+) {
 	const { up, down, between } = useBreakpoints();
 
 	if (direction === "down") return down(bp);
