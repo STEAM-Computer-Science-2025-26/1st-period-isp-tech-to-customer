@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { queryAll } from '@/server/db/connection';
+import { queryAll } from '@/backend/server/db/connection';
 import { EmployeeDataType } from '@/lib/types/employeeTypes';
 import { getPublicError } from '@/lib/publicErrors';
 

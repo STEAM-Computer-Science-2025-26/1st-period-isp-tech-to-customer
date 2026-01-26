@@ -1,9 +1,11 @@
 import { DispatchTimeSettings } from './jobTypes';
+import { ISODateString, PaginationInput, PaginationOutput } from './commonTypes';
+
 
 export type CompanyDataType = { // Structure for company data as stored in the database
   id: string;
   name: string;
-  createdAt: string;  // ISO 8601
+  createdAt: ISODateString;  // ISO 8601
   settings: {
     dispatchSettings: DispatchTimeSettings;
   };

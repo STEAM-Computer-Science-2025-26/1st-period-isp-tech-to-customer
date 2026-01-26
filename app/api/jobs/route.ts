@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSql, queryAll, toCamelCase } from '@/server/db/connection';
+import { getSql, queryAll, toCamelCase } from '@/backend/server/db/connection';
 import { CreateJobInput, CreateJobSuccess, GetJobsSuccess, JobDTO, JobStatus } from '@/lib/types/jobTypes';
 import { getPublicError } from '@/lib/publicErrors';
 

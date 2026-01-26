@@ -15,7 +15,10 @@ Types:
   AssignTechInput: Input for manually assigning a tech
   AssignTechSuccess: Success response for assignment
 */
-//DTO = Data Transfer Object
+//DTO = Data Transfer Object, sends DATA from backend to frontend
+import { ISODateString, PaginationInput, PaginationOutput } from './commonTypes';
+
+
 export type JobStatus =
   | 'unassigned'
   | 'assigned'
@@ -63,9 +66,9 @@ export type JobDTO = {
   assignedTechId?: string;
 
   // Timing
-  scheduledTime?: string;    // ISO 8601
-  createdAt: string;         // ISO 8601
-  completedAt?: string;      // ISO 8601
+  scheduledTime?: ISODateString;    // ISO 8601
+  createdAt: ISODateString;         // ISO 8601
+  completedAt?: ISODateString;      // ISO 8601
 
   // Notes
   initialNotes?: string;
@@ -82,8 +85,8 @@ export type CreateJobInput = {
   phone: string;
   jobType: JobType;
   priority: JobPriority;
-  scheduledTime?: string;  // ISO 8601
-  initialNotes?: string;
+  scheduledTime?: ISODateString;  // ISO 8601
+  initialNotes?: ISODateString;
 };
 
 export type CreateJobSuccess = {
@@ -108,16 +111,14 @@ export type UpdateJobStatusSuccess = {
 /**
  * Get jobs (with optional filters)
  */
-export type GetJobsInput = {
+export type GetJobsInput =  PaginationInput<'createdAt' | 'scheduledTime' | 'priority'> & {
   companyId: string;
   status?: JobStatus;
   assignedTechId?: string;
   priority?: JobPriority;
 };
 
-export type GetJobsSuccess = {
-  jobs: JobDTO[];
-};
+export type GetJobsSuccess = PaginationOutput<JobDTO>;
 
 /**
  * Assign tech to job (manual override)
@@ -130,4 +131,43 @@ export type AssignTechInput = {
 export type AssignTechSuccess = {
   success: true;
   updatedJob?: JobDTO; // optional: return updated job
+};
+
+/* Updates Jobs
+Potential fields to updates:
+ - CustomerName
+  - Address(Optional)
+  - Phone(Optional)
+  - JobType(Optional)
+  - Priority(Optional)
+  - ScheduledTime(Optional)
+  - InitialNotes(Optional)
+  - Notes: InitialNotes(Optional)
+ */
+export type UpdateJobInput = {
+  jobId: string;
+  customerName?: string;
+  address?: string;
+  phone?: string;
+  jobType?: JobType;
+  priority?: JobPriority;
+  scheduledTime?: ISODateString;  // ISO 8601
+  initialNotes?: string;
+};
+
+export type UpdateJobSuccess = {
+  success: true;
+  updatedJob?: JobDTO; // optional: return updated job
+};
+
+/* 
+Deletes Jobs
+*/
+export type DeleteJobInput = {
+  jobId: string;
+};
+
+export type DeleteJobSuccess = {
+  success: true;
+  message: string;
 };

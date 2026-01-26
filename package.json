@@ -6,9 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "dev:backend": "ts-node backend/server.ts"
   },
   "dependencies": {
+    "@fastify/cors": "^11.2.0",
     "@googlemaps/js-api-loader": "^2.0.2",
     "@neondatabase/serverless": "^1.0.2",
     "bcryptjs": "^3.0.3",
@@ -16,9 +18,12 @@
     "concurrently": "^9.2.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "fastify": "^5.7.2",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
+    "pg": "^8.17.2",
     "prettier": "^3.7.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -29,7 +34,8 @@
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^20",
+    "@types/node": "^20.19.30",
+    "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/regression": "^2.0.6",
@@ -38,6 +44,6 @@
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }

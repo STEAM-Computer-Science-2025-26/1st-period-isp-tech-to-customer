@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { queryOne } from '@/server/db/connection';
+import { queryOne } from '@/backend/server/db/connection';
 import { JobDTO } from '@/lib/types/jobTypes';
 import { getPublicError } from '@/lib/publicErrors';
 

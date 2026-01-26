@@ -1,3 +1,5 @@
+import { ISODateString, PaginationInput, PaginationOutput } from './commonTypes';
+
 export type EmployeeSkill = // List of skills that a tech can have
   | 'hvac_install'
   | 'hvac_repair'
@@ -29,21 +31,21 @@ export type EmployeeDataType = {
 
   // Status (REQUIRED with defaults)
   isAvailable: boolean;       // Default: true
-  availabilityUpdatedAt: string; // ISO 8601 - set on creation and every update
+  availabilityUpdatedAt: ISODateString; // ISO 8601 - set on creation and every update
   currentJobId: string | null;   // null if no current job
   maxConcurrentJobs: number;     // Default: 1
   isActive: boolean;             // Controls wether the tech is on a job or not, default: false
 
   // Performance (REQUIRED with defaults)
   rating: number;                // 1-5 (default: 3.0)
-  lastJobCompletedAt: string | null; // ISO 8601 - null until first job completed
+  lastJobCompletedAt: ISODateString | null; // ISO 8601 - null until first job completed
 
   // Internal (admin fields - explicit null if not provided)
   internalNotes: string | null;     // null if no notes
   createdByUserId: string | null;   // null if system-created
 
   // Timestamps (REQUIRED)
-  createdAt: string;          // ISO 8601
+  createdAt: ISODateString;          // ISO 8601
 };
 
 
@@ -127,7 +129,7 @@ export type UpdateEmployeeProfileSuccess = {
 /**
  * Get available techs (for job assignment algorithm)
  */
-export type GetAvailableTechsInput = {
+export type GetAvailableTechsInput = PaginationInput<'rating' | 'createdAt'> & {
   companyId: string;
   requiredSkills?: EmployeeSkill[];  // Filter by skills needed for job
   minSkillLevel?: SkillLevel;        // Minimum skill level required
@@ -135,6 +137,4 @@ export type GetAvailableTechsInput = {
   jobLocation?: string;              // Job address (for distance calculation)
 };
 
-export type GetAvailableTechsSuccess = {
-  techs: AvailableTechDataType[];
-};
+export type GetAvailableTechsSuccess = PaginationOutput<AvailableTechDataType> ;
