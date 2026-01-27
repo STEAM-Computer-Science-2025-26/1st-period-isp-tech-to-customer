@@ -1,6 +1,10 @@
 import { getSql } from "@/db/connection";
 import Link from "next/link";
 import { CopyCode } from "./CopyCode";
+import {
+	decryptVerificationCode,
+	hashMagicToken
+} from "@/services/verifyCrypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,10 +39,11 @@ export default async function VerifyPage({
 	}
 
 	const sql = getSql();
+	const tokenHash = hashMagicToken(token);
 	const rows = await sql`
-		SELECT email, code, use_code, verified, expires_at
+		SELECT email, code_encrypted, code_expires_at, use_code, verified, expires_at
 		FROM email_verifications
-		WHERE token = ${token}
+		WHERE token_hash = ${tokenHash}
 		LIMIT 1
 	`;
 
@@ -52,6 +57,29 @@ export default async function VerifyPage({
 					</h1>
 					<p className="mt-2 text-text-secondary">
 						This verification token is not valid.
+					</p>
+					<Link
+						href="/login"
+						className="inline-block mt-6 text-accent-text hover:text-info-text"
+					>
+						Back to login
+					</Link>
+				</div>
+			</div>
+		);
+	}
+
+	// If the token has already been used to verify, show success even if we've
+	// consumed it by expiring the row.
+	if (row.verified) {
+		return (
+			<div className="min-h-screen flex items-center justify-center p-6">
+				<div className="w-full max-w-lg bg-background-primary rounded-2xl shadow-lg p-8 text-center">
+					<h1 className="text-2xl font-semibold text-accent-text">
+						Email verified
+					</h1>
+					<p className="mt-2 text-text-secondary">
+						You can return to your computer to continue setting your password.
 					</p>
 					<Link
 						href="/login"
@@ -87,6 +115,17 @@ export default async function VerifyPage({
 	}
 
 	if (row.use_code) {
+		let decryptedCode: string | null = null;
+		const codeExpired =
+			row.code_expires_at && new Date(row.code_expires_at) <= new Date();
+		if (!codeExpired && row.code_encrypted) {
+			try {
+				decryptedCode = decryptVerificationCode(row.code_encrypted);
+			} catch {
+				decryptedCode = null;
+			}
+		}
+
 		return (
 			<div className="min-h-screen flex items-center justify-center p-6">
 				<div className="w-full max-w-lg bg-background-primary rounded-2xl shadow-lg p-8 text-center">
@@ -98,8 +137,13 @@ export default async function VerifyPage({
 						enter this code.
 					</p>
 					<div className="mt-6">
-						{row.code ? (
-							<CopyCode code={row.code} />
+						{codeExpired ? (
+							<p className="text-text-secondary">
+								This code has expired. Go back to your computer and request a
+								new code.
+							</p>
+						) : decryptedCode ? (
+							<CopyCode code={decryptedCode} />
 						) : (
 							<p className="text-text-secondary">
 								A code hasn&apos;t been generated yet. Go back to your computer
@@ -115,13 +159,18 @@ export default async function VerifyPage({
 		);
 	}
 
-	if (!row.verified) {
-		await sql`
-			UPDATE email_verifications
-			SET verified = TRUE
-			WHERE token = ${token}
-		`;
-	}
+	await sql`
+		UPDATE email_verifications
+		SET verified = TRUE,
+			verified_at = NOW(),
+			used_at = NOW(),
+			code = NULL,
+			code_encrypted = NULL,
+			code_expires_at = NULL,
+			use_code = FALSE,
+			expires_at = NOW()
+		WHERE token_hash = ${tokenHash}
+	`;
 
 	return (
 		<div className="min-h-screen flex items-center justify-center p-6">

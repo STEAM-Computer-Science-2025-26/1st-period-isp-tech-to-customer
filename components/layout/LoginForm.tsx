@@ -1,376 +1,26 @@
 "use client";
 
-import type {
-	Email,
-	EmailRequirements,
-	Password,
-	PasswordRequirements
-} from "@/app/types/types";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import clsx from "clsx";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
-
-function FormButton({
-	text,
-	onClick,
-	disabled,
-	isLoading
-}: {
-	text: string;
-	onClick?: () => void;
-	disabled?: boolean;
-	isLoading?: boolean;
-}) {
-	const isDisabled = Boolean(disabled || isLoading);
-
-	return (
-		<button
-			type="button"
-			onClick={onClick}
-			disabled={isDisabled}
-			aria-busy={isLoading ? true : undefined}
-			className={clsx(
-				"h-10 w-full max-w-84 rounded-lg bg-accent-main text-background-primary font-semibold transition-opacity flex items-center justify-center",
-				isDisabled && "opacity-60 cursor-not-allowed"
-			)}
-		>
-			{isLoading ? (
-				<>
-					<Loader2 className="animate-spin" size={18} />
-					<span className="sr-only">{text}</span>
-				</>
-			) : (
-				text
-			)}
-		</button>
-	);
-}
-
-type FormInputType = "text" | "email" | "password" | "verification-code";
-
-type FormInputBaseProps = {
-	label: string;
-	value: string;
-	onChange: (value: string) => void;
-	isInvalid?: boolean;
-	error?: string;
-	readOnly?: boolean;
-};
-
-type VerificationCodeInputProps = FormInputBaseProps & {
-	type: "verification-code";
-};
-
-type StandardFormInputProps = FormInputBaseProps & {
-	type: "text" | "email" | "password";
-	passwordShown?: boolean;
-};
-
-function VerificationCodeInput({
-	label,
-	value,
-	onChange,
-	isInvalid,
-	error,
-	readOnly
-}: VerificationCodeInputProps) {
-	const length = 6;
-	const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
-	const digits = useMemo(() => {
-		const onlyDigits = value.replace(/\D/g, "").slice(0, length);
-		return Array.from({ length }, (_, i) => onlyDigits[i] ?? "");
-	}, [value]);
-
-	const focusIndex = (index: number) => {
-		const el = inputsRef.current[index];
-		el?.focus();
-		el?.select();
-	};
-
-	const setDigitAt = (index: number, nextDigit: string) => {
-		const nextDigits = [...digits];
-		nextDigits[index] = nextDigit;
-		onChange(nextDigits.join(""));
-	};
-
-	const applyPaste = (startIndex: number, pasted: string) => {
-		const incoming = pasted.replace(/\D/g, "").slice(0, length);
-		if (!incoming) return;
-		const nextDigits = [...digits];
-		let writeIndex = startIndex;
-		for (const ch of incoming) {
-			if (writeIndex >= length) break;
-			nextDigits[writeIndex] = ch;
-			writeIndex += 1;
-		}
-		onChange(nextDigits.join(""));
-		focusIndex(Math.min(writeIndex, length - 1));
-	};
-
-	return (
-		<div
-			className={clsx(
-				"relative w-full max-w-84 ease duration-200",
-				isInvalid && "mb-4"
-			)}
-		>
-			<label
-				className={clsx(
-					"block text-sm mb-2",
-					isInvalid ? "text-destructive-text" : "text-accent-text"
-				)}
-			>
-				{label}
-			</label>
-			<div className="flex w-full justify-between gap-2">
-				{digits.map((digit, index) => (
-					<input
-						key={index}
-						ref={(el) => {
-							inputsRef.current[index] = el;
-						}}
-						className={clsx(
-							"transition-colors duration-200 border-2 rounded-lg text-accent-text/80 w-10 h-10 outline-none bg-transparent text-center text-lg",
-							!readOnly && "focus:text-text-secondary",
-							isInvalid
-								? "border-destructive-foreground text-destructive-text/70"
-								: "border-accent-text/70"
-						)}
-						type="text"
-						inputMode="numeric"
-						pattern="[0-9]*"
-						autoComplete={index === 0 ? "one-time-code" : "off"}
-						maxLength={1}
-						value={digit}
-						readOnly={readOnly}
-						aria-label={`${label} digit ${index + 1} of ${length}`}
-						aria-invalid={isInvalid ? true : undefined}
-						onFocus={(e) => e.currentTarget.select()}
-						onPaste={(e) => {
-							if (readOnly) return;
-							e.preventDefault();
-							applyPaste(index, e.clipboardData.getData("text"));
-						}}
-						onChange={(e) => {
-							if (readOnly) return;
-							const nextRaw = e.target.value;
-							if (!nextRaw) {
-								setDigitAt(index, "");
-								return;
-							}
-
-							const last = nextRaw.slice(-1);
-							if (!/\d/.test(last)) return;
-							setDigitAt(index, last);
-							if (index < length - 1) focusIndex(index + 1);
-						}}
-						onKeyDown={(e) => {
-							if (readOnly) return;
-							if (e.key === "ArrowLeft") {
-								e.preventDefault();
-								focusIndex(Math.max(0, index - 1));
-								return;
-							}
-							if (e.key === "ArrowRight") {
-								e.preventDefault();
-								focusIndex(Math.min(length - 1, index + 1));
-								return;
-							}
-							if (e.key === "Backspace") {
-								e.preventDefault();
-								if (digits[index]) {
-									setDigitAt(index, "");
-									return;
-								}
-								if (index > 0) {
-									setDigitAt(index - 1, "");
-									focusIndex(index - 1);
-								}
-								return;
-							}
-							if (e.key === "Delete") {
-								e.preventDefault();
-								setDigitAt(index, "");
-								return;
-							}
-						}}
-					/>
-				))}
-			</div>
-			{isInvalid && error ? (
-				<p className="absolute -bottom-4 text-xs text-destructive-text max-w-84">
-					{error}
-				</p>
-			) : null}
-		</div>
-	);
-}
-
-function StandardFormInput({
-	label,
-	type,
-	value,
-	onChange,
-	isInvalid,
-	error,
-	readOnly,
-	passwordShown = false
-}: StandardFormInputProps) {
-	const inputRef = useRef<HTMLInputElement | null>(null);
-	const selectionRef = useRef<{
-		start: number | null;
-		end: number | null;
-		wasFocused: boolean;
-	} | null>(null);
-
-	const [shown, setShown] = useState(passwordShown);
-	const effectiveType: "text" | "email" | "password" =
-		type === "password" && shown ? "text" : type;
-
-	useEffect(() => {
-		if (type !== "password") return;
-		const selection = selectionRef.current;
-		if (!selection?.wasFocused) return;
-		const input = inputRef.current;
-		if (!input) return;
-
-		requestAnimationFrame(() => {
-			input.focus();
-			if (selection.start !== null && selection.end !== null) {
-				try {
-					input.setSelectionRange(selection.start, selection.end);
-				} catch {
-					// Safe to ignore.
-				}
-			}
-		});
-	}, [shown, type]);
-
-	return (
-		<div
-			className={clsx(
-				"relative w-full max-w-84 ease duration-200",
-				isInvalid && "mb-4"
-			)}
-		>
-			<input
-				ref={inputRef}
-				className={clsx(
-					"peer transition-colors duration-200 border-2 rounded-lg text-accent-text/80 w-full h-10 outline-none px-3 bg-transparent",
-					!readOnly && "focus:text-text-secondary",
-					isInvalid
-						? "border-destructive-foreground text-destructive-text/70"
-						: "border-accent-text/70",
-					type === "password" && !shown && "tracking-[0.175rem]"
-				)}
-				type={effectiveType}
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				placeholder=" "
-				aria-label={label}
-				aria-invalid={isInvalid ? true : undefined}
-				readOnly={readOnly}
-			/>
-			{type === "password" ? (
-				<button
-					type="button"
-					className="absolute bg-background-primary right-2 text-text-tertiary w-5 h-8 bottom-1/2 translate-y-1/2"
-					aria-label={shown ? "Hide password" : "Show password"}
-					onMouseDown={(e) => {
-						// Prevents stealing focus from the input.
-						e.preventDefault();
-					}}
-					onClick={(e) => {
-						e.preventDefault();
-						const input = inputRef.current;
-						selectionRef.current = {
-							start: input?.selectionStart ?? null,
-							end: input?.selectionEnd ?? null,
-							wasFocused: document.activeElement === input
-						};
-						setShown((prev) => !prev);
-					}}
-				>
-					{shown ? <EyeOff size={20} /> : <Eye size={20} />}
-				</button>
-			) : null}
-			<label
-				className={clsx(
-					"absolute left-2 top-0 px-1 ease duration-200 -translate-y-1/2 text-sm pointer-events-none bg-background-primary",
-					isInvalid ? "text-destructive-text" : "text-accent-text",
-					"peer-placeholder-shown:left-[calc((3*var(--spacing))+2px)] peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:px-0",
-					isInvalid
-						? "peer-placeholder-shown:text-destructive-text/70"
-						: "peer-placeholder-shown:text-text-tertiary"
-				)}
-			>
-				{label}
-			</label>
-			{isInvalid && error ? (
-				<p className="absolute -bottom-4 text-xs text-destructive-text max-w-84">
-					{error}
-				</p>
-			) : null}
-		</div>
-	);
-}
-
-function FormInput(
-	props: (StandardFormInputProps | VerificationCodeInputProps) & {
-		type: FormInputType;
-	}
-) {
-	if (props.type === "verification-code") {
-		return <VerificationCodeInput {...(props as VerificationCodeInputProps)} />;
-	}
-	return <StandardFormInput {...(props as StandardFormInputProps)} />;
-}
-
-function useStackedPanels(activeIndex: number) {
-	const panelsRef = useRef<Array<HTMLDivElement | null>>([]);
-	const [panelHeights, setPanelHeights] = useState<number[]>([]);
-
-	useLayoutEffect(() => {
-		const elements = panelsRef.current.filter(
-			(el): el is HTMLDivElement => el !== null
-		);
-		if (elements.length === 0) return;
-
-		const update = () => {
-			setPanelHeights(
-				panelsRef.current.map((el) => el?.getBoundingClientRect().height ?? 0)
-			);
-		};
-
-		update();
-		const ro = new ResizeObserver(update);
-		elements.forEach((el) => ro.observe(el));
-		return () => ro.disconnect();
-	}, []);
-
-	const panelOffsets = useMemo(() => {
-		const offsets: number[] = [];
-		let acc = 0;
-		for (let i = 0; i < panelHeights.length; i += 1) {
-			offsets.push(acc);
-			acc += panelHeights[i] ?? 0;
-		}
-		return offsets;
-	}, [panelHeights]);
-
-	const containerHeight = panelHeights[activeIndex] ?? 0;
-	const translateY = -(panelOffsets[activeIndex] ?? 0);
-
-	return { panelsRef, containerHeight, translateY };
-}
+import type { Email, Password } from "@/app/types/types";
+import { useEffect, useRef, useState } from "react";
+import { FormButton, FormInput, type PanelProps } from "./loginForm/controls";
+import { useStackedPanels } from "./loginForm/stackedPanels";
+import {
+	validateEmail,
+	validatePassword,
+	validatePasswordConfirmation
+} from "./loginForm/validation";
 
 export default function LoginForm({
-	isRegister = false,
+	registering = false,
 	email
 }: {
-	isRegister?: boolean;
+	registering?: boolean;
 	email?: Email;
 }) {
+	const panelA11yProps = (inactive: boolean): PanelProps =>
+		inactive ? { "aria-hidden": true, inert: true } : { "aria-hidden": false };
+
+	const [isRegister, setIsRegister] = useState<boolean>(registering);
 	const [stage, setStage] = useState<1 | 2 | 3>(1);
 	const [verificationMode, setVerificationMode] = useState<"link" | "code">(
 		"link"
@@ -398,13 +48,17 @@ export default function LoginForm({
 	const [verificationCodeError, setVerificationCodeError] = useState<
 		string | undefined
 	>(undefined);
-	const [verificationToken, setVerificationToken] = useState<string>("");
+	const [verificationId, setVerificationId] = useState<string>("");
+	const [devMagicLink, setDevMagicLink] = useState<string>("");
 	const [isSendingVerification, setIsSendingVerification] = useState(false);
 	const verificationTimeoutRef = useRef<number | null>(null);
+	const verificationPollRef = useRef<number | null>(null);
 
 	const activePanelIndex = stage - 1;
-	const { panelsRef, containerHeight, translateY } =
-		useStackedPanels(activePanelIndex);
+	const { panelsRef, containerHeight, translateY } = useStackedPanels(
+		activePanelIndex,
+		isRegister
+	);
 
 	const nextFromEmailStage = () => {
 		const emailCheck = validateEmail(emailValue);
@@ -419,7 +73,8 @@ export default function LoginForm({
 		setVerificationCodeValue("");
 		setVerificationMode("link");
 		setVerificationSendStep(0);
-		setVerificationToken("");
+		setVerificationId("");
+		setDevMagicLink("");
 		setStage(2);
 	};
 
@@ -428,6 +83,10 @@ export default function LoginForm({
 			if (verificationTimeoutRef.current !== null) {
 				window.clearTimeout(verificationTimeoutRef.current);
 				verificationTimeoutRef.current = null;
+			}
+			if (verificationPollRef.current !== null) {
+				window.clearInterval(verificationPollRef.current);
+				verificationPollRef.current = null;
 			}
 		};
 	}, []);
@@ -443,13 +102,66 @@ export default function LoginForm({
 		}, delayMs);
 	};
 
-	const getToken = () => {
-		if (typeof window === "undefined") return verificationToken;
-		const tokenFromUrl = new URLSearchParams(window.location.search).get(
-			"token"
-		);
-		return tokenFromUrl ?? verificationToken;
-	};
+	useEffect(() => {
+		if (stage !== 2) return;
+		if (!verificationId) return;
+
+		if (verificationPollRef.current !== null) {
+			window.clearInterval(verificationPollRef.current);
+			verificationPollRef.current = null;
+		}
+
+		const pollOnce = async () => {
+			try {
+				const response = await fetch("/api/verify/status", {
+					method: "POST",
+					credentials: "include",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ verificationId })
+				});
+
+				if (response.ok) {
+					const payload = (await response.json()) as {
+						verified: boolean;
+						useCode: boolean;
+						expiresAt: string;
+					};
+					if (payload.verified) {
+						setStage(3);
+						if (verificationPollRef.current !== null) {
+							window.clearInterval(verificationPollRef.current);
+							verificationPollRef.current = null;
+						}
+					}
+					return;
+				}
+
+				if (response.status === 410) {
+					setVerificationSendError(
+						"Verification expired. Please go back and send a new email."
+					);
+					if (verificationPollRef.current !== null) {
+						window.clearInterval(verificationPollRef.current);
+						verificationPollRef.current = null;
+					}
+				}
+			} catch {
+				// Ignore transient network errors while polling.
+			}
+		};
+
+		void pollOnce();
+		verificationPollRef.current = window.setInterval(() => {
+			void pollOnce();
+		}, 2000);
+
+		return () => {
+			if (verificationPollRef.current !== null) {
+				window.clearInterval(verificationPollRef.current);
+				verificationPollRef.current = null;
+			}
+		};
+	}, [stage, verificationId]);
 
 	const sendVerificationLink = async () => {
 		if (isSendingVerification) return;
@@ -469,12 +181,17 @@ export default function LoginForm({
 
 		setVerificationSendError(undefined);
 		setVerificationRequestCodeError(undefined);
+		setVerificationCodeError(undefined);
 		setIsSendingVerification(true);
 		try {
 			const response = await fetch("/api/verify/send", {
 				method: "POST",
+				credentials: "include",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email: emailCheck.value })
+				body: JSON.stringify({
+					email: emailCheck.value,
+					mode: verificationMode
+				})
 			});
 
 			if (!response.ok) {
@@ -488,15 +205,20 @@ export default function LoginForm({
 			}
 
 			const payload = (await response.json()) as {
-				token: string;
+				verificationId?: string;
 				expiresAt: string;
+				magicLink?: string;
 			};
 
-			setVerificationToken(payload.token);
-			if (typeof window !== "undefined") {
-				// Requested behavior: put the token in the URL without a reload.
-				window.history.replaceState({}, "", `/verify?token=${payload.token}`);
+			if (!payload.verificationId) {
+				setVerificationSendError(
+					"Server did not return a verification id. Please try again."
+				);
+				return;
 			}
+
+			setVerificationId(payload.verificationId);
+			setDevMagicLink(payload.magicLink ?? "");
 
 			if (verificationSendStep === 0) {
 				setVerificationSendStep(1);
@@ -536,6 +258,15 @@ export default function LoginForm({
 		verificationSendStep === 5;
 
 	const renderVerificationParagraph = () => {
+		const devLink = devMagicLink ? (
+			<p className="mt-2 text-center text-text-tertiary text-sm">
+				Dev:{" "}
+				<a className="underline" href={devMagicLink}>
+					Open verification link
+				</a>
+			</p>
+		) : null;
+
 		if (verificationMode === "link") {
 			switch (verificationSendStep) {
 				case 0:
@@ -547,10 +278,13 @@ export default function LoginForm({
 					);
 				case 1:
 					return (
-						<p className="text-center text-text-secondary">
-							We&apos;ve sent a magic link to <strong>{emailValue}</strong>.
-							Check your inbox and click the link to verify your email.
-						</p>
+						<>
+							<p className="text-center text-text-secondary">
+								We&apos;ve sent a magic link to <strong>{emailValue}</strong>.
+								Check your inbox and click the link to verify your email.
+							</p>
+							{devLink}
+						</>
 					);
 				case 2:
 					return (
@@ -560,11 +294,14 @@ export default function LoginForm({
 					);
 				case 3:
 					return (
-						<p className="text-center text-text-secondary">
-							We&apos;ve sent another magic link to{" "}
-							<strong>{emailValue}</strong>. Check your inbox and click the link
-							to verify your email.
-						</p>
+						<>
+							<p className="text-center text-text-secondary">
+								We&apos;ve sent another magic link to{" "}
+								<strong>{emailValue}</strong>. Check your inbox and click the
+								link to verify your email.
+							</p>
+							{devLink}
+						</>
 					);
 				case 4:
 					return (
@@ -575,11 +312,15 @@ export default function LoginForm({
 				case 5:
 				default:
 					return (
-						<p className="text-center text-text-secondary">
-							We&apos;ve re-sent the magic link to <strong>{emailValue}</strong>
-							{". "}If it still doesn&apos;t arrive, check spam/junk and try
-							again later.
-						</p>
+						<>
+							<p className="text-center text-text-secondary">
+								We&apos;ve re-sent the magic link to{" "}
+								<strong>{emailValue}</strong>
+								{". "}If it still doesn&apos;t arrive, check spam/junk and try
+								again later.
+							</p>
+							{devLink}
+						</>
 					);
 			}
 		}
@@ -634,18 +375,18 @@ export default function LoginForm({
 	const switchToCodeMode = async () => {
 		setVerificationRequestCodeError(undefined);
 		setVerificationCodeError(undefined);
-		const token = getToken();
-		if (!token) {
-			setVerificationRequestCodeError(
-				"Send the link first, then switch to code."
-			);
+
+		if (!verificationId) {
+			setVerificationMode("code");
+			await sendVerificationLink();
 			return;
 		}
 
 		const response = await fetch("/api/verify/request-code", {
 			method: "POST",
+			credentials: "include",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ token })
+			body: JSON.stringify({ verificationId })
 		});
 
 		if (!response.ok) {
@@ -664,9 +405,10 @@ export default function LoginForm({
 	const verifyCode = () => {
 		void (async () => {
 			setVerificationCodeError(undefined);
-			const token = getToken();
-			if (!token) {
-				setVerificationCodeError("Missing token. Please send a link first.");
+			if (!verificationId) {
+				setVerificationCodeError(
+					"Missing verification. Please send a link first."
+				);
 				return;
 			}
 			if (!verificationCodeValue.trim()) {
@@ -675,8 +417,12 @@ export default function LoginForm({
 			}
 			const response = await fetch("/api/verify/code", {
 				method: "POST",
+				credentials: "include",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ token, code: verificationCodeValue.trim() })
+				body: JSON.stringify({
+					verificationId,
+					code: verificationCodeValue.trim()
+				})
 			});
 
 			if (!response.ok) {
@@ -726,16 +472,44 @@ export default function LoginForm({
 		void typedPassword;
 	};
 
+	const switchToLogin = () => {
+		setIsRegister(false);
+		setStage(1);
+	};
+
+	const switchToRegister = () => {
+		setIsRegister(true);
+		setStage(1);
+	};
+
 	return (
 		<div
-			className="w-lg bg-background-primary rounded-2xl shadow-lg backdrop-blur-md overflow-hidden"
+			className="w-lg bg-background-primary rounded-2xl shadow-lg backdrop-blur-md overflow-hidden relative"
 			style={{
-				height: containerHeight > 0 ? containerHeight : undefined,
+				height: isRegister && containerHeight > 0 ? containerHeight : undefined,
 				transition: "height 300ms ease"
 			}}
 		>
 			{isRegister ? (
-				<form className="w-full">
+				<form
+					className="w-full pb-10"
+					onSubmit={(event) => {
+						event.preventDefault();
+						if (stage === 1) {
+							nextFromEmailStage();
+							return;
+						}
+						if (stage === 2) {
+							if (verificationMode === "code") {
+								verifyCode();
+								return;
+							}
+							void sendVerificationLink();
+							return;
+						}
+						submitRegister();
+					}}
+				>
 					<div
 						className="flex flex-col"
 						style={{
@@ -744,6 +518,7 @@ export default function LoginForm({
 						}}
 					>
 						<div
+							{...panelA11yProps(activePanelIndex !== 0)}
 							ref={(el) => {
 								panelsRef.current[0] = el;
 							}}
@@ -763,10 +538,21 @@ export default function LoginForm({
 								isInvalid={Boolean(emailError)}
 								error={emailError}
 							/>
-							<FormButton text="Next" onClick={nextFromEmailStage} />
+							<FormButton text="Next" type="submit" />
+							<p className="mt-4 text-sm text-center text-text-secondary">
+								Already have an account?{" "}
+								<button
+									type="button"
+									className="cursor-pointer text-accent-main transition-colors duration-100 hover:text-info-text"
+									onClick={switchToLogin}
+								>
+									Login
+								</button>
+							</p>
 						</div>
 
 						<div
+							{...panelA11yProps(activePanelIndex !== 1)}
 							ref={(el) => {
 								panelsRef.current[1] = el;
 							}}
@@ -782,7 +568,7 @@ export default function LoginForm({
 										text={verificationSendLabel}
 										disabled={verificationSendDisabled}
 										isLoading={isSendingVerification}
-										onClick={sendVerificationLink}
+										type="submit"
 									/>
 									{verificationSendError ? (
 										<p className="text-center text-destructive-text text-sm">
@@ -828,7 +614,7 @@ export default function LoginForm({
 										error={verificationCodeError}
 									/>
 									<div className="w-full max-w-84 flex flex-col gap-2">
-										<FormButton text="Verify code" onClick={verifyCode} />
+										<FormButton text="Verify code" type="submit" />
 										<button
 											type="button"
 											onClick={() => setVerificationMode("link")}
@@ -842,6 +628,7 @@ export default function LoginForm({
 						</div>
 
 						<div
+							{...panelA11yProps(activePanelIndex !== 2)}
 							ref={(el) => {
 								panelsRef.current[2] = el;
 							}}
@@ -884,13 +671,19 @@ export default function LoginForm({
 								isInvalid={Boolean(confirmPasswordError)}
 								error={confirmPasswordError}
 							/>
-							<FormButton text="Register" onClick={submitRegister} />
+							<FormButton text="Register" type="submit" />
 						</div>
 					</div>
 				</form>
 			) : (
-				<form className="flex flex-col gap-4 px-6 py-12">
-					<h2 className="text-2xl font-semibold text-text-main">Login</h2>
+				<form
+					className="flex flex-col items-center gap-4 px-6 py-12 pb-10"
+					onSubmit={(event) => {
+						event.preventDefault();
+						submitLogin();
+					}}
+				>
+					<h2 className="text-2xl text-accent-text font-semibold">Login</h2>
 					<FormInput
 						label="Email"
 						type="email"
@@ -913,103 +706,19 @@ export default function LoginForm({
 						isInvalid={Boolean(passwordError)}
 						error={passwordError}
 					/>
-					<FormButton text="Login" onClick={submitLogin} />
+					<FormButton text="Login" type="submit" />
+					<p className="mt-2 text-sm text-center text-text-secondary">
+						Don&apos;t have an account?{" "}
+						<button
+							type="button"
+							className="cursor-pointer text-accent-main transition-colors duration-100 hover:text-info-text"
+							onClick={switchToRegister}
+						>
+							Register
+						</button>
+					</p>
 				</form>
 			)}
 		</div>
 	);
-}
-
-type ValidationOk<T> = { ok: true; value: T };
-type ValidationErr = { ok: false; message: string };
-type ValidationResult<T> = ValidationOk<T> | ValidationErr;
-
-const DEFAULT_EMAIL_REQUIREMENTS: EmailRequirements = {
-	pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
-	maxLength: 254,
-	requireTld: true
-};
-
-const DEFAULT_PASSWORD_REQUIREMENTS: PasswordRequirements = {
-	minLength: 8,
-	maxLength: 128,
-	requireLowercase: true,
-	requireUppercase: true,
-	requireNumber: true,
-	requireSpecial: false
-};
-
-function validateEmail(
-	raw: string,
-	requirements: EmailRequirements = DEFAULT_EMAIL_REQUIREMENTS
-): ValidationResult<Email> {
-	const value = raw.trim();
-	if (!value) return { ok: false, message: "Email is required." };
-	if (requirements.maxLength && value.length > requirements.maxLength) {
-		return { ok: false, message: "Email is too long." };
-	}
-
-	const regex = new RegExp(requirements.pattern);
-	if (!regex.test(value)) {
-		return { ok: false, message: "Enter a valid email address." };
-	}
-
-	if (requirements.requireTld && !value.split(".").pop()) {
-		return { ok: false, message: "Email must include a domain." };
-	}
-
-	return { ok: true, value: value as Email };
-}
-
-function validatePassword(
-	raw: string,
-	requirements: PasswordRequirements = DEFAULT_PASSWORD_REQUIREMENTS
-): ValidationResult<Password> {
-	const value = raw;
-	if (!value) return { ok: false, message: "Password is required." };
-	if (value.length < requirements.minLength) {
-		return {
-			ok: false,
-			message: `Password must be at least ${requirements.minLength} characters.`
-		};
-	}
-	if (requirements.maxLength && value.length > requirements.maxLength) {
-		return { ok: false, message: "Password is too long." };
-	}
-	if (requirements.requireLowercase && !/[a-z]/.test(value)) {
-		return { ok: false, message: "Add at least one lowercase letter." };
-	}
-	if (requirements.requireUppercase && !/[A-Z]/.test(value)) {
-		return { ok: false, message: "Add at least one uppercase letter." };
-	}
-	if (requirements.requireNumber && !/[0-9]/.test(value)) {
-		return { ok: false, message: "Add at least one number." };
-	}
-	if (requirements.requireSpecial) {
-		const allowed = requirements.specialChars
-			? requirements.specialChars.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-			: "[^A-Za-z0-9]";
-		const specialRegex = requirements.specialChars
-			? new RegExp(`[${allowed}]`)
-			: new RegExp(allowed);
-		if (!specialRegex.test(value)) {
-			return { ok: false, message: "Add at least one special character." };
-		}
-	}
-	if (requirements.pattern && !new RegExp(requirements.pattern).test(value)) {
-		return { ok: false, message: "Password does not meet requirements." };
-	}
-
-	return { ok: true, value: value as Password };
-}
-
-function validatePasswordConfirmation(
-	password: string,
-	confirmPassword: string
-): ValidationResult<true> {
-	if (!confirmPassword) return { ok: false, message: "Confirm your password." };
-	if (password !== confirmPassword) {
-		return { ok: false, message: "Passwords do not match." };
-	}
-	return { ok: true, value: true };
 }

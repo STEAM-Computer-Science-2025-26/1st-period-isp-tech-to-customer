@@ -1,21 +1,13 @@
 import { getSql } from "@/db/connection";
-import { randomInt } from "node:crypto";
 import { z } from "zod";
 import { enforceRateLimit } from "@/services/rateLimit";
-import {
-	encryptVerificationCode,
-	hashVerificationSessionToken
-} from "@/services/verifyCrypto";
+import { hashVerificationSessionToken } from "@/services/verifyCrypto";
 
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
 	verificationId: z.string().uuid()
 });
-
-function generateCode(): string {
-	return String(randomInt(0, 1_000_000)).padStart(6, "0");
-}
 
 function getClientIp(request: Request): string {
 	const xff = request.headers.get("x-forwarded-for");
@@ -55,6 +47,14 @@ export async function POST(request: Request) {
 	const sql = getSql();
 	const ip = getClientIp(request);
 
+	const rl = await enforceRateLimit(sql, `verify:status:ip:${ip}`, 120, 60);
+	if (!rl.allowed) {
+		return Response.json(
+			{ message: "Too many requests" },
+			{ status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
+		);
+	}
+
 	const sessionToken = getCookie(request, "vr");
 	if (!sessionToken) {
 		return Response.json(
@@ -64,39 +64,8 @@ export async function POST(request: Request) {
 	}
 	const sessionHash = hashVerificationSessionToken(sessionToken);
 
-	const rl = await enforceRateLimit(
-		sql,
-		`verify:request-code:ip:${ip}`,
-		60,
-		60
-	);
-	if (!rl.allowed) {
-		return Response.json(
-			{ message: "Too many requests" },
-			{ status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } }
-		);
-	}
-
-	const rlPerVerification = await enforceRateLimit(
-		sql,
-		`verify:request-code:vid:${verificationId}`,
-		3,
-		60 * 10
-	);
-	if (!rlPerVerification.allowed) {
-		return Response.json(
-			{ message: "Too many code requests. Please wait and try again." },
-			{
-				status: 429,
-				headers: {
-					"Retry-After": String(rlPerVerification.retryAfterSeconds)
-				}
-			}
-		);
-	}
-
 	const rows = await sql`
-		SELECT id, email, expires_at, verified, session_hash
+		SELECT id, verified, use_code, expires_at, session_hash
 		FROM email_verifications
 		WHERE id = ${verificationId}
 		LIMIT 1
@@ -104,7 +73,7 @@ export async function POST(request: Request) {
 
 	const row = rows[0];
 	if (!row) {
-		return Response.json({ message: "Invalid token" }, { status: 404 });
+		return Response.json({ message: "Invalid verification" }, { status: 404 });
 	}
 
 	if (!row.session_hash || row.session_hash !== sessionHash) {
@@ -114,25 +83,14 @@ export async function POST(request: Request) {
 		);
 	}
 
-	if (row.verified) {
-		return Response.json({ message: "Already verified" }, { status: 409 });
+	const expired = new Date(row.expires_at) <= new Date();
+	if (expired && !row.verified) {
+		return Response.json({ message: "Verification expired" }, { status: 410 });
 	}
 
-	if (new Date(row.expires_at) <= new Date()) {
-		return Response.json({ message: "Token expired" }, { status: 410 });
-	}
-
-	const code = generateCode();
-	const codeEncrypted = encryptVerificationCode(code);
-	await sql`
-		UPDATE email_verifications
-		SET code_encrypted = ${codeEncrypted},
-			use_code = TRUE,
-			code_attempts = 0,
-			code_expires_at = NOW() + INTERVAL '10 minutes',
-			expires_at = LEAST(expires_at, NOW() + INTERVAL '10 minutes')
-		WHERE id = ${verificationId}
-	`;
-
-	return Response.json({ ok: true });
+	return Response.json({
+		verified: Boolean(row.verified),
+		useCode: Boolean(row.use_code),
+		expiresAt: new Date(row.expires_at).toISOString()
+	});
 }
