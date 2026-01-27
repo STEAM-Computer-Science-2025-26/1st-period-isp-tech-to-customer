@@ -109,3 +109,25 @@ export interface LineGraphProps {
 	yAxisLabel?: string;
 	xAxisLabel?: string;
 }
+declare const __emailBrand: unique symbol;
+declare const __passwordBrand: unique symbol;
+
+export type Email = string & { readonly [__emailBrand]: true };
+export type Password = string & { readonly [__passwordBrand]: true };
+
+export type EmailRequirements = {
+	pattern: string;
+	maxLength?: number;
+	requireTld?: boolean;
+};
+
+export type PasswordRequirements = {
+	minLength: number;
+	maxLength?: number;
+	requireLowercase?: boolean;
+	requireUppercase?: boolean;
+	requireNumber?: boolean;
+	requireSpecial?: boolean;
+	specialChars?: string;
+	pattern?: string;
+};

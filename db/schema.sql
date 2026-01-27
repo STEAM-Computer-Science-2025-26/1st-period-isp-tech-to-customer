@@ -82,3 +82,22 @@ ALTER TABLE employees
 	FOREIGN KEY (current_job_id)
 	REFERENCES jobs(id)
 	ON DELETE SET NULL;
+
+-- Email verification tokens/codes (registration)
+CREATE TABLE IF NOT EXISTS email_verifications (
+	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	email VARCHAR(255) NOT NULL,
+	token VARCHAR(64) UNIQUE NOT NULL,
+	code VARCHAR(6),
+	created_at TIMESTAMPTZ DEFAULT NOW(),
+	expires_at TIMESTAMPTZ NOT NULL,
+	verified BOOLEAN DEFAULT FALSE,
+	use_code BOOLEAN DEFAULT FALSE,
+	code_attempts INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verifications_token
+	ON email_verifications(token);
+
+CREATE INDEX IF NOT EXISTS idx_email_verifications_email_expires
+	ON email_verifications(email, expires_at);

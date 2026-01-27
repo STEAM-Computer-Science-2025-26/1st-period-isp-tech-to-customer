@@ -1,865 +1,1015 @@
 "use client";
 
-/* 
-	This component is the login and registration form used in the app. It is a small form that can be placed anywhere in the site
-	in things like modals or dedicated pages.
-	It handles user input, form submission, and transitions between login and registration modes.
+import type {
+	Email,
+	EmailRequirements,
+	Password,
+	PasswordRequirements
+} from "@/app/types/types";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import clsx from "clsx";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
-*/
-
-import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
-
-import type { LoginInput, LoginSuccess } from "@/types/userTypes";
-
-type LoginFormProps = {
-	defaultMode?: "login" | "register";
-};
-
-export function RegisterVerificationDemo({ mode }: { mode: "link" | "code" }) {
-	const fakeCode = "123456";
-
-	if (mode === "link") {
-		return (
-			<div className="w-full flex flex-col items-center">
-				<p className="text-center font-medium mb-2">Redirecting to the app…</p>
-				<p className="text-sm text-center text-text-secondary">
-					If this takes too long, check your email link.
-				</p>
-			</div>
-		);
-	}
+function FormButton({
+	text,
+	onClick,
+	disabled,
+	isLoading
+}: {
+	text: string;
+	onClick?: () => void;
+	disabled?: boolean;
+	isLoading?: boolean;
+}) {
+	const isDisabled = Boolean(disabled || isLoading);
 
 	return (
-		<div className="w-full flex flex-col items-center">
-			<p className="text-center font-medium mb-2">Your verification code</p>
-			<div className="w-full flex justify-center gap-2">
-				{fakeCode.split("").map((digit, idx) => (
-					<div
-						key={idx}
-						className="w-11 h-11 border border-gray-300 rounded-md text-center text-lg flex items-center justify-center"
-					>
-						{digit}
-					</div>
+		<button
+			type="button"
+			onClick={onClick}
+			disabled={isDisabled}
+			aria-busy={isLoading ? true : undefined}
+			className={clsx(
+				"h-10 w-full max-w-84 rounded-lg bg-accent-main text-background-primary font-semibold transition-opacity flex items-center justify-center",
+				isDisabled && "opacity-60 cursor-not-allowed"
+			)}
+		>
+			{isLoading ? (
+				<>
+					<Loader2 className="animate-spin" size={18} />
+					<span className="sr-only">{text}</span>
+				</>
+			) : (
+				text
+			)}
+		</button>
+	);
+}
+
+type FormInputType = "text" | "email" | "password" | "verification-code";
+
+type FormInputBaseProps = {
+	label: string;
+	value: string;
+	onChange: (value: string) => void;
+	isInvalid?: boolean;
+	error?: string;
+	readOnly?: boolean;
+};
+
+type VerificationCodeInputProps = FormInputBaseProps & {
+	type: "verification-code";
+};
+
+type StandardFormInputProps = FormInputBaseProps & {
+	type: "text" | "email" | "password";
+	passwordShown?: boolean;
+};
+
+function VerificationCodeInput({
+	label,
+	value,
+	onChange,
+	isInvalid,
+	error,
+	readOnly
+}: VerificationCodeInputProps) {
+	const length = 6;
+	const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+	const digits = useMemo(() => {
+		const onlyDigits = value.replace(/\D/g, "").slice(0, length);
+		return Array.from({ length }, (_, i) => onlyDigits[i] ?? "");
+	}, [value]);
+
+	const focusIndex = (index: number) => {
+		const el = inputsRef.current[index];
+		el?.focus();
+		el?.select();
+	};
+
+	const setDigitAt = (index: number, nextDigit: string) => {
+		const nextDigits = [...digits];
+		nextDigits[index] = nextDigit;
+		onChange(nextDigits.join(""));
+	};
+
+	const applyPaste = (startIndex: number, pasted: string) => {
+		const incoming = pasted.replace(/\D/g, "").slice(0, length);
+		if (!incoming) return;
+		const nextDigits = [...digits];
+		let writeIndex = startIndex;
+		for (const ch of incoming) {
+			if (writeIndex >= length) break;
+			nextDigits[writeIndex] = ch;
+			writeIndex += 1;
+		}
+		onChange(nextDigits.join(""));
+		focusIndex(Math.min(writeIndex, length - 1));
+	};
+
+	return (
+		<div
+			className={clsx(
+				"relative w-full max-w-84 ease duration-200",
+				isInvalid && "mb-4"
+			)}
+		>
+			<label
+				className={clsx(
+					"block text-sm mb-2",
+					isInvalid ? "text-destructive-text" : "text-accent-text"
+				)}
+			>
+				{label}
+			</label>
+			<div className="flex w-full justify-between gap-2">
+				{digits.map((digit, index) => (
+					<input
+						key={index}
+						ref={(el) => {
+							inputsRef.current[index] = el;
+						}}
+						className={clsx(
+							"transition-colors duration-200 border-2 rounded-lg text-accent-text/80 w-10 h-10 outline-none bg-transparent text-center text-lg",
+							!readOnly && "focus:text-text-secondary",
+							isInvalid
+								? "border-destructive-foreground text-destructive-text/70"
+								: "border-accent-text/70"
+						)}
+						type="text"
+						inputMode="numeric"
+						pattern="[0-9]*"
+						autoComplete={index === 0 ? "one-time-code" : "off"}
+						maxLength={1}
+						value={digit}
+						readOnly={readOnly}
+						aria-label={`${label} digit ${index + 1} of ${length}`}
+						aria-invalid={isInvalid ? true : undefined}
+						onFocus={(e) => e.currentTarget.select()}
+						onPaste={(e) => {
+							if (readOnly) return;
+							e.preventDefault();
+							applyPaste(index, e.clipboardData.getData("text"));
+						}}
+						onChange={(e) => {
+							if (readOnly) return;
+							const nextRaw = e.target.value;
+							if (!nextRaw) {
+								setDigitAt(index, "");
+								return;
+							}
+
+							const last = nextRaw.slice(-1);
+							if (!/\d/.test(last)) return;
+							setDigitAt(index, last);
+							if (index < length - 1) focusIndex(index + 1);
+						}}
+						onKeyDown={(e) => {
+							if (readOnly) return;
+							if (e.key === "ArrowLeft") {
+								e.preventDefault();
+								focusIndex(Math.max(0, index - 1));
+								return;
+							}
+							if (e.key === "ArrowRight") {
+								e.preventDefault();
+								focusIndex(Math.min(length - 1, index + 1));
+								return;
+							}
+							if (e.key === "Backspace") {
+								e.preventDefault();
+								if (digits[index]) {
+									setDigitAt(index, "");
+									return;
+								}
+								if (index > 0) {
+									setDigitAt(index - 1, "");
+									focusIndex(index - 1);
+								}
+								return;
+							}
+							if (e.key === "Delete") {
+								e.preventDefault();
+								setDigitAt(index, "");
+								return;
+							}
+						}}
+					/>
 				))}
 			</div>
-			<p className="text-xs text-center text-text-secondary mt-2">
-				Demo only (fake code).
-			</p>
+			{isInvalid && error ? (
+				<p className="absolute -bottom-4 text-xs text-destructive-text max-w-84">
+					{error}
+				</p>
+			) : null}
 		</div>
 	);
 }
 
-const constantTimeEqual = (a: string, b: string) => {
-	if (a.length !== b.length) return false;
-	let diff = 0;
-	for (let i = 0; i < a.length; i += 1)
-		diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-	return diff === 0;
-};
+function StandardFormInput({
+	label,
+	type,
+	value,
+	onChange,
+	isInvalid,
+	error,
+	readOnly,
+	passwordShown = false
+}: StandardFormInputProps) {
+	const inputRef = useRef<HTMLInputElement | null>(null);
+	const selectionRef = useRef<{
+		start: number | null;
+		end: number | null;
+		wasFocused: boolean;
+	} | null>(null);
 
-export default function LoginForm({
-	defaultMode = "login"
-}: LoginFormProps = {}) {
-	const router = useRouter();
-	const [form, setForm] = useState<LoginInput>({ email: "", password: "" });
-	const [error, setError] = useState<string | null>(null);
-	const [notice, setNotice] = useState<string | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [showPassword, setShowPassword] = useState(false);
-	const [touched, setTouched] = useState<{ email: boolean; password: boolean }>(
-		{
-			email: false,
-			password: false
-		}
-	);
-	const [mode, setMode] = useState<"login" | "register">(defaultMode);
-	const [registerStep, setRegisterStep] = useState<1 | 2 | 3>(1);
-	const [verificationCode, setVerificationCode] = useState<string[]>(
-		Array(6).fill("")
-	);
-	const [showManualCode, setShowManualCode] = useState(false);
-	const [verificationError, setVerificationError] = useState<string | null>(
-		null
-	);
-	const [isVerifyingCode, setIsVerifyingCode] = useState(false);
-	const [codeAttempts, setCodeAttempts] = useState(0);
-	const verificationRefs = useRef<Array<HTMLInputElement | null>>([]);
-	const registerSliderViewportRef = useRef<HTMLDivElement | null>(null);
-	const [registerPanelWidth, setRegisterPanelWidth] = useState<number>(0);
-	const registerPanelRefs = useRef<Array<HTMLDivElement | null>>([]);
-	const [registerViewportHeight, setRegisterViewportHeight] =
-		useState<number>(0);
-	const [registerPassword, setRegisterPassword] = useState("");
-	const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState("");
-	const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-	const [showRegisterPasswordConfirm, setShowRegisterPasswordConfirm] =
-		useState(false);
-
-	const inputClassName =
-		"peer transition-colors duration-300 text-text-tertiary focus:text-text-primary w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-accent-main";
-	const buttonClassName =
-		"bg-accent-main border-2 border-accent-main hover:text-accent-text hover:bg-background-secondary/40 cursor-pointer max-w-96 w-full text-white py-2 px-4 rounded-md transition-colors disabled:opacity-60";
-
-	const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		setError(null);
-		setNotice(null);
-
-		if (mode === "register") {
-			if (registerStep === 1) {
-				if (!emailIsValid) {
-					setTouched((prev) => ({ ...prev, email: true }));
-					setError("Please enter a valid email address.");
-					return;
-				}
-
-				setVerificationError(null);
-				setShowManualCode(false);
-				setVerificationCode(Array(6).fill(""));
-				setCodeAttempts(0);
-				setRegisterStep(2);
-				return;
-			}
-
-			if (registerStep === 2) {
-				// No submit button on this screen (verification is automatic).
-				return;
-			}
-
-			// registerStep === 3
-			const password = registerPassword;
-			const confirm = registerPasswordConfirm;
-
-			const pwMinLength = password.length >= 8;
-			const pwHasLower = /[a-z]/.test(password);
-			const pwHasUpper = /[A-Z]/.test(password);
-			const pwHasNumber = /\d/.test(password);
-			const pwHasSymbol = /[^A-Za-z0-9]/.test(password);
-			const pwNoSpaces = !/\s/.test(password);
-			const pwAllCriteria =
-				pwMinLength &&
-				pwHasLower &&
-				pwHasUpper &&
-				pwHasNumber &&
-				pwHasSymbol &&
-				pwNoSpaces;
-
-			if (!pwAllCriteria) {
-				setError("Please choose a stronger password (meet all criteria).");
-				return;
-			}
-			if (password !== confirm) {
-				setError("Passwords do not match.");
-				return;
-			}
-
-			// Backend not wired yet: this is where you'd POST to your register/finish endpoint.
-			setNotice(
-				"Password looks good. (Demo) Backend hookup needed to finish creating the account."
-			);
-			setRegisterPassword("");
-			setRegisterPasswordConfirm("");
-			setMode("login");
-			setRegisterStep(1);
-			setShowManualCode(false);
-			setVerificationCode(Array(6).fill(""));
-			return;
-		}
-
-		if (!emailIsValid) {
-			setTouched((prev) => ({ ...prev, email: true }));
-			setError("Please enter a valid email address.");
-			return;
-		}
-		if (!passwordIsValid) {
-			setTouched((prev) => ({ ...prev, password: true }));
-			setError("Please enter a password (at least 8 characters).");
-			return;
-		}
-
-		setIsSubmitting(true);
-
-		try {
-			const res = await fetch("/api/auth/login", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(form)
-			});
-
-			if (!res.ok) {
-				const body = (await res.json().catch(() => null)) as {
-					message?: string;
-				} | null;
-				setError(body?.message ?? "Login failed.");
-				return;
-			}
-
-			(await res.json()) as LoginSuccess;
-			router.push("/");
-		} catch {
-			setError("Network error. Please try again.");
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
-	const isRegister = mode === "register";
-
-	const emailValue = form.email.trim();
-	const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue);
-	const passwordIsValid = form.password.trim().length >= 8;
-	const emailHasValue = emailValue.length > 0;
-	const passwordHasValue = form.password.trim().length > 0;
-
-	const emailInputClass =
-		inputClassName +
-		(touched.email && !emailIsValid && emailHasValue
-			? " border-destructive-background focus:border-destructive-background"
-			: "");
-	const passwordInputClass =
-		inputClassName +
-		(touched.password && !passwordIsValid && passwordHasValue
-			? " border-destructive-background focus:border-destructive-background"
-			: "");
-
-	const labelBaseClass =
-		"text-text-secondary absolute top-0 peer-placeholder-shown:top-1/2 -translate-y-1/2 left-2 bg-background-primary px-1 rounded block text-sm font-medium transition-all duration-300";
-	const emailLabelClass =
-		labelBaseClass +
-		(touched.email && !emailIsValid && emailHasValue
-			? " peer-focus:text-destructive-text"
-			: " peer-focus:text-accent-text");
-	const passwordLabelClass =
-		labelBaseClass +
-		(touched.password && !passwordIsValid && passwordHasValue
-			? " peer-focus:text-destructive-text"
-			: " peer-focus:text-accent-text");
-
-	const setVerificationDigit = (index: number, value: string) => {
-		const digit = value.replace(/\D/g, "").slice(-1);
-		setVerificationCode((prev) => {
-			const next = [...prev];
-			next[index] = digit;
-			return next;
-		});
-		if (digit && index < 5) {
-			verificationRefs.current[index + 1]?.focus();
-		}
-	};
-
-	const verificationCodeValue = verificationCode.join("");
-	const verificationComplete = verificationCode.every((d) => d.length === 1);
-	const maxCodeAttempts = 5;
+	const [shown, setShown] = useState(passwordShown);
+	const effectiveType: "text" | "email" | "password" =
+		type === "password" && shown ? "text" : type;
 
 	useEffect(() => {
-		if (mode !== "register") return;
-		if (registerStep !== 2) return;
-		if (!showManualCode) return;
-		if (!verificationComplete) return;
-		if (isVerifyingCode) return;
-		if (codeAttempts >= maxCodeAttempts) return;
+		if (type !== "password") return;
+		const selection = selectionRef.current;
+		if (!selection?.wasFocused) return;
+		const input = inputRef.current;
+		if (!input) return;
 
-		let cancelled = false;
-		setIsVerifyingCode(true);
-		setVerificationError(null);
-
-		const run = async () => {
-			await new Promise((r) => setTimeout(r, 450));
-
-			// Demo-only: accept 123456.
-			const ok = constantTimeEqual(verificationCodeValue, "123456");
-			if (cancelled) return;
-
-			if (ok) {
-				setRegisterStep(3);
-				return;
+		requestAnimationFrame(() => {
+			input.focus();
+			if (selection.start !== null && selection.end !== null) {
+				try {
+					input.setSelectionRange(selection.start, selection.end);
+				} catch {
+					// Safe to ignore.
+				}
 			}
-
-			setCodeAttempts((prev) => prev + 1);
-			setVerificationError("That code was not correct. Please try again.");
-			setVerificationCode(Array(6).fill(""));
-			setTimeout(() => verificationRefs.current[0]?.focus(), 0);
-		};
-
-		run()
-			.catch(() => {
-				if (cancelled) return;
-				setVerificationError("Verification failed. Please try again.");
-			})
-			.finally(() => {
-				if (cancelled) return;
-				setIsVerifyingCode(false);
-			});
-
-		return () => {
-			cancelled = true;
-		};
-	}, [
-		mode,
-		registerStep,
-		showManualCode,
-		verificationComplete,
-		verificationCodeValue,
-		isVerifyingCode,
-		codeAttempts,
-		maxCodeAttempts
-	]);
-
-	const onVerificationKeyDown = (
-		index: number,
-		e: React.KeyboardEvent<HTMLInputElement>
-	) => {
-		if (e.key === "Backspace") {
-			if (verificationCode[index]) {
-				setVerificationDigit(index, "");
-				return;
-			}
-			if (index > 0) {
-				verificationRefs.current[index - 1]?.focus();
-			}
-		}
-
-		if (e.key === "ArrowLeft" && index > 0) {
-			e.preventDefault();
-			verificationRefs.current[index - 1]?.focus();
-		}
-		if (e.key === "ArrowRight" && index < 5) {
-			e.preventDefault();
-			verificationRefs.current[index + 1]?.focus();
-		}
-	};
-
-	const onVerificationPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-		e.preventDefault();
-		const digits = e.clipboardData
-			.getData("text")
-			.replace(/\D/g, "")
-			.slice(0, 6)
-			.split("");
-		if (digits.length === 0) return;
-		setVerificationCode((prev) => {
-			const next = [...prev];
-			for (let i = 0; i < 6; i += 1) next[i] = digits[i] ?? "";
-			return next;
 		});
-		verificationRefs.current[Math.min(digits.length, 6) - 1]?.focus();
-	};
+	}, [shown, type]);
+
+	return (
+		<div
+			className={clsx(
+				"relative w-full max-w-84 ease duration-200",
+				isInvalid && "mb-4"
+			)}
+		>
+			<input
+				ref={inputRef}
+				className={clsx(
+					"peer transition-colors duration-200 border-2 rounded-lg text-accent-text/80 w-full h-10 outline-none px-3 bg-transparent",
+					!readOnly && "focus:text-text-secondary",
+					isInvalid
+						? "border-destructive-foreground text-destructive-text/70"
+						: "border-accent-text/70",
+					type === "password" && !shown && "tracking-[0.175rem]"
+				)}
+				type={effectiveType}
+				value={value}
+				onChange={(e) => onChange(e.target.value)}
+				placeholder=" "
+				aria-label={label}
+				aria-invalid={isInvalid ? true : undefined}
+				readOnly={readOnly}
+			/>
+			{type === "password" ? (
+				<button
+					type="button"
+					className="absolute bg-background-primary right-2 text-text-tertiary w-5 h-8 bottom-1/2 translate-y-1/2"
+					aria-label={shown ? "Hide password" : "Show password"}
+					onMouseDown={(e) => {
+						// Prevents stealing focus from the input.
+						e.preventDefault();
+					}}
+					onClick={(e) => {
+						e.preventDefault();
+						const input = inputRef.current;
+						selectionRef.current = {
+							start: input?.selectionStart ?? null,
+							end: input?.selectionEnd ?? null,
+							wasFocused: document.activeElement === input
+						};
+						setShown((prev) => !prev);
+					}}
+				>
+					{shown ? <EyeOff size={20} /> : <Eye size={20} />}
+				</button>
+			) : null}
+			<label
+				className={clsx(
+					"absolute left-2 top-0 px-1 ease duration-200 -translate-y-1/2 text-sm pointer-events-none bg-background-primary",
+					isInvalid ? "text-destructive-text" : "text-accent-text",
+					"peer-placeholder-shown:left-[calc((3*var(--spacing))+2px)] peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:px-0",
+					isInvalid
+						? "peer-placeholder-shown:text-destructive-text/70"
+						: "peer-placeholder-shown:text-text-tertiary"
+				)}
+			>
+				{label}
+			</label>
+			{isInvalid && error ? (
+				<p className="absolute -bottom-4 text-xs text-destructive-text max-w-84">
+					{error}
+				</p>
+			) : null}
+		</div>
+	);
+}
+
+function FormInput(
+	props: (StandardFormInputProps | VerificationCodeInputProps) & {
+		type: FormInputType;
+	}
+) {
+	if (props.type === "verification-code") {
+		return <VerificationCodeInput {...(props as VerificationCodeInputProps)} />;
+	}
+	return <StandardFormInput {...(props as StandardFormInputProps)} />;
+}
+
+function useStackedPanels(activeIndex: number) {
+	const panelsRef = useRef<Array<HTMLDivElement | null>>([]);
+	const [panelHeights, setPanelHeights] = useState<number[]>([]);
 
 	useLayoutEffect(() => {
-		if (mode !== "register") return;
-		const viewport = registerSliderViewportRef.current;
-		if (!viewport) return;
+		const elements = panelsRef.current.filter(
+			(el): el is HTMLDivElement => el !== null
+		);
+		if (elements.length === 0) return;
 
 		const update = () => {
-			const width = Math.round(viewport.getBoundingClientRect().width);
-			setRegisterPanelWidth(width);
+			setPanelHeights(
+				panelsRef.current.map((el) => el?.getBoundingClientRect().height ?? 0)
+			);
 		};
+
 		update();
-
-		const ro = new ResizeObserver(() => update());
-		ro.observe(viewport);
+		const ro = new ResizeObserver(update);
+		elements.forEach((el) => ro.observe(el));
 		return () => ro.disconnect();
-	}, [mode]);
+	}, []);
 
-	useLayoutEffect(() => {
-		if (mode !== "register") {
-			setRegisterViewportHeight(0);
+	const panelOffsets = useMemo(() => {
+		const offsets: number[] = [];
+		let acc = 0;
+		for (let i = 0; i < panelHeights.length; i += 1) {
+			offsets.push(acc);
+			acc += panelHeights[i] ?? 0;
+		}
+		return offsets;
+	}, [panelHeights]);
+
+	const containerHeight = panelHeights[activeIndex] ?? 0;
+	const translateY = -(panelOffsets[activeIndex] ?? 0);
+
+	return { panelsRef, containerHeight, translateY };
+}
+
+export default function LoginForm({
+	isRegister = false,
+	email
+}: {
+	isRegister?: boolean;
+	email?: Email;
+}) {
+	const [stage, setStage] = useState<1 | 2 | 3>(1);
+	const [verificationMode, setVerificationMode] = useState<"link" | "code">(
+		"link"
+	);
+	const [emailValue, setEmailValue] = useState<string>(email ?? "");
+	const [passwordValue, setPasswordValue] = useState<string>("");
+	const [confirmPasswordValue, setConfirmPasswordValue] = useState<string>("");
+	const [verificationCodeValue, setVerificationCodeValue] =
+		useState<string>("");
+	const [emailError, setEmailError] = useState<string | undefined>(undefined);
+	const [passwordError, setPasswordError] = useState<string | undefined>(
+		undefined
+	);
+	const [confirmPasswordError, setConfirmPasswordError] = useState<
+		string | undefined
+	>(undefined);
+	const [verificationSendStep, setVerificationSendStep] = useState<
+		0 | 1 | 2 | 3 | 4 | 5
+	>(0);
+	const [verificationSendError, setVerificationSendError] = useState<
+		string | undefined
+	>(undefined);
+	const [verificationRequestCodeError, setVerificationRequestCodeError] =
+		useState<string | undefined>(undefined);
+	const [verificationCodeError, setVerificationCodeError] = useState<
+		string | undefined
+	>(undefined);
+	const [verificationToken, setVerificationToken] = useState<string>("");
+	const [isSendingVerification, setIsSendingVerification] = useState(false);
+	const verificationTimeoutRef = useRef<number | null>(null);
+
+	const activePanelIndex = stage - 1;
+	const { panelsRef, containerHeight, translateY } =
+		useStackedPanels(activePanelIndex);
+
+	const nextFromEmailStage = () => {
+		const emailCheck = validateEmail(emailValue);
+		if (!emailCheck.ok) {
+			setEmailError(emailCheck.message);
+			return;
+		}
+		setEmailError(undefined);
+		setVerificationSendError(undefined);
+		setVerificationRequestCodeError(undefined);
+		setVerificationCodeError(undefined);
+		setVerificationCodeValue("");
+		setVerificationMode("link");
+		setVerificationSendStep(0);
+		setVerificationToken("");
+		setStage(2);
+	};
+
+	useEffect(() => {
+		return () => {
+			if (verificationTimeoutRef.current !== null) {
+				window.clearTimeout(verificationTimeoutRef.current);
+				verificationTimeoutRef.current = null;
+			}
+		};
+	}, []);
+
+	const scheduleVerificationCooldown = (nextStep: 2 | 4, delayMs: number) => {
+		if (verificationTimeoutRef.current !== null) {
+			window.clearTimeout(verificationTimeoutRef.current);
+			verificationTimeoutRef.current = null;
+		}
+		verificationTimeoutRef.current = window.setTimeout(() => {
+			setVerificationSendStep(nextStep);
+			verificationTimeoutRef.current = null;
+		}, delayMs);
+	};
+
+	const getToken = () => {
+		if (typeof window === "undefined") return verificationToken;
+		const tokenFromUrl = new URLSearchParams(window.location.search).get(
+			"token"
+		);
+		return tokenFromUrl ?? verificationToken;
+	};
+
+	const sendVerificationLink = async () => {
+		if (isSendingVerification) return;
+		if (
+			verificationSendStep === 1 ||
+			verificationSendStep === 3 ||
+			verificationSendStep === 5
+		) {
 			return;
 		}
 
-		const activePanel = registerPanelRefs.current[registerStep - 1] ?? null;
-		if (!activePanel) return;
+		const emailCheck = validateEmail(emailValue);
+		if (!emailCheck.ok) {
+			setEmailError(emailCheck.message);
+			return;
+		}
 
-		const update = () => {
-			const height = Math.ceil(activePanel.getBoundingClientRect().height);
-			setRegisterViewportHeight(height);
-		};
+		setVerificationSendError(undefined);
+		setVerificationRequestCodeError(undefined);
+		setIsSendingVerification(true);
+		try {
+			const response = await fetch("/api/verify/send", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: emailCheck.value })
+			});
 
-		update();
-		const ro = new ResizeObserver(() => update());
-		ro.observe(activePanel);
-		return () => ro.disconnect();
-	}, [mode, registerStep]);
+			if (!response.ok) {
+				const payload = (await response.json().catch(() => null)) as {
+					message?: string;
+				} | null;
+				setVerificationSendError(
+					payload?.message ?? "Failed to send verification email."
+				);
+				return;
+			}
+
+			const payload = (await response.json()) as {
+				token: string;
+				expiresAt: string;
+			};
+
+			setVerificationToken(payload.token);
+			if (typeof window !== "undefined") {
+				// Requested behavior: put the token in the URL without a reload.
+				window.history.replaceState({}, "", `/verify?token=${payload.token}`);
+			}
+
+			if (verificationSendStep === 0) {
+				setVerificationSendStep(1);
+				scheduleVerificationCooldown(2, 120_000);
+				return;
+			}
+			if (verificationSendStep === 2) {
+				setVerificationSendStep(3);
+				scheduleVerificationCooldown(4, 300_000);
+				return;
+			}
+			if (verificationSendStep === 4) {
+				setVerificationSendStep(5);
+				return;
+			}
+		} finally {
+			setIsSendingVerification(false);
+		}
+	};
+
+	const verificationSendLabel =
+		verificationSendStep === 0
+			? "Send email"
+			: verificationSendStep === 1
+				? "Sent"
+				: verificationSendStep === 2
+					? "Resend"
+					: verificationSendStep === 3
+						? "Sent"
+						: verificationSendStep === 4
+							? "Final resend"
+							: "Re-sent";
+
+	const verificationSendDisabled =
+		verificationSendStep === 1 ||
+		verificationSendStep === 3 ||
+		verificationSendStep === 5;
+
+	const renderVerificationParagraph = () => {
+		if (verificationMode === "link") {
+			switch (verificationSendStep) {
+				case 0:
+					return (
+						<p className="text-center text-text-secondary">
+							We&apos;re going to send a magic link to{" "}
+							<strong>{emailValue}</strong>. Click send when you&apos;re ready.
+						</p>
+					);
+				case 1:
+					return (
+						<p className="text-center text-text-secondary">
+							We&apos;ve sent a magic link to <strong>{emailValue}</strong>.
+							Check your inbox and click the link to verify your email.
+						</p>
+					);
+				case 2:
+					return (
+						<p className="text-center text-text-secondary">
+							Didn&apos;t get it? You can resend the magic link now.
+						</p>
+					);
+				case 3:
+					return (
+						<p className="text-center text-text-secondary">
+							We&apos;ve sent another magic link to{" "}
+							<strong>{emailValue}</strong>. Check your inbox and click the link
+							to verify your email.
+						</p>
+					);
+				case 4:
+					return (
+						<p className="text-center text-text-secondary">
+							Still nothing? You can send one final resend.
+						</p>
+					);
+				case 5:
+				default:
+					return (
+						<p className="text-center text-text-secondary">
+							We&apos;ve re-sent the magic link to <strong>{emailValue}</strong>
+							{". "}If it still doesn&apos;t arrive, check spam/junk and try
+							again later.
+						</p>
+					);
+			}
+		}
+
+		switch (verificationSendStep) {
+			case 0:
+				return (
+					<p className="text-center text-text-secondary">
+						We&apos;re going to send a link to <strong>{emailValue}</strong>{" "}
+						that shows a verification code on your other device. Click send when
+						you&apos;re ready.
+					</p>
+				);
+			case 1:
+				return (
+					<p className="text-center text-text-secondary">
+						We&apos;ve sent a link to <strong>{emailValue}</strong>. Open it on
+						your other device to view the verification code, then enter it here.
+					</p>
+				);
+			case 2:
+				return (
+					<p className="text-center text-text-secondary">
+						Didn&apos;t get it? You can resend the link now.
+					</p>
+				);
+			case 3:
+				return (
+					<p className="text-center text-text-secondary">
+						We&apos;ve sent another link to <strong>{emailValue}</strong>. Open
+						it on your other device to view the verification code, then enter it
+						here.
+					</p>
+				);
+			case 4:
+				return (
+					<p className="text-center text-text-secondary">
+						Still nothing? You can send one final resend.
+					</p>
+				);
+			case 5:
+			default:
+				return (
+					<p className="text-center text-text-secondary">
+						We&apos;ve re-sent the link to <strong>{emailValue}</strong>. If it
+						still doesn&apos;t arrive, check spam/junk and try again later.
+					</p>
+				);
+		}
+	};
+
+	const switchToCodeMode = async () => {
+		setVerificationRequestCodeError(undefined);
+		setVerificationCodeError(undefined);
+		const token = getToken();
+		if (!token) {
+			setVerificationRequestCodeError(
+				"Send the link first, then switch to code."
+			);
+			return;
+		}
+
+		const response = await fetch("/api/verify/request-code", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ token })
+		});
+
+		if (!response.ok) {
+			const payload = (await response.json().catch(() => null)) as {
+				message?: string;
+			} | null;
+			setVerificationRequestCodeError(
+				payload?.message ?? "Could not request a verification code."
+			);
+			return;
+		}
+
+		setVerificationMode("code");
+	};
+
+	const verifyCode = () => {
+		void (async () => {
+			setVerificationCodeError(undefined);
+			const token = getToken();
+			if (!token) {
+				setVerificationCodeError("Missing token. Please send a link first.");
+				return;
+			}
+			if (!verificationCodeValue.trim()) {
+				setVerificationCodeError("Enter the 6-digit code.");
+				return;
+			}
+			const response = await fetch("/api/verify/code", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ token, code: verificationCodeValue.trim() })
+			});
+
+			if (!response.ok) {
+				const payload = (await response.json().catch(() => null)) as {
+					message?: string;
+				} | null;
+				setVerificationCodeError(payload?.message ?? "Verification failed.");
+				return;
+			}
+
+			setStage(3);
+		})();
+	};
+
+	const submitRegister = () => {
+		const emailCheck = validateEmail(emailValue);
+		const passwordCheck = validatePassword(passwordValue);
+		const confirmCheck = validatePasswordConfirmation(
+			passwordValue,
+			confirmPasswordValue
+		);
+
+		setEmailError(emailCheck.ok ? undefined : emailCheck.message);
+		setPasswordError(passwordCheck.ok ? undefined : passwordCheck.message);
+		setConfirmPasswordError(confirmCheck.ok ? undefined : confirmCheck.message);
+
+		if (!emailCheck.ok || !passwordCheck.ok || !confirmCheck.ok) return;
+
+		const typedEmail: Email = emailCheck.value;
+		const typedPassword: Password = passwordCheck.value;
+		void typedEmail;
+		void typedPassword;
+	};
+
+	const submitLogin = () => {
+		const emailCheck = validateEmail(emailValue);
+		const passwordCheck = validatePassword(passwordValue);
+
+		setEmailError(emailCheck.ok ? undefined : emailCheck.message);
+		setPasswordError(passwordCheck.ok ? undefined : passwordCheck.message);
+
+		if (!emailCheck.ok || !passwordCheck.ok) return;
+
+		const typedEmail: Email = emailCheck.value;
+		const typedPassword: Password = passwordCheck.value;
+		void typedEmail;
+		void typedPassword;
+	};
 
 	return (
-		<div className="bg-background-primary rounded-3xl p-6 max-w-lg w-full shadow-md flex flex-col">
-			<form className="w-full flex flex-col items-center" onSubmit={onSubmit}>
-				<h2 className="text-2xl font-semibold text-center w-full">
-					{isRegister ? "Create an Account" : "Login to Your Account"}
-				</h2>
-
-				<div className="w-full flex flex-col items-center mt-4">
-					{notice ? (
-						<p className="text-green-700 text-sm mb-4 text-center">{notice}</p>
-					) : null}
-					{error ? (
-						<p className="text-red-600 text-sm mb-4 text-center">{error}</p>
-					) : null}
-
-					{isRegister ? (
-						<div className="w-full max-w-96">
-							<div
-								ref={registerSliderViewportRef}
-								className="w-full overflow-hidden min-w-0 transition-[height] duration-500 ease-in-out"
-								style={
-									registerViewportHeight > 0
-										? { height: `${registerViewportHeight}px` }
-										: undefined
-								}
-							>
-								<div
-									className="flex w-full transition-transform duration-500 ease-in-out"
-									style={
-										registerPanelWidth > 0
-											? {
-													width: `${registerPanelWidth * 3}px`,
-													transform: `translateX(-${(registerStep - 1) * registerPanelWidth}px)`
-												}
-											: {
-													width: "300%",
-													transform: `translateX(-${(registerStep - 1) * (100 / 3)}%)`
-												}
-									}
-								>
-									{/* Step 1: email */}
-									<div
-										ref={(el) => {
-											registerPanelRefs.current[0] = el;
-										}}
-										className="shrink-0 w-full"
-										style={
-											registerPanelWidth > 0
-												? { width: `${registerPanelWidth}px` }
-												: { width: `${100 / 3}%` }
-										}
-									>
-										<div className="mb-4 relative group w-full">
-											<input
-												type="email"
-												id="register-email"
-												required
-												className={emailInputClass}
-												placeholder=" "
-												value={form.email}
-												onChange={(e) => {
-													if (!touched.email)
-														setTouched((prev) => ({ ...prev, email: true }));
-													setForm((prev) => ({
-														...prev,
-														email: e.target.value
-													}));
-												}}
-											/>
-											<label
-												htmlFor="register-email"
-												className={emailLabelClass}
-											>
-												Email Address
-											</label>
-										</div>
-
-										<button
-											type="submit"
-											className={buttonClassName}
-											disabled={!emailIsValid}
-										>
-											Next
-										</button>
-
-										<p className="mt-4 text-sm text-center">
-											We’ll send a verification link to your email.
-										</p>
-									</div>
-
-									{/* Step 2: verify */}
-									<div
-										ref={(el) => {
-											registerPanelRefs.current[1] = el;
-										}}
-										className="shrink-0 w-full"
-										style={
-											registerPanelWidth > 0
-												? { width: `${registerPanelWidth}px` }
-												: { width: `${100 / 3}%` }
-										}
-									>
-										<div className="w-full flex flex-col items-center">
-											<p className="text-center font-medium mb-2">
-												Check your inbox
-											</p>
-											<p className="text-sm text-center text-text-secondary mb-4">
-												We sent a verification email to{" "}
-												<span className="font-medium">
-													{form.email || "your email"}
-												</span>
-												.
-											</p>
-											<p className="text-xs text-center text-text-secondary mb-4">
-												Didn&apos;t get it yet? Check spam or wait a minute.
-											</p>
-
-											{verificationError ? (
-												<p className="text-red-600 text-sm mb-3 text-center">
-													{verificationError}
-												</p>
-											) : null}
-											{codeAttempts >= maxCodeAttempts ? (
-												<p className="text-red-600 text-sm mb-3 text-center">
-													Too many attempts. Please request a new code.
-												</p>
-											) : null}
-
-											{showManualCode ? (
-												<div className="w-full">
-													<p className="text-sm text-center text-text-secondary mb-2">
-														Enter the 6-digit code
-													</p>
-													<div className="w-full flex justify-center gap-2 mb-3">
-														{verificationCode.map((digit, index) => (
-															<input
-																key={index}
-																ref={(el) => {
-																	verificationRefs.current[index] = el;
-																}}
-																type="text"
-																inputMode="numeric"
-																autoComplete="one-time-code"
-																maxLength={1}
-																className="w-11 h-11 border border-gray-300 rounded-md text-center text-lg focus:outline-none focus:border-accent-main"
-																value={digit}
-																disabled={
-																	isVerifyingCode ||
-																	codeAttempts >= maxCodeAttempts
-																}
-																onChange={(e) =>
-																	setVerificationDigit(index, e.target.value)
-																}
-																onKeyDown={(e) =>
-																	onVerificationKeyDown(index, e)
-																}
-																onPaste={onVerificationPaste}
-																aria-label={`Verification digit ${index + 1}`}
-															/>
-														))}
-													</div>
-													{isVerifyingCode ? (
-														<p className="text-xs text-center text-text-secondary">
-															Verifying…
-														</p>
-													) : (
-														<p className="text-xs text-center text-text-secondary">
-															Verification happens automatically.
-														</p>
-													)}
-												</div>
-											) : (
-												<p className="text-sm text-center">
-													<button
-														type="button"
-														className="text-accent-main font-medium"
-														onClick={() => {
-															setShowManualCode(true);
-															setVerificationError(null);
-															setTimeout(
-																() => verificationRefs.current[0]?.focus(),
-																0
-															);
-														}}
-													>
-														Using a different device?
-													</button>
-												</p>
-											)}
-
-											<button
-												type="button"
-												className={buttonClassName}
-												onClick={() => {
-													setRegisterStep(1);
-													setShowManualCode(false);
-													setVerificationError(null);
-													setVerificationCode(Array(6).fill(""));
-													setCodeAttempts(0);
-												}}
-											>
-												Use a different email
-											</button>
-										</div>
-									</div>
-
-									{/* Step 3: create password */}
-									<div
-										ref={(el) => {
-											registerPanelRefs.current[2] = el;
-										}}
-										className="shrink-0 w-full"
-										style={
-											registerPanelWidth > 0
-												? { width: `${registerPanelWidth}px` }
-												: { width: `${100 / 3}%` }
-										}
-									>
-										<div className="w-full flex flex-col items-center">
-											<p className="text-center font-medium mb-2">
-												Create a password
-											</p>
-											<p className="text-sm text-center text-text-secondary mb-4">
-												This will be used to log in securely.
-											</p>
-
-											<div className="w-full mb-3 relative group">
-												<input
-													type={showRegisterPassword ? "text" : "password"}
-													id="register-password"
-													required
-													className={
-														inputClassName +
-														" pr-10" +
-														(showRegisterPassword ? "" : " tracking-[0.2rem]")
-													}
-													placeholder=" "
-													value={registerPassword}
-													onChange={(e) => setRegisterPassword(e.target.value)}
-													autoComplete="new-password"
-													spellCheck={false}
-												/>
-												<button
-													type="button"
-													aria-label={
-														showRegisterPassword
-															? "Hide password"
-															: "Show password"
-													}
-													onMouseDown={(e) => e.preventDefault()}
-													onClick={() =>
-														setShowRegisterPassword((prev) => !prev)
-													}
-													className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
-												>
-													{showRegisterPassword ? (
-														<EyeOff className="size-5" />
-													) : (
-														<Eye className="size-5" />
-													)}
-												</button>
-												<label
-													htmlFor="register-password"
-													className={
-														labelBaseClass + " peer-focus:text-accent-text"
-													}
-												>
-													Password
-												</label>
-											</div>
-
-											<div className="w-full mb-4 relative group">
-												<input
-													type={
-														showRegisterPasswordConfirm ? "text" : "password"
-													}
-													id="register-password-confirm"
-													required
-													className={
-														inputClassName +
-														" pr-10" +
-														(showRegisterPasswordConfirm
-															? ""
-															: " tracking-[0.2rem]")
-													}
-													placeholder=" "
-													value={registerPasswordConfirm}
-													onChange={(e) =>
-														setRegisterPasswordConfirm(e.target.value)
-													}
-													autoComplete="new-password"
-													spellCheck={false}
-												/>
-												<button
-													type="button"
-													aria-label={
-														showRegisterPasswordConfirm
-															? "Hide password"
-															: "Show password"
-													}
-													onMouseDown={(e) => e.preventDefault()}
-													onClick={() =>
-														setShowRegisterPasswordConfirm((prev) => !prev)
-													}
-													className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
-												>
-													{showRegisterPasswordConfirm ? (
-														<EyeOff className="size-5" />
-													) : (
-														<Eye className="size-5" />
-													)}
-												</button>
-												<label
-													htmlFor="register-password-confirm"
-													className={
-														labelBaseClass + " peer-focus:text-accent-text"
-													}
-												>
-													Confirm password
-												</label>
-											</div>
-
-											{(() => {
-												const p = registerPassword;
-												const criteria = [
-													{ ok: p.length >= 8, label: "At least 8 characters" },
-													{ ok: /[a-z]/.test(p), label: "Lowercase letter" },
-													{ ok: /[A-Z]/.test(p), label: "Uppercase letter" },
-													{ ok: /\d/.test(p), label: "Number" },
-													{ ok: /[^A-Za-z0-9]/.test(p), label: "Symbol" },
-													{ ok: !/\s/.test(p), label: "No spaces" }
-												];
-												return (
-													<div className="w-full mb-4">
-														<p className="text-sm text-center text-text-secondary mb-2">
-															Password must include:
-														</p>
-														<div className="grid grid-cols-1 gap-2">
-															{criteria.map((c) => (
-																<div
-																	key={c.label}
-																	className="flex items-center gap-2 text-sm"
-																>
-																	<span
-																		className={
-																			"inline-block size-2.5 rounded-full border " +
-																			(c.ok
-																				? "bg-accent-main border-accent-main"
-																				: "border-gray-400")
-																		}
-																	/>
-																	<span
-																		className={
-																			c.ok
-																				? "text-text-primary"
-																				: "text-text-secondary"
-																		}
-																	>
-																		{c.label}
-																	</span>
-																</div>
-															))}
-														</div>
-													</div>
-												);
-											})()}
-
-											<button type="submit" className={buttonClassName}>
-												Create account
-											</button>
-
-											<button
-												type="button"
-												className={buttonClassName}
-												onClick={() => {
-													setRegisterStep(2);
-													setError(null);
-													setNotice(null);
-												}}
-											>
-												Back
-											</button>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					) : (
-						<div className="w-full max-w-96">
-							<div className="mb-4 relative group w-full">
-								<input
-									type="email"
-									id="email"
-									required
-									className={emailInputClass}
-									placeholder=" "
-									value={form.email}
-									onChange={(e) => {
-										if (!touched.email)
-											setTouched((prev) => ({ ...prev, email: true }));
-										setForm((prev) => ({ ...prev, email: e.target.value }));
-									}}
-								/>
-								<label htmlFor="email" className={emailLabelClass}>
-									Email Address
-								</label>
-							</div>
-							<div className="mb-4 relative group w-full">
-								<input
-									type={showPassword ? "text" : "password"}
-									id="password"
-									required
-									className={
-										passwordInputClass +
-										" pr-10" +
-										(showPassword ? "" : " tracking-[0.2rem]")
-									}
-									placeholder=" "
-									value={form.password}
-									onChange={(e) => {
-										if (!touched.password)
-											setTouched((prev) => ({ ...prev, password: true }));
-										setForm((prev) => ({ ...prev, password: e.target.value }));
-									}}
-								/>
-								<button
-									type="button"
-									aria-label={showPassword ? "Hide password" : "Show password"}
-									onMouseDown={(e) => e.preventDefault()}
-									onClick={() => setShowPassword((prev) => !prev)}
-									className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
-								>
-									{showPassword ? (
-										<EyeOff className="size-5" />
-									) : (
-										<Eye className="size-5" />
-									)}
-								</button>
-								<label htmlFor="password" className={passwordLabelClass}>
-									Password
-								</label>
-							</div>
-							<button
-								type="submit"
-								disabled={isSubmitting}
-								className={buttonClassName}
-							>
-								{isSubmitting ? "Logging in…" : "Login"}
-							</button>
-						</div>
-					)}
-
-					<p className="mt-4 text-sm text-center">
-						{isRegister ? "Already have an account?" : "Are you new?"}
-						<button
-							type="button"
-							onClick={() => {
-								setError(null);
-								setNotice(null);
-								setIsSubmitting(false);
-								setMode((prev) => (prev === "login" ? "register" : "login"));
-								setRegisterStep(1);
-								setShowManualCode(false);
-								setVerificationError(null);
-								setVerificationCode(Array(6).fill(""));
-								setCodeAttempts(0);
-								setRegisterPassword("");
-								setRegisterPasswordConfirm("");
-								setForm((prev) => ({ ...prev, password: "" }));
+		<div
+			className="w-lg bg-background-primary rounded-2xl shadow-lg backdrop-blur-md overflow-hidden"
+			style={{
+				height: containerHeight > 0 ? containerHeight : undefined,
+				transition: "height 300ms ease"
+			}}
+		>
+			{isRegister ? (
+				<form className="w-full">
+					<div
+						className="flex flex-col"
+						style={{
+							transform: `translateY(${translateY}px)`,
+							transition: "transform 300ms ease"
+						}}
+					>
+						<div
+							ref={(el) => {
+								panelsRef.current[0] = el;
 							}}
-							className="text-accent-text font-medium ml-1"
+							className="flex flex-col gap-4 w-full items-center px-6 py-12"
 						>
-							{isRegister ? "Login" : "Register"}
-						</button>
-					</p>
-				</div>
-			</form>
+							<h2 className="text-2xl font-semibold text-accent-text">
+								Create an Account
+							</h2>
+							<FormInput
+								label="Email"
+								type="email"
+								value={emailValue}
+								onChange={(v) => {
+									setEmailValue(v);
+									if (emailError) setEmailError(undefined);
+								}}
+								isInvalid={Boolean(emailError)}
+								error={emailError}
+							/>
+							<FormButton text="Next" onClick={nextFromEmailStage} />
+						</div>
+
+						<div
+							ref={(el) => {
+								panelsRef.current[1] = el;
+							}}
+							className="flex flex-col gap-4 w-full items-center px-6 py-12"
+						>
+							<h2 className="text-2xl font-semibold text-accent-text">
+								Verify Your Email
+							</h2>
+							{verificationMode === "link" ? (
+								<>
+									{renderVerificationParagraph()}
+									<FormButton
+										text={verificationSendLabel}
+										disabled={verificationSendDisabled}
+										isLoading={isSendingVerification}
+										onClick={sendVerificationLink}
+									/>
+									{verificationSendError ? (
+										<p className="text-center text-destructive-text text-sm">
+											{verificationSendError}
+										</p>
+									) : null}
+									<p className="text-center text-text-secondary text-sm">
+										Using another device?{" "}
+										<button
+											type="button"
+											onClick={() => void switchToCodeMode()}
+											className="text-accent-text transition-colors duration-200 hover:text-info-text"
+										>
+											Use a verification code instead
+										</button>
+									</p>
+									{verificationRequestCodeError ? (
+										<p className="text-center text-destructive-text text-sm">
+											{verificationRequestCodeError}
+										</p>
+									) : null}
+								</>
+							) : (
+								<>
+									{renderVerificationParagraph()}
+									<FormButton
+										text={verificationSendLabel}
+										disabled={verificationSendDisabled}
+										isLoading={isSendingVerification}
+										onClick={sendVerificationLink}
+									/>
+									{verificationSendError ? (
+										<p className="text-center text-destructive-text text-sm">
+											{verificationSendError}
+										</p>
+									) : null}
+									<FormInput
+										label="Verification Code"
+										type="verification-code"
+										value={verificationCodeValue}
+										onChange={(v) => setVerificationCodeValue(v)}
+										isInvalid={Boolean(verificationCodeError)}
+										error={verificationCodeError}
+									/>
+									<div className="w-full max-w-84 flex flex-col gap-2">
+										<FormButton text="Verify code" onClick={verifyCode} />
+										<button
+											type="button"
+											onClick={() => setVerificationMode("link")}
+											className="h-10 w-full rounded-lg border border-accent-text/40 text-accent-text font-semibold transition-colors duration-200 hover:bg-accent-text/10"
+										>
+											Use a magic link
+										</button>
+									</div>
+								</>
+							)}
+						</div>
+
+						<div
+							ref={(el) => {
+								panelsRef.current[2] = el;
+							}}
+							className="flex flex-col gap-4 w-full items-center px-6 py-12"
+						>
+							<h2 className="text-2xl font-semibold text-accent-text">
+								Set a Password
+							</h2>
+							<FormInput
+								label="Email"
+								type="email"
+								value={emailValue}
+								onChange={(v) => {
+									setEmailValue(v);
+									if (emailError) setEmailError(undefined);
+								}}
+								readOnly
+								isInvalid={Boolean(emailError)}
+								error={emailError}
+							/>
+							<FormInput
+								label="Password"
+								type="password"
+								value={passwordValue}
+								onChange={(v) => {
+									setPasswordValue(v);
+									if (passwordError) setPasswordError(undefined);
+								}}
+								isInvalid={Boolean(passwordError)}
+								error={passwordError}
+							/>
+							<FormInput
+								label="Confirm Password"
+								type="password"
+								value={confirmPasswordValue}
+								onChange={(v) => {
+									setConfirmPasswordValue(v);
+									if (confirmPasswordError) setConfirmPasswordError(undefined);
+								}}
+								isInvalid={Boolean(confirmPasswordError)}
+								error={confirmPasswordError}
+							/>
+							<FormButton text="Register" onClick={submitRegister} />
+						</div>
+					</div>
+				</form>
+			) : (
+				<form className="flex flex-col gap-4 px-6 py-12">
+					<h2 className="text-2xl font-semibold text-text-main">Login</h2>
+					<FormInput
+						label="Email"
+						type="email"
+						value={emailValue}
+						onChange={(v) => {
+							setEmailValue(v);
+							if (emailError) setEmailError(undefined);
+						}}
+						isInvalid={Boolean(emailError)}
+						error={emailError}
+					/>
+					<FormInput
+						label="Password"
+						type="password"
+						value={passwordValue}
+						onChange={(v) => {
+							setPasswordValue(v);
+							if (passwordError) setPasswordError(undefined);
+						}}
+						isInvalid={Boolean(passwordError)}
+						error={passwordError}
+					/>
+					<FormButton text="Login" onClick={submitLogin} />
+				</form>
+			)}
 		</div>
 	);
+}
+
+type ValidationOk<T> = { ok: true; value: T };
+type ValidationErr = { ok: false; message: string };
+type ValidationResult<T> = ValidationOk<T> | ValidationErr;
+
+const DEFAULT_EMAIL_REQUIREMENTS: EmailRequirements = {
+	pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+	maxLength: 254,
+	requireTld: true
+};
+
+const DEFAULT_PASSWORD_REQUIREMENTS: PasswordRequirements = {
+	minLength: 8,
+	maxLength: 128,
+	requireLowercase: true,
+	requireUppercase: true,
+	requireNumber: true,
+	requireSpecial: false
+};
+
+function validateEmail(
+	raw: string,
+	requirements: EmailRequirements = DEFAULT_EMAIL_REQUIREMENTS
+): ValidationResult<Email> {
+	const value = raw.trim();
+	if (!value) return { ok: false, message: "Email is required." };
+	if (requirements.maxLength && value.length > requirements.maxLength) {
+		return { ok: false, message: "Email is too long." };
+	}
+
+	const regex = new RegExp(requirements.pattern);
+	if (!regex.test(value)) {
+		return { ok: false, message: "Enter a valid email address." };
+	}
+
+	if (requirements.requireTld && !value.split(".").pop()) {
+		return { ok: false, message: "Email must include a domain." };
+	}
+
+	return { ok: true, value: value as Email };
+}
+
+function validatePassword(
+	raw: string,
+	requirements: PasswordRequirements = DEFAULT_PASSWORD_REQUIREMENTS
+): ValidationResult<Password> {
+	const value = raw;
+	if (!value) return { ok: false, message: "Password is required." };
+	if (value.length < requirements.minLength) {
+		return {
+			ok: false,
+			message: `Password must be at least ${requirements.minLength} characters.`
+		};
+	}
+	if (requirements.maxLength && value.length > requirements.maxLength) {
+		return { ok: false, message: "Password is too long." };
+	}
+	if (requirements.requireLowercase && !/[a-z]/.test(value)) {
+		return { ok: false, message: "Add at least one lowercase letter." };
+	}
+	if (requirements.requireUppercase && !/[A-Z]/.test(value)) {
+		return { ok: false, message: "Add at least one uppercase letter." };
+	}
+	if (requirements.requireNumber && !/[0-9]/.test(value)) {
+		return { ok: false, message: "Add at least one number." };
+	}
+	if (requirements.requireSpecial) {
+		const allowed = requirements.specialChars
+			? requirements.specialChars.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+			: "[^A-Za-z0-9]";
+		const specialRegex = requirements.specialChars
+			? new RegExp(`[${allowed}]`)
+			: new RegExp(allowed);
+		if (!specialRegex.test(value)) {
+			return { ok: false, message: "Add at least one special character." };
+		}
+	}
+	if (requirements.pattern && !new RegExp(requirements.pattern).test(value)) {
+		return { ok: false, message: "Password does not meet requirements." };
+	}
+
+	return { ok: true, value: value as Password };
+}
+
+function validatePasswordConfirmation(
+	password: string,
+	confirmPassword: string
+): ValidationResult<true> {
+	if (!confirmPassword) return { ok: false, message: "Confirm your password." };
+	if (password !== confirmPassword) {
+		return { ok: false, message: "Passwords do not match." };
+	}
+	return { ok: true, value: true };
 }

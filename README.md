@@ -154,7 +154,8 @@ npm start
 ```bash
 npm run lint
 ```
-This checks for errors, shows a custom message if no errors are found, and also runs a Prettier check to make sure your code is formatted 
+
+This checks for errors, shows a custom message if no errors are found, and also runs a Prettier check to make sure your code is formatted
 
 ## User Roles
 
