@@ -34,7 +34,10 @@
 	--success-foreground: #2d6a4f;
 	--success-text: #1b4332;
 	--accent-main: #53abb1;
-	--accent-text: #6c959d;
+	--accent-text: #62858d;
+	--accent-text-dark: #516d74;
+	--accent-text-dark-2: #42585e;
+	--accent-text-dark-3: #2e3f43;
 	--font-sans:
 		"Geist Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
 		"Helvetica Neue", Arial, sans-serif;
@@ -68,6 +71,9 @@
 	--color-foreground: var(--foreground);
 	--color-accent-main: var(--accent-main);
 	--color-accent-text: var(--accent-text);
+	--color-accent-text-dark: var(--accent-text-dark);
+	--color-accent-text-dark-2: var(--accent-text-dark-2);
+	--color-accent-text-dark-3: var(--accent-text-dark-3);
 	--font-sans: var(--font-sans);
 	--font-mono: var(--font-mono);
 	--default-transition-duration: 300ms;

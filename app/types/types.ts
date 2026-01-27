@@ -68,6 +68,9 @@ export interface LineGraphProps {
 		xMax?: number;
 	};
 	style?: {
+		animateOnLoad?: boolean;
+		animateDurationMs?: number;
+
 		backgroundColor?: string;
 		padding?: number;
 		scaleTo?: "view" | "all";
@@ -76,6 +79,9 @@ export interface LineGraphProps {
 
 		lineColor?: string;
 		lineWidth?: number;
+		fillUnderLine?: boolean;
+		fillUnderLineFrom?: string;
+		fillUnderLineTo?: string;
 
 		regressionColor?: string;
 		regressionWidth?: number;

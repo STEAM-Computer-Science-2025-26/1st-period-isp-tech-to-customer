@@ -19,7 +19,7 @@ import {
 import {
 	Card,
 	KpiCard,
-	DataCard,
+	LineGraphCard,
 	ListCard,
 	TableCard
 } from "@/components/ui/Card";
@@ -209,7 +209,7 @@ export default function Home() {
 						icon={<ArrowUpRight className="h-5 w-5 text-text-secondary" />}
 					/>
 
-					<DataCard
+					<LineGraphCard
 						title="Weekly Volume"
 						subtitle="Requests by day"
 						toolbar={
@@ -222,7 +222,8 @@ export default function Home() {
 								</button>
 							</div>
 						}
-						dataType="line"
+						chartAnimateOnLoad
+						chartAnimateDurationMs={900}
 						data={{
 							points: lineData,
 							lineType: "ema",

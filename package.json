@@ -8,6 +8,7 @@
 		"start": "next start",
 		"format": "npx prettier . --write",
 		"lint": "eslint . -f ./eslint.formatter.js && npx prettier . --check",
+		"lint:auto-format": "eslint . -f ./eslint.formatter.js --fix && node -e \"const {execSync}=require('child_process');try{execSync('npx prettier . --check',{stdio:'inherit'});}catch(e){execSync('npx prettier . --write',{stdio:'inherit'});}\"",
 		"dev:backend": "ts-node services/server.ts"
 	},
 	"dependencies": {

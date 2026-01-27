@@ -4,11 +4,34 @@ import type {
 	BarChartColor,
 	BarChartProps,
 	LineGraphProps,
-	LineType,
 	Point
 } from "@/app/types/types";
 import clsx from "clsx";
-import regression from "regression";
+import {
+	applyView,
+	calculateEMA,
+	clampAlpha,
+	downsamplePoints,
+	drawConnectedLine,
+	drawGrid,
+	drawPointLabels,
+	drawPointMarkers,
+	drawRegressionCurve,
+	easeOutCubic,
+	fillAreaUnderLine,
+	findNearestPoint,
+	formatNumber,
+	getAutoDisplayStep,
+	getDomainFromPoints,
+	normalizeCurveResolution,
+	normalizeLabelStep,
+	normalizePadding,
+	normalizeStep,
+	performRegression,
+	resolveCanvasColor,
+	scalePoints,
+	tweenPointsFromBaseline
+} from "@/components/ui/chart/lineGraphLogic";
 
 const BAR_BG_CLASS: Record<BarChartColor, string> = {
 	"blue-300": "bg-blue-300",
@@ -120,6 +143,8 @@ export function LineGraph({
 		width: number;
 		height: number;
 	} | null>(null);
+	const didAnimateRef = useRef(false);
+	const animationFrameRef = useRef<number | null>(null);
 
 	const setPlotEl = useCallback((el: HTMLDivElement | null) => {
 		if (plotObserverRef.current) {
@@ -170,11 +195,18 @@ export function LineGraph({
 		if (canvas.height !== neededH) canvas.height = neededH;
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-		// Clear canvas
+		if (animationFrameRef.current !== null) {
+			cancelAnimationFrame(animationFrameRef.current);
+			animationFrameRef.current = null;
+		}
+
 		ctx.clearRect(0, 0, plotWidth, plotHeight);
 		if (style?.backgroundColor) {
 			ctx.save();
-			ctx.fillStyle = style.backgroundColor;
+			ctx.fillStyle = resolveCanvasColor(
+				style.backgroundColor,
+				style.backgroundColor
+			);
 			ctx.fillRect(0, 0, plotWidth, plotHeight);
 			ctx.restore();
 		}
@@ -198,7 +230,9 @@ export function LineGraph({
 			drawGrid(ctx, plotWidth, plotHeight, {
 				padding,
 				divisions: style.gridDivisions,
-				color: style.gridColor,
+				color: style?.gridColor
+					? resolveCanvasColor(style.gridColor, style.gridColor)
+					: undefined,
 				lineWidth: style.gridLineWidth
 			});
 		}
@@ -210,14 +244,16 @@ export function LineGraph({
 		const effectiveLabelStep = normalizeLabelStep(labelStep);
 		const displayPoints = downsamplePoints(visible, displayStep);
 
+		const baselineY = plotHeight - padding;
+
 		// Scale points to canvas
-		const scaledPoints = scalePoints(
+		const scaledPointsFinal = scalePoints(
 			visible,
 			plotWidth,
 			plotHeight,
 			scaleOptions
 		);
-		const scaledDisplayPoints = scalePoints(
+		const scaledDisplayPointsFinal = scalePoints(
 			displayPoints,
 			plotWidth,
 			plotHeight,
@@ -229,165 +265,281 @@ export function LineGraph({
 		const showPoints = style?.showPoints ?? true;
 		const showLabelsLocal = style?.showLabels ?? true;
 
-		renderCacheRef.current = {
-			visible,
-			scaledPoints,
-			padding,
-			width: plotWidth,
-			height: plotHeight
+		const resolvedRawStroke = resolveCanvasColor(
+			style?.rawLineColor ?? style?.lineColor,
+			"var(--accent-text-dark)"
+		);
+		const rawLineWidth = style?.rawLineWidth ?? 1;
+
+		const drawAtProgress = (progress: number) => {
+			ctx.clearRect(0, 0, plotWidth, plotHeight);
+			if (style?.backgroundColor) {
+				ctx.save();
+				ctx.fillStyle = resolveCanvasColor(
+					style.backgroundColor,
+					style.backgroundColor
+				);
+				ctx.fillRect(0, 0, plotWidth, plotHeight);
+				ctx.restore();
+			}
+
+			if (style?.showGrid) {
+				drawGrid(ctx, plotWidth, plotHeight, {
+					padding,
+					divisions: style.gridDivisions,
+					color: style?.gridColor
+						? resolveCanvasColor(style.gridColor, style.gridColor)
+						: undefined,
+					lineWidth: style.gridLineWidth
+				});
+			}
+
+			const scaledPoints = tweenPointsFromBaseline(
+				scaledPointsFinal,
+				baselineY,
+				progress
+			);
+			const scaledDisplayPoints = tweenPointsFromBaseline(
+				scaledDisplayPointsFinal,
+				baselineY,
+				progress
+			);
+
+			renderCacheRef.current = {
+				visible,
+				scaledPoints,
+				padding,
+				width: plotWidth,
+				height: plotHeight
+			};
+
+			if (style?.fillUnderLine !== false) {
+				const gradient = ctx.createLinearGradient(0, padding, 0, baselineY);
+				gradient.addColorStop(
+					0,
+					resolveCanvasColor(
+						style?.fillUnderLineFrom ?? style?.rawLineColor ?? style?.lineColor,
+						resolvedRawStroke
+					)
+				);
+				gradient.addColorStop(1, "transparent");
+				ctx.save();
+				ctx.globalAlpha = 0.5;
+				fillAreaUnderLine(ctx, scaledPoints, baselineY, gradient);
+				ctx.restore();
+			}
+
+			drawConnectedLine(ctx, scaledPoints, {
+				strokeStyle: resolvedRawStroke,
+				lineWidth: rawLineWidth
+			});
+
+			if (lineType === "connect") {
+				if (showPoints) {
+					drawPointMarkers(ctx, scaledDisplayPoints, {
+						radius: style?.pointRadius,
+						fill: style?.pointFill
+							? resolveCanvasColor(style.pointFill, style.pointFill)
+							: undefined,
+						stroke: style?.pointStroke
+							? resolveCanvasColor(style.pointStroke, style.pointStroke)
+							: undefined,
+						strokeWidth: style?.pointStrokeWidth
+					});
+				}
+				if (showLabelsLocal) {
+					drawPointLabels(
+						ctx,
+						scaledDisplayPoints,
+						displayPoints,
+						effectiveLabelStep,
+						{
+							color: style?.labelColor
+								? resolveCanvasColor(style.labelColor, style.labelColor)
+								: undefined,
+							font: style?.labelFont,
+							offsetY: style?.labelOffsetY
+						}
+					);
+				}
+				return;
+			}
+
+			if (lineType === "ema") {
+				const emaPoints = calculateEMA(visible, alpha);
+				const scaledEmaFinal = scalePoints(
+					emaPoints,
+					plotWidth,
+					plotHeight,
+					scaleOptions
+				);
+				const scaledEma = tweenPointsFromBaseline(
+					scaledEmaFinal,
+					baselineY,
+					progress
+				);
+				drawConnectedLine(ctx, scaledEma, {
+					strokeStyle: resolveCanvasColor(
+						style?.emaColor,
+						"var(--accent-text-dark-2)"
+					),
+					lineWidth: style?.emaWidth ?? 2
+				});
+				if (showPoints) {
+					drawPointMarkers(ctx, scaledDisplayPoints, {
+						radius: style?.pointRadius,
+						fill: style?.pointFill
+							? resolveCanvasColor(style.pointFill, style.pointFill)
+							: undefined,
+						stroke: style?.pointStroke
+							? resolveCanvasColor(style.pointStroke, style.pointStroke)
+							: undefined,
+						strokeWidth: style?.pointStrokeWidth
+					});
+				}
+				if (showLabelsLocal) {
+					drawPointLabels(
+						ctx,
+						scaledDisplayPoints,
+						displayPoints,
+						effectiveLabelStep,
+						{
+							color: style?.labelColor
+								? resolveCanvasColor(style.labelColor, style.labelColor)
+								: undefined,
+							font: style?.labelFont,
+							offsetY: style?.labelOffsetY
+						}
+					);
+				}
+				return;
+			}
+
+			const coefficients = performRegression(visible, lineType);
+			if (!coefficients) {
+				if (showPoints) {
+					drawPointMarkers(ctx, scaledDisplayPoints, {
+						radius: style?.pointRadius,
+						fill: style?.pointFill
+							? resolveCanvasColor(style.pointFill, style.pointFill)
+							: undefined,
+						stroke: style?.pointStroke
+							? resolveCanvasColor(style.pointStroke, style.pointStroke)
+							: undefined,
+						strokeWidth: style?.pointStrokeWidth
+					});
+				}
+				if (showLabelsLocal) {
+					drawPointLabels(
+						ctx,
+						scaledDisplayPoints,
+						displayPoints,
+						effectiveLabelStep,
+						{
+							color: style?.labelColor
+								? resolveCanvasColor(style.labelColor, style.labelColor)
+								: undefined,
+							font: style?.labelFont,
+							offsetY: style?.labelOffsetY
+						}
+					);
+				}
+				return;
+			}
+
+			drawRegressionCurve(
+				ctx,
+				visible,
+				coefficients,
+				lineType,
+				plotWidth,
+				plotHeight,
+				scaleOptions,
+				{
+					strokeStyle: resolveCanvasColor(style?.regressionColor, "#3b82f6"),
+					lineWidth: style?.regressionWidth ?? 2,
+					steps: curveResolution
+				},
+				{ baselineY, progress }
+			);
+			if (showEma) {
+				const emaPoints = calculateEMA(visible, alpha);
+				const scaledEmaFinal = scalePoints(
+					emaPoints,
+					plotWidth,
+					plotHeight,
+					scaleOptions
+				);
+				const scaledEma = tweenPointsFromBaseline(
+					scaledEmaFinal,
+					baselineY,
+					progress
+				);
+				drawConnectedLine(ctx, scaledEma, {
+					strokeStyle: resolveCanvasColor(style?.emaColor, "#f97316"),
+					lineWidth: style?.emaWidth ?? 2
+				});
+			}
+			if (showPoints) {
+				drawPointMarkers(ctx, scaledDisplayPoints, {
+					radius: style?.pointRadius,
+					fill: style?.pointFill
+						? resolveCanvasColor(style.pointFill, style.pointFill)
+						: undefined,
+					stroke: style?.pointStroke
+						? resolveCanvasColor(style.pointStroke, style.pointStroke)
+						: undefined,
+					strokeWidth: style?.pointStrokeWidth
+				});
+			}
+			if (showLabelsLocal) {
+				drawPointLabels(
+					ctx,
+					scaledDisplayPoints,
+					displayPoints,
+					effectiveLabelStep,
+					{
+						color: style?.labelColor
+							? resolveCanvasColor(style.labelColor, style.labelColor)
+							: undefined,
+						font: style?.labelFont,
+						offsetY: style?.labelOffsetY
+					}
+				);
+			}
 		};
 
-		if (lineType === "connect") {
-			drawConnectedLine(ctx, scaledPoints, {
-				strokeStyle: style?.lineColor ?? "#3b82f6",
-				lineWidth: style?.lineWidth ?? 2
-			});
-			if (showPoints) {
-				drawPointMarkers(ctx, scaledDisplayPoints, {
-					radius: style?.pointRadius,
-					fill: style?.pointFill,
-					stroke: style?.pointStroke,
-					strokeWidth: style?.pointStrokeWidth
-				});
+		const animateOnLoad = style?.animateOnLoad ?? false;
+		const shouldAnimate = animateOnLoad && !didAnimateRef.current;
+		const durationMs = Math.max(0, Math.floor(style?.animateDurationMs ?? 700));
+		let cancelled = false;
+		const start = performance.now();
+
+		const tick = (now: number) => {
+			if (cancelled) return;
+			const t = durationMs === 0 ? 1 : Math.min(1, (now - start) / durationMs);
+			drawAtProgress(easeOutCubic(t));
+			if (t < 1) {
+				animationFrameRef.current = requestAnimationFrame(tick);
+			} else {
+				didAnimateRef.current = true;
+				animationFrameRef.current = null;
 			}
-			if (showLabelsLocal) {
-				drawPointLabels(
-					ctx,
-					scaledDisplayPoints,
-					displayPoints,
-					effectiveLabelStep,
-					{
-						color: style?.labelColor,
-						font: style?.labelFont,
-						offsetY: style?.labelOffsetY
-					}
-				);
-			}
-			return;
+		};
+
+		if (shouldAnimate) {
+			tick(start);
+		} else {
+			drawAtProgress(1);
 		}
 
-		if (lineType === "ema") {
-			const showRawLine = style?.showRawLine ?? true;
-			if (showRawLine) {
-				drawConnectedLine(ctx, scaledPoints, {
-					strokeStyle: style?.rawLineColor ?? "#93c5fd",
-					lineWidth: style?.rawLineWidth ?? 1
-				});
+		return () => {
+			cancelled = true;
+			if (animationFrameRef.current !== null) {
+				cancelAnimationFrame(animationFrameRef.current);
+				animationFrameRef.current = null;
 			}
-
-			const emaPoints = calculateEMA(visible, alpha);
-			const scaledEma = scalePoints(
-				emaPoints,
-				plotWidth,
-				plotHeight,
-				scaleOptions
-			);
-			drawConnectedLine(ctx, scaledEma, {
-				strokeStyle: style?.emaColor ?? "#f97316",
-				lineWidth: style?.emaWidth ?? 2
-			});
-			if (showPoints) {
-				drawPointMarkers(ctx, scaledDisplayPoints, {
-					radius: style?.pointRadius,
-					fill: style?.pointFill,
-					stroke: style?.pointStroke,
-					strokeWidth: style?.pointStrokeWidth
-				});
-			}
-			if (showLabelsLocal) {
-				drawPointLabels(
-					ctx,
-					scaledDisplayPoints,
-					displayPoints,
-					effectiveLabelStep,
-					{
-						color: style?.labelColor,
-						font: style?.labelFont,
-						offsetY: style?.labelOffsetY
-					}
-				);
-			}
-			return;
-		}
-
-		const coefficients = performRegression(visible, lineType);
-		if (!coefficients) {
-			drawConnectedLine(ctx, scaledPoints, {
-				strokeStyle: style?.lineColor ?? "#3b82f6",
-				lineWidth: style?.lineWidth ?? 2
-			});
-			if (showPoints) {
-				drawPointMarkers(ctx, scaledDisplayPoints, {
-					radius: style?.pointRadius,
-					fill: style?.pointFill,
-					stroke: style?.pointStroke,
-					strokeWidth: style?.pointStrokeWidth
-				});
-			}
-			if (showLabelsLocal) {
-				drawPointLabels(
-					ctx,
-					scaledDisplayPoints,
-					displayPoints,
-					effectiveLabelStep,
-					{
-						color: style?.labelColor,
-						font: style?.labelFont,
-						offsetY: style?.labelOffsetY
-					}
-				);
-			}
-			return;
-		}
-
-		drawRegressionCurve(
-			ctx,
-			visible,
-			coefficients,
-			lineType,
-			plotWidth,
-			plotHeight,
-			scaleOptions,
-			{
-				strokeStyle: style?.regressionColor ?? "#3b82f6",
-				lineWidth: style?.regressionWidth ?? 2,
-				steps: curveResolution
-			}
-		);
-		if (showEma) {
-			const emaPoints = calculateEMA(visible, alpha);
-			const scaledEma = scalePoints(
-				emaPoints,
-				plotWidth,
-				plotHeight,
-				scaleOptions
-			);
-			drawConnectedLine(ctx, scaledEma, {
-				strokeStyle: style?.emaColor ?? "#f97316",
-				lineWidth: style?.emaWidth ?? 2
-			});
-		}
-		if (showPoints) {
-			drawPointMarkers(ctx, scaledDisplayPoints, {
-				radius: style?.pointRadius,
-				fill: style?.pointFill,
-				stroke: style?.pointStroke,
-				strokeWidth: style?.pointStrokeWidth
-			});
-		}
-		if (showLabelsLocal) {
-			drawPointLabels(
-				ctx,
-				scaledDisplayPoints,
-				displayPoints,
-				effectiveLabelStep,
-				{
-					color: style?.labelColor,
-					font: style?.labelFont,
-					offsetY: style?.labelOffsetY
-				}
-			);
-		}
+		};
 	}, [
 		points,
 		lineType,
@@ -420,28 +572,14 @@ export function LineGraph({
 		ctx.clearRect(0, 0, plotWidth, plotHeight);
 		if (hoverPos === null) return;
 
-		if (points.length === 0) return;
-
-		const allSorted = [...points].sort((a, b) => a.x - b.x);
-		const visible = applyView(allSorted, view);
-		if (visible.length === 0) return;
-
-		const padding = normalizePadding(style?.padding);
-		const scaleTo = style?.scaleTo ?? "view";
-		const scaleBase = scaleTo === "all" ? allSorted : visible;
-		const scaleOptions = {
-			padding,
-			xDomain: style?.xDomain ?? getDomainFromPoints(scaleBase, "x"),
-			yDomain: style?.yDomain ?? getDomainFromPoints(scaleBase, "y")
-		};
-
-		const scaledPoints = scalePoints(
-			visible,
-			plotWidth,
-			plotHeight,
-			scaleOptions
+		const cache = renderCacheRef.current;
+		if (!cache || cache.width !== plotWidth || cache.height !== plotHeight)
+			return;
+		const nearest = findNearestPoint(
+			hoverPos.x,
+			cache.scaledPoints,
+			cache.visible
 		);
-		const nearest = findNearestPoint(hoverPos.x, scaledPoints, visible);
 
 		if (!nearest) return;
 
@@ -450,13 +588,13 @@ export function LineGraph({
 		ctx.lineWidth = 1;
 		ctx.setLineDash([5, 5]);
 		ctx.beginPath();
-		ctx.moveTo(nearest.scaled.x, padding);
-		ctx.lineTo(nearest.scaled.x, plotHeight - padding);
+		ctx.moveTo(nearest.scaled.x, cache.padding);
+		ctx.lineTo(nearest.scaled.x, plotHeight - cache.padding);
 		ctx.stroke();
 		ctx.setLineDash([]);
 
 		// Highlight point (even if normally hidden)
-		ctx.fillStyle = "#ef4444";
+		ctx.fillStyle = resolveCanvasColor(style?.pointFill, "var(--accent-main)");
 		ctx.strokeStyle = "#ffffff";
 		ctx.lineWidth = 2;
 		ctx.beginPath();
@@ -582,384 +720,4 @@ export function LineGraph({
 			</div>
 		</div>
 	);
-}
-
-function scalePoints(
-	points: Point[],
-	width: number,
-	height: number,
-	options?: {
-		padding?: number;
-		xDomain?: { min: number; max: number } | null;
-		yDomain?: { min: number; max: number } | null;
-	}
-): Point[] {
-	if (points.length === 0) return [];
-
-	const padding = normalizePadding(options?.padding);
-	const xDomain = options?.xDomain ?? getDomainFromPoints(points, "x");
-	const yDomain = options?.yDomain ?? getDomainFromPoints(points, "y");
-	if (!xDomain || !yDomain) return [];
-
-	const minX = xDomain.min;
-	const maxX = xDomain.max;
-	const minY = yDomain.min;
-	const maxY = yDomain.max;
-
-	const denomX = maxX - minX;
-	const denomY = maxY - minY;
-
-	return points.map((p) => ({
-		x:
-			padding +
-			(denomX === 0 ? 0.5 : (p.x - minX) / denomX) * (width - 2 * padding),
-		y:
-			height -
-			padding -
-			(denomY === 0 ? 0.5 : (p.y - minY) / denomY) * (height - 2 * padding)
-	}));
-}
-
-function drawConnectedLine(
-	ctx: CanvasRenderingContext2D,
-	points: Point[],
-	options?: { strokeStyle?: string; lineWidth?: number }
-) {
-	if (points.length === 0) return;
-	ctx.beginPath();
-	ctx.moveTo(points[0].x, points[0].y);
-
-	for (let i = 1; i < points.length; i++) {
-		ctx.lineTo(points[i].x, points[i].y);
-	}
-
-	ctx.strokeStyle = options?.strokeStyle ?? "#3b82f6";
-	ctx.lineWidth = options?.lineWidth ?? 2;
-	ctx.stroke();
-}
-
-function clampAlpha(alpha: number) {
-	if (!Number.isFinite(alpha)) return 0.2;
-	return Math.min(1, Math.max(0.0001, alpha));
-}
-
-function normalizeStep(step?: number) {
-	if (step === undefined) return 1;
-	if (!Number.isFinite(step)) return 1;
-	return Math.max(1, Math.floor(step));
-}
-
-function normalizeLabelStep(step?: number) {
-	if (step === undefined) return 1;
-	if (!Number.isFinite(step)) return 1;
-	return Math.max(1, Math.floor(step));
-}
-
-function normalizePadding(padding?: number) {
-	if (padding === undefined) return 20;
-	if (!Number.isFinite(padding)) return 20;
-	return Math.max(0, Math.floor(padding));
-}
-
-function normalizeCurveResolution(steps?: number) {
-	if (steps === undefined) return 200;
-	if (!Number.isFinite(steps)) return 200;
-	return Math.max(20, Math.floor(steps));
-}
-
-function getDomainFromPoints(points: Point[], axis: "x" | "y") {
-	if (points.length === 0) return null;
-	const values = points
-		.map((p) => (axis === "x" ? p.x : p.y))
-		.filter(Number.isFinite);
-	if (values.length === 0) return null;
-	return { min: Math.min(...values), max: Math.max(...values) };
-}
-
-function applyView(
-	points: Point[],
-	view?: {
-		startIndex?: number;
-		endIndex?: number;
-		xMin?: number;
-		xMax?: number;
-	}
-) {
-	let result = points;
-
-	if (view?.startIndex !== undefined || view?.endIndex !== undefined) {
-		const start = Math.max(0, Math.floor(view.startIndex ?? 0));
-		const endExclusive = Math.min(
-			points.length,
-			Math.floor(view.endIndex ?? points.length)
-		);
-		result = result.slice(start, Math.max(start, endExclusive));
-	}
-
-	if (view?.xMin !== undefined || view?.xMax !== undefined) {
-		const xMin = view.xMin ?? -Infinity;
-		const xMax = view.xMax ?? Infinity;
-		result = result.filter((p) => p.x >= xMin && p.x <= xMax);
-	}
-
-	return result;
-}
-
-function getAutoDisplayStep(pointCount: number) {
-	if (pointCount >= 100) return 10;
-	if (pointCount > 50) return 5;
-	if (pointCount > 20) return 2;
-	return 1;
-}
-
-function downsamplePoints(points: Point[], step: number) {
-	if (points.length <= 1) return points;
-	if (step <= 1) return points;
-
-	const sampled = points.filter((_, index) => index % step === 0);
-	const last = points[points.length - 1];
-	if (sampled[sampled.length - 1] !== last) sampled.push(last);
-	return sampled;
-}
-
-function drawPointMarkers(
-	ctx: CanvasRenderingContext2D,
-	points: Point[],
-	options?: {
-		radius?: number;
-		fill?: string;
-		stroke?: string;
-		strokeWidth?: number;
-	}
-) {
-	const radius = options?.radius ?? 3;
-	const fill = options?.fill ?? "#3b82f6";
-	const stroke = options?.stroke ?? "#ffffff";
-	const strokeWidth = options?.strokeWidth ?? 1.5;
-
-	ctx.save();
-	ctx.fillStyle = fill;
-	ctx.strokeStyle = stroke;
-	ctx.lineWidth = strokeWidth;
-
-	for (const p of points) {
-		if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
-		ctx.beginPath();
-		ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.stroke();
-	}
-
-	ctx.restore();
-}
-
-function drawPointLabels(
-	ctx: CanvasRenderingContext2D,
-	scaledPoints: Point[],
-	originalPoints: Point[],
-	labelEvery: number,
-	options?: { color?: string; font?: string; offsetY?: number }
-) {
-	if (scaledPoints.length === 0) return;
-	if (labelEvery <= 0) return;
-
-	ctx.save();
-	ctx.fillStyle = options?.color ?? "#6b7280";
-	ctx.font = options?.font ?? "10px sans-serif";
-	ctx.textAlign = "center";
-	ctx.textBaseline = "bottom";
-	const offsetY = options?.offsetY ?? 6;
-
-	for (let i = 0; i < scaledPoints.length; i++) {
-		if (i % labelEvery !== 0 && i !== scaledPoints.length - 1) continue;
-		const sp = scaledPoints[i];
-		const op = originalPoints[i];
-		if (!sp || !op) continue;
-		if (!Number.isFinite(sp.x) || !Number.isFinite(sp.y)) continue;
-		const label = formatNumber(op.y);
-		ctx.fillText(label, sp.x, sp.y - offsetY);
-	}
-
-	ctx.restore();
-}
-
-function formatNumber(value: number) {
-	if (!Number.isFinite(value)) return String(value);
-	// Keep integers clean; otherwise show up to 2 decimals.
-	if (Number.isInteger(value)) return String(value);
-	return Number(value.toFixed(2)).toString();
-}
-
-function performRegression(
-	points: Point[],
-	type: Exclude<LineType, "connect" | "ema">
-): number[] | null {
-	const filtered = points.filter((p) => {
-		if (type === "log") return p.x > 0;
-		if (type === "b^x") return p.y > 0;
-		return true;
-	});
-
-	if (filtered.length < 2) return null;
-	const data: [number, number][] = filtered.map((p) => [p.x, p.y]);
-
-	try {
-		switch (type) {
-			case "x":
-				return regression.linear(data).equation;
-			case "x^2":
-				return regression.polynomial(data, { order: 2 }).equation;
-			case "log":
-				return regression.logarithmic(data).equation;
-			case "b^x":
-				return regression.exponential(data).equation;
-			default:
-				return null;
-		}
-	} catch {
-		return null;
-	}
-}
-
-function drawRegressionCurve(
-	ctx: CanvasRenderingContext2D,
-	originalPoints: Point[],
-	coefficients: number[],
-	type: LineType,
-	width: number,
-	height: number,
-	scaleOptions: {
-		padding?: number;
-		xDomain?: { min: number; max: number } | null;
-		yDomain?: { min: number; max: number } | null;
-	},
-	lineOptions?: { strokeStyle?: string; lineWidth?: number; steps?: number }
-) {
-	// Get x range from original points
-	const xs = originalPoints.map((p) => p.x);
-	const minX = Math.min(...xs);
-	const maxX = Math.max(...xs);
-
-	// Generate many points along the curve
-	const curvePoints: Point[] = [];
-	const steps = lineOptions?.steps ?? 200;
-
-	for (let i = 0; i <= steps; i++) {
-		const x = minX + (i / steps) * (maxX - minX);
-		const y = evaluateFunction(x, coefficients, type);
-		curvePoints.push({ x, y });
-	}
-
-	// Scale and draw
-	const scaled = scalePoints(curvePoints, width, height, scaleOptions);
-	drawConnectedLine(ctx, scaled, {
-		strokeStyle: lineOptions?.strokeStyle,
-		lineWidth: lineOptions?.lineWidth
-	});
-}
-
-function drawGrid(
-	ctx: CanvasRenderingContext2D,
-	width: number,
-	height: number,
-	options?: {
-		padding?: number;
-		divisions?: number;
-		color?: string;
-		lineWidth?: number;
-	}
-) {
-	const padding = normalizePadding(options?.padding);
-	const divisions = Math.max(2, Math.floor(options?.divisions ?? 5));
-	const color = options?.color ?? "rgba(107, 114, 128, 0.25)";
-	const lineWidth = options?.lineWidth ?? 1;
-
-	const left = padding;
-	const right = width - padding;
-	const top = padding;
-	const bottom = height - padding;
-	const w = right - left;
-	const h = bottom - top;
-
-	ctx.save();
-	ctx.strokeStyle = color;
-	ctx.lineWidth = lineWidth;
-
-	for (let i = 0; i <= divisions; i++) {
-		const t = i / divisions;
-		const x = left + t * w;
-		ctx.beginPath();
-		ctx.moveTo(x, top);
-		ctx.lineTo(x, bottom);
-		ctx.stroke();
-	}
-
-	for (let i = 0; i <= divisions; i++) {
-		const t = i / divisions;
-		const y = top + t * h;
-		ctx.beginPath();
-		ctx.moveTo(left, y);
-		ctx.lineTo(right, y);
-		ctx.stroke();
-	}
-
-	ctx.restore();
-}
-
-function evaluateFunction(x: number, coef: number[], type: LineType): number {
-	const c0 = coef[0] ?? 0;
-	const c1 = coef[1] ?? 0;
-	const c2 = coef[2] ?? 0;
-	switch (type) {
-		case "x":
-			return c0 * x + c1; // mx + b
-		case "x^2":
-			return c0 * x * x + c1 * x + c2; // ax² + bx + c
-		case "log":
-			if (x <= 0) return NaN;
-			return c0 * Math.log(x) + c1; // a*ln(x) + b
-		case "b^x":
-			return c0 * Math.exp(c1 * x); // a*e^(bx)
-		default:
-			return 0;
-	}
-}
-
-function calculateEMA(points: Point[], alpha: number): Point[] {
-	if (points.length === 0) return [];
-
-	const safeAlpha = clampAlpha(alpha);
-	const emaPoints: Point[] = [];
-	let ema = points[0].y;
-
-	for (const point of points) {
-		ema = safeAlpha * point.y + (1 - safeAlpha) * ema;
-		emaPoints.push({ x: point.x, y: ema });
-	}
-
-	return emaPoints;
-}
-
-function findNearestPoint(
-	mouseX: number,
-	scaledPoints: Point[],
-	originalPoints: Point[]
-): { scaled: Point; original: Point } | null {
-	let nearestIndex = -1;
-	let minDist = Infinity;
-
-	for (let i = 0; i < scaledPoints.length; i++) {
-		const dist = Math.abs(scaledPoints[i].x - mouseX);
-		if (dist < minDist) {
-			minDist = dist;
-			nearestIndex = i;
-		}
-	}
-
-	if (nearestIndex === -1) return null;
-
-	return {
-		scaled: scaledPoints[nearestIndex],
-		original: originalPoints[nearestIndex]
-	};
 }

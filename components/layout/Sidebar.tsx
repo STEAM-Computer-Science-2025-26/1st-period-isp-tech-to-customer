@@ -120,7 +120,7 @@ function DesktopSidebar({
 					<button
 						type="button"
 						onClick={() => setIsAutoCollapse((v) => !v)}
-						className="h-8 w-8 grid place-items-center rounded-md hover:bg-background-secondary/50 transition-colors duration-200"
+						className="h-8 w-8 grid place-items-center text-accent-text-dark-3 rounded-md hover:bg-background-secondary/50 transition-colors duration-200"
 						aria-label="Toggle sidebar"
 						title={isAutoCollapse ? "Pin sidebar open" : "Enable auto-collapse"}
 					>
@@ -131,7 +131,7 @@ function DesktopSidebar({
 						)}
 					</button>
 					<div className="flex items-center min-w-0">
-						<h2 className="text-sm font-semibold tracking-wide opacity-90 truncate">
+						<h2 className="text-sm text-accent-text-dark-3 font-semibold tracking-wide opacity-90 truncate">
 							{title}
 						</h2>
 					</div>
@@ -332,17 +332,21 @@ function SidebarItem({
 		<li
 			onClick={onClick}
 			className={clsx(
-				"cursor-pointer hover:bg-background-secondary/50 w-full transition-colors duration-200 h-9 items-center rounded-md px-2",
+				"cursor-pointer group overflow-hidden relative hover:bg-accent-text/10 w-full transition-colors duration-200 h-9 items-center rounded-md px-2",
 				showLabel ? "grid col-span-2 grid-cols-subgrid" : "flex justify-center"
 			)}
 			title={!showLabel ? title : undefined}
 			aria-label={!showLabel ? title : undefined}
 		>
-			<div className="grid place-items-center">
-				{/* lucide-react icons are forwardRef components, not always typeof === 'function' */}
+			<span className="w-1 h-full absolute left-0 inset-y-0 bg-transparent transition-colors duration-200 group-hover:bg-accent-main/70" />
+			<div className="grid group-hover:text-accent-text-dark place-items-center text-text-primary">
 				{Icon ? <Icon className="h-5 w-5" /> : null}
 			</div>
-			{showLabel ? <p className="text-sm">{title}</p> : null}
+			{showLabel ? (
+				<p className="text-sm text-text-primary group-hover:text-accent-text-dark">
+					{title}
+				</p>
+			) : null}
 		</li>
 	);
 }
