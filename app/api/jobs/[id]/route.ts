@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryOne } from "@/db/connection";
-import { JobDTO } from "@/types/jobTypes";
+import { JobDTO } from "@/services/types/jobTypes";
 import { getPublicError } from "@/services/publicErrors";
 
 // Get single job

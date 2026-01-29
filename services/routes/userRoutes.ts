@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
-import { query } from "@/db";
-import { CreateUserInput, UpdateUserInput } from "@/types/userTypes";
+import { query } from "../../db";
+import { CreateUserInput, UpdateUserInput } from "@/services/types/userTypes";
 import bcrypt from "bcryptjs";
 
 type ListUsersQuery = {
@@ -51,7 +51,7 @@ export function getUser(fastify: FastifyInstance) {
 			[userId]
 		);
 		if (!result[0]) {
-			reply.code(404).send({ error: "User not found" });
+			return reply.code(404).send({ error: "User not found" });
 		}
 		return { user: result[0] };
 	});

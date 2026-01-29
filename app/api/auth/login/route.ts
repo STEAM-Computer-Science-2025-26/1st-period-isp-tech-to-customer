@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"; // Import Next.js server utility types
 import { queryOne } from "@/db/connection"; // Import database connection utilities
-import { LoginInput, LoginSuccess, UserDTO } from "@/types/userTypes"; // Import user-related types
+import { LoginInput, LoginSuccess, UserDTO } from "@/services/types/userTypes"; // Import user-related types
 import { getPublicError } from "@/services/publicErrors"; // Import function to get public error messages
 
 export async function POST(request: NextRequest) {

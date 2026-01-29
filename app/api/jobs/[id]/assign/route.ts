@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql, queryOne, toCamelCase } from "@/db/connection";
-import { AssignTechInput, AssignTechSuccess, JobDTO } from "@/types/jobTypes";
+import { AssignTechInput, AssignTechSuccess, JobDTO } from "@/services/types/jobTypes";
 import { getPublicError } from "@/services/publicErrors";
 
 // Assign tech to job

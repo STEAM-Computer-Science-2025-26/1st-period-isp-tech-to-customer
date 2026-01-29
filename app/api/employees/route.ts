@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryAll } from "@/db/connection";
-import { EmployeeDataType } from "@/types/employeeTypes";
+import { EmployeeDataType } from "@/services/types/employeeTypes";
 import { getPublicError } from "@/services/publicErrors";
 
 // List all employees

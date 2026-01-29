@@ -5,7 +5,7 @@ import {
 	JobStatus,
 	UpdateJobStatusInput,
 	UpdateJobStatusSuccess
-} from "@/types/jobTypes";
+} from "@/services/types/jobTypes";
 import { getPublicError } from "@/services/publicErrors";
 
 // Update job status

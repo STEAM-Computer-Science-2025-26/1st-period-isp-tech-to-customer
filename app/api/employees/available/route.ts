@@ -3,7 +3,7 @@ import { getSql, toCamelCase, queryOne } from "@/db/connection";
 import {
 	AvailableTechDataType,
 	GetAvailableTechsSuccess
-} from "@/types/employeeTypes";
+} from "@/services/types/employeeTypes";
 import { getPublicError } from "@/services/publicErrors";
 
 // Get available techs for a job

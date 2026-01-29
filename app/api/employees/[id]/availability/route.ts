@@ -4,7 +4,7 @@ import {
 	EmployeeDataType,
 	UpdateEmployeeAvailabilityInput,
 	UpdateEmployeeAvailabilitySuccess
-} from "@/types/employeeTypes";
+} from "@/services/types/employeeTypes";
 import { getPublicError } from "@/services/publicErrors";
 
 // Update employee availability

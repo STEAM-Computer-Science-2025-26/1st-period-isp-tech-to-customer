@@ -1,10 +1,10 @@
 import { FastifyInstance } from "fastify";
-import { query } from "@/db";
+import { query } from "../../db";
 
 /** Register the GET /jobs endpoint (runs when a client requests GET /jobs). */
-export function lisJobs(fastify: FastifyInstance) {
+export function listJobs(fastify: FastifyInstance) {
 	fastify.get("/jobs", async () => {
-		const jobs = await query("SELECT * FROM jobs ORDER by created_at DESC");
+		const jobs = await query("SELECT * FROM jobs ORDER BY created_at DESC");
 		return { jobs };
 	});
 }
@@ -23,22 +23,32 @@ export function createJob(fastify: FastifyInstance) {
 
 /** Register the PUT /jobs/:jobId/status endpoint (runs when a client requests it). */
 export function updateJobStatus(fastify: FastifyInstance) {
-	fastify.put("/jobs/:jobId/status", async (request) => {
+	fastify.put("/jobs/:jobId/status", async (request, reply) => {
 		const { jobId } = request.params as { jobId: string };
 		const body = request.body as { status: string };
 		const result = await query(
 			"UPDATE jobs SET status = $1 WHERE id = $2 RETURNING *",
 			[body.status, jobId]
 		);
+
+		if (!result[0]) {
+			return reply.code(404).send({ error: "Job not found" });
+		}
+
 		return { job: result[0] };
 	});
 }
 
 /** Register the DELETE /jobs/:jobId endpoint (runs when a client requests it). */
 export function deleteJob(fastify: FastifyInstance) {
-	fastify.delete("/jobs/:jobId", async (request) => {
+	fastify.delete("/jobs/:jobId", async (request, reply) => {
 		const { jobId } = request.params as { jobId: string };
-		await query("DELETE FROM jobs WHERE id = $1", [jobId]);
+		const result = await query("DELETE FROM jobs WHERE id = $1 RETURNING id", [jobId]);
+
+		if (!result[0]) {
+			return reply.code(404).send({ error: "Job not found" });
+		}
+
 		return { message: `Job ${jobId} deleted` };
 	});
 }
@@ -52,7 +62,7 @@ export function deleteJob(fastify: FastifyInstance) {
  * is requested.
  */
 export async function jobRoutes(fastify: FastifyInstance) {
-	lisJobs(fastify);
+	listJobs(fastify);
 	createJob(fastify);
 	updateJobStatus(fastify);
 	deleteJob(fastify);

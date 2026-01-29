@@ -6,7 +6,7 @@ import {
 	GetJobsSuccess,
 	JobDTO,
 	JobStatus
-} from "@/types/jobTypes";
+} from "@/services/types/jobTypes";
 import { getPublicError } from "@/services/publicErrors";
 
 // List jobs (optionally filtered)
