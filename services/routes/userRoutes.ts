@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { query } from "../../db";
 import { CreateUserInput, UpdateUserInput } from "@/services/types/userTypes";
 import bcrypt from "bcryptjs";
-
+import { authenticate, requireAdmin, requireCompanyAccess } from "../middleware/auth";
 type ListUsersQuery = {
 	companyId: string;
 	role?: "admin" | "tech";
@@ -23,15 +23,22 @@ export function listUsers(fastify: FastifyInstance) {
 			limit = 50,
 			offset = 0
 		} = request.query as ListUsersQuery;
-		const result = await query(
-			`SELECT id, email, role, company_id AS "companyId", created_at AS "createdAt", updated_at AS "updatedAt"
+
+		let sql = `SELECT id, email, role, company_id AS "companyId", created_at AS "createdAt", updated_at AS "updatedAt"
              FROM users
-             WHERE company_id = $1
-             ${role ? "AND role = $2" : ""}
-             ORDER BY created_at
-                LIMIT $3 OFFSET $4`,
-			role ? [companyId, role, limit, offset] : [companyId, limit, offset]
-		);
+             WHERE company_id = $1`;
+		
+		const params: any[] = [companyId];
+
+		if (role) {
+			params.push(role);
+			sql += ` AND role = $${params.length}`;
+		}
+
+		params.push(limit, offset);
+		sql += ` ORDER BY created_at LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+		const result = await query(sql, params);
 		return { users: result };
 	});
 }
@@ -67,7 +74,7 @@ export function createUser(fastify: FastifyInstance) {
 		const body = request.body as CreateUserInput;
 		const hashedPassword = await bcrypt.hash(body.password, 10);
 		const result = await query<{ id: string }>(
-			`INSERT INTO users (email, password, role, company_id)
+			`INSERT INTO users (email, password_hash, role, company_id)
                 VALUES ($1, $2, $3, $4)
                 RETURNING id`,
 			[body.email, hashedPassword, body.role, body.companyId]
@@ -131,12 +138,86 @@ export function deleteUser(fastify: FastifyInstance) {
 }
 
 /*
+accepts email and password
+verifies the user credentials against database
+returns a JWT token if valid, 401 error if invalid
+*/
+export function loginUser(fastify: FastifyInstance) {
+	fastify.post("/login", async (request, reply) => {
+		const body = request.body as { 
+			email: string; 
+			password: string 
+		};
+
+		const result = await query<{
+			id: string;
+			email: string;
+			password_hash: string;
+			role: string;
+			company_id: string;
+		}>(
+			`SELECT id, email, password_hash, role, company_id
+			 FROM users
+			 WHERE email = $1`,
+			[body.email]
+		);
+
+		if (!result[0]) {
+			return reply.code(401).send({ error: "Invalid email or password" });
+		}
+
+		const user = result[0];
+		const isPasswordValid = await bcrypt.compare(
+			body.password,
+			user.password_hash
+		);
+		if (!isPasswordValid) {
+			return reply.code(401).send({ error: "Invalid email or password" });
+		}
+
+		const token = fastify.jwt.sign({
+			id: user.id,
+			email: user.email,
+			role: user.role
+		});
+		return { 
+			token,
+			user: {
+				userId: user.id,
+				email: user.email,
+				role: user.role,
+				companyId: user.company_id
+			}
+		};
+	});
+}
+
+/*
 combines everything
 */
 export async function userRoutes(fastify: FastifyInstance) {
-	listUsers(fastify);
-	getUser(fastify);
-	createUser(fastify);
-	updateUser(fastify);
-	deleteUser(fastify);
+	// Public route - no auth needed
+	loginUser(fastify);
+
+	// All routes below require authentication
+	fastify.register(async (authenticatedRoutes) => {
+		authenticatedRoutes.addHook("onRequest", authenticate);
+		
+		// These routes also need company access check
+		authenticatedRoutes.register(async (companyRoutes) => {
+			companyRoutes.addHook("onRequest", requireCompanyAccess);
+			
+			listUsers(companyRoutes);
+			getUser(companyRoutes);
+		});
+		
+		// Admin-only routes
+		authenticatedRoutes.register(async (adminRoutes) => {
+			adminRoutes.addHook("onRequest", requireAdmin);
+			
+			createUser(adminRoutes);
+			updateUser(adminRoutes);
+			deleteUser(adminRoutes);
+		});
+	});
 }

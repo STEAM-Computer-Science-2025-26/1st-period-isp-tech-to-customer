@@ -10,10 +10,11 @@
 		"format": "npx prettier . --write",
 		"lint": "eslint . -f ./eslint.formatter.js && npx prettier . --check",
 		"lint:auto-format": "eslint . -f ./eslint.formatter.js --fix && node -e \"const {execSync}=require('child_process');try{execSync('npx prettier . --check',{stdio:'inherit'});}catch(e){execSync('npx prettier . --write',{stdio:'inherit'});}\"",
-		"dev:backend": "ts-node --esm -r tsconfig-paths/register services/server.ts"
+		"dev:backend": "tsx services/server.ts"
 	},
 	"dependencies": {
 		"@fastify/cors": "^11.2.0",
+		"@fastify/jwt": "^10.0.0",
 		"@googlemaps/js-api-loader": "^2.0.2",
 		"@neondatabase/serverless": "^1.0.2",
 		"bcryptjs": "^3.0.3",
@@ -31,6 +32,7 @@
 		"react": "19.2.3",
 		"react-dom": "19.2.3",
 		"regression": "^2.0.1",
+		"ws": "^8.19.0",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {
@@ -42,6 +44,7 @@
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
 		"@types/regression": "^2.0.6",
+		"@types/ws": "^8.18.1",
 		"eslint": "^9",
 		"eslint-config-next": "16.1.1",
 		"tailwindcss": "^4",

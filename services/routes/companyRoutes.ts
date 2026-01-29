@@ -12,7 +12,7 @@ export function getCompany(fastify: FastifyInstance) {
         type CompanyRow = {
             id: string;
             name: string;
-            dispatchSettings: string; 
+            dispatchSettings: object; 
             createdAt: string;
             updatedAt: string;
         };
@@ -76,7 +76,7 @@ export function updateCompany(fastify: FastifyInstance) {
 
         }
         if (body.dispatchSettings) {
-            values.push(body.dispatchSettings);
+            values.push(JSON.stringify(body.dispatchSettings));
             updates.push(`dispatch_settings = $${values.length}`);
         }
         if (updates.length === 0) {

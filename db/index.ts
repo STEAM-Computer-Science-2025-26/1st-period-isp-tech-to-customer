@@ -1,14 +1,15 @@
 import "dotenv/config";
-import pkg from "pg";
-const { Pool } = pkg;
+import { neonConfig, Pool } from "@neondatabase/serverless";
+import ws from "ws";
+
+// Configure WebSocket for local development
+neonConfig.webSocketConstructor = ws;
 
 export const pool = new Pool({
-	connectionString: process.env.DATABASE_URL,
-	ssl: { rejectUnauthorized: false }
+	connectionString: process.env.DATABASE_URL
 });
 
-//helper to run queries
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Helper to run queries
 export async function query<T>(text: string, params?: any[]): Promise<T[]> {
 	const client = await pool.connect();
 	try {
