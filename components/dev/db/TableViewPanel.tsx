@@ -737,7 +737,7 @@ export function TableViewPanel(props: {
 										<Columns2 size={14} />
 										Columns
 									</summary>
-									<div className="absolute right-0 z-10 mt-1 min-w-[220px] rounded-md border border-accent-text bg-background-primary p-2 shadow-lg">
+									<div className="absolute right-0 z-10 mt-1 min-w-55 rounded-md border border-accent-text bg-background-primary p-2 shadow-lg">
 										<div className="flex items-center justify-between text-xs font-medium">
 											<span>Visible columns</span>
 											<button
