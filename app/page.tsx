@@ -1,6 +1,5 @@
 "use client";
 
-import clsx from "clsx";
 import { useState } from "react";
 import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { Point } from "@/app/types/types";
@@ -12,7 +11,6 @@ import {
 	ListCard,
 	TableCard
 } from "@/components/ui/Card";
-import { useBreakpoints } from "@/app/hooks/useBreakpoints";
 import Header from "@/components/layout/Header";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import MainContent from "@/components/layout/MainContent";
@@ -145,7 +143,6 @@ const openJobsRows = [
 export default function Home() {
 	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
 	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
-	const { lgUp } = useBreakpoints();
 
 	return (
 		<>

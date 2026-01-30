@@ -3,6 +3,7 @@ import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
+import { Agent, setGlobalDispatcher } from "undici";
 
 let cachedSql: NeonQueryFunction<false, false> | null = null;
 
@@ -18,17 +19,10 @@ function maybeAllowSelfSignedCerts(): void {
 		// Also configure Undici (used by global fetch) to accept self-signed certs.
 		// This avoids "SELF_SIGNED_CERT_IN_CHAIN" when the env flag is ignored.
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-var-requires
-			const undici = require("undici") as {
-				Agent?: new (options: { connect: { rejectUnauthorized: boolean } }) => unknown;
-				setGlobalDispatcher?: (dispatcher: unknown) => void;
-			};
-			if (undici.Agent && undici.setGlobalDispatcher) {
-				const agent = new undici.Agent({
-					connect: { rejectUnauthorized: false }
-				});
-				undici.setGlobalDispatcher(agent);
-			}
+			const agent = new Agent({
+				connect: { rejectUnauthorized: false }
+			});
+			setGlobalDispatcher(agent);
 		} catch {
 			// If undici is unavailable, fall back to NODE_TLS_REJECT_UNAUTHORIZED.
 		}
