@@ -17,7 +17,7 @@ Types:
   ListUsersSuccess: Success response with user list
 */
 
-export type UserRole = "admin" | "tech";
+export type UserRole = "dev" | "admin" | "tech";
 
 import { PaginationInput, PaginationOutput } from "./commonTypes";
 

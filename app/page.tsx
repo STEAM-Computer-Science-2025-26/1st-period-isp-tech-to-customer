@@ -2,20 +2,9 @@
 
 import clsx from "clsx";
 import { useState } from "react";
-import Sidebar from "@/components/layout/Sidebar";
-import { SidebarItemParams, Point } from "@/app/types/types";
-import {
-	Calendar,
-	Headset,
-	History,
-	Home as HomeIcon,
-	Settings,
-	Wrench,
-	BarChart3,
-	ArrowUpRight,
-	ChevronRight,
-	TrendingUp
-} from "lucide-react";
+import Sidebar from "@/components/layout/sidebar/Sidebar";
+import { Point } from "@/app/types/types";
+import { ArrowUpRight, ChevronRight, TrendingUp } from "lucide-react";
 import {
 	Card,
 	KpiCard,
@@ -25,6 +14,8 @@ import {
 } from "@/components/ui/Card";
 import { useBreakpoints } from "@/app/hooks/useBreakpoints";
 import Header from "@/components/layout/Header";
+import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
+import MainContent from "@/components/layout/MainContent";
 
 const lineData: Point[] = [
 	{ x: 0, y: 42 },
@@ -140,16 +131,6 @@ const lineData: Point[] = [
 	{ x: 99, y: 105 }
 ];
 
-const sidebarItems: SidebarItemParams[] = [
-	{ id: 1, title: "Home", icon: HomeIcon },
-	{ id: 2, title: "Settings", icon: Settings },
-	{ id: 3, title: "Statistics", icon: BarChart3 },
-	{ id: 4, title: "Work History", icon: History },
-	{ id: 5, title: "Calendar", icon: Calendar },
-	{ id: 6, title: "Tools", icon: Wrench },
-	{ id: 7, title: "Dispatch", icon: Headset }
-];
-
 const openJobsColumns = [
 	{ key: "id", header: "ID" },
 	{ key: "customer", header: "Customer" },
@@ -172,17 +153,9 @@ export default function Home() {
 				sidebarAutoCollapse={sidebarAutoCollapse}
 				sidebarIsStrip={sidebarIsStrip}
 			/>
-			<main
-				className={clsx(
-					"bg-background-main text-text-main w-full min-h-screen py-4 pt-24 transition-[padding] duration-300 absolute mb-6 px-6",
-					lgUp
-						? sidebarAutoCollapse
-							? "pl-6"
-							: "pl-[calc(var(--sidebar-desktop-width)-var(--sidebar-main-gap))]"
-						: sidebarIsStrip
-							? "pl-20"
-							: "pl-6"
-				)}
+			<MainContent
+				sidebarAutoCollapse={sidebarAutoCollapse}
+				sidebarIsStrip={sidebarIsStrip}
 			>
 				<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 mx-auto">
 					<Card
@@ -294,11 +267,11 @@ export default function Home() {
 						footer="Tip: click an item to start the step"
 					/>
 				</div>
-			</main>
+			</MainContent>
 			<Sidebar
 				title="Tech to Customer"
 				autoCollapse={false}
-				items={sidebarItems}
+				items={defaultSidebarItems}
 				onFlagsChange={({ autoCollapse, isStrip }) => {
 					setSidebarAutoCollapse(autoCollapse);
 					setSidebarIsStrip(isStrip);

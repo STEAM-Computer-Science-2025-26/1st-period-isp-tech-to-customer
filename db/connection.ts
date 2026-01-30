@@ -6,6 +6,35 @@ import path from "node:path";
 
 let cachedSql: NeonQueryFunction<false, false> | null = null;
 
+// Allow opting into self-signed certificates for local development.
+// Useful on Windows/corp networks where HTTPS interception adds a custom CA.
+function maybeAllowSelfSignedCerts(): void {
+	const allow = process.env.ALLOW_SELF_SIGNED_CERTS === "true";
+	const isProd = process.env.NODE_ENV === "production";
+	if (allow && !isProd) {
+		// Node respects this flag for TLS validation; safe to limit to dev.
+		process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+		// Also configure Undici (used by global fetch) to accept self-signed certs.
+		// This avoids "SELF_SIGNED_CERT_IN_CHAIN" when the env flag is ignored.
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-var-requires
+			const undici = require("undici") as {
+				Agent?: new (options: { connect: { rejectUnauthorized: boolean } }) => unknown;
+				setGlobalDispatcher?: (dispatcher: unknown) => void;
+			};
+			if (undici.Agent && undici.setGlobalDispatcher) {
+				const agent = new undici.Agent({
+					connect: { rejectUnauthorized: false }
+				});
+				undici.setGlobalDispatcher(agent);
+			}
+		} catch {
+			// If undici is unavailable, fall back to NODE_TLS_REJECT_UNAUTHORIZED.
+		}
+	}
+}
+
 function tryLoadDatabaseUrlFromDotenv(): void {
 	if (process.env.DATABASE_URL) return;
 
@@ -31,6 +60,7 @@ function tryLoadDatabaseUrlFromDotenv(): void {
  */
 export function getSql(): NeonQueryFunction<false, false> {
 	tryLoadDatabaseUrlFromDotenv();
+	maybeAllowSelfSignedCerts();
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
 		throw new Error("DATABASE_URL environment variable is not set");

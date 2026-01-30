@@ -16,10 +16,12 @@ import {
 	PanelLeftOpen,
 	Settings,
 	User,
-	Wrench
+	Wrench,
+	Code
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useBreakpoints } from "@/app/hooks/useBreakpoints";
+import { defaultSidebarItems } from "./SidebarItems";
 
 export type SidebarFlags = {
 	autoCollapse: boolean;
@@ -30,7 +32,7 @@ export default function Sidebar({
 	autoCollapse = true,
 	mobile,
 	title = "Tech to Customer",
-	items = [],
+	items = defaultSidebarItems,
 	onFlagsChange
 }: SidebarParams & { onFlagsChange?: (flags: SidebarFlags) => void } = {}) {
 	const [isAutoCollapse, setIsAutoCollapse] = useState(autoCollapse);
@@ -322,6 +324,29 @@ function MobileSidebar({
 	);
 }
 
+function AccountItem({ showLabel = true }: { showLabel?: boolean }) {
+	return (
+		<div
+			className={clsx(
+				"group w-full h-12 items-center rounded-md px-2 hover:bg-background-secondary/50 transition-colors duration-200 cursor-pointer",
+				showLabel ? "grid grid-cols-[2rem_1fr] gap-2" : "flex justify-center"
+			)}
+			title={!showLabel ? "Account" : undefined}
+			aria-label={!showLabel ? "Account" : undefined}
+		>
+			<div className="grid place-items-center">
+				<div className="h-7 w-7 rounded-full group-hover:bg-background-tertiary/50 bg-background-secondary/60 border group-hover:border-background-tertiary/70 ease duration-300 border-background-secondary/80" />
+			</div>
+			{showLabel ? (
+				<div className="flex flex-col leading-tight">
+					<span className="text-sm font-medium">Account</span>
+					<span className="text-xs opacity-70">Profile & settings</span>
+				</div>
+			) : null}
+		</div>
+	);
+}
+
 function SidebarItem({
 	title,
 	icon: Icon,
@@ -351,29 +376,6 @@ function SidebarItem({
 	);
 }
 
-function AccountItem({ showLabel = true }: { showLabel?: boolean }) {
-	return (
-		<div
-			className={clsx(
-				"group w-full h-12 items-center rounded-md px-2 hover:bg-background-secondary/50 transition-colors duration-200 cursor-pointer",
-				showLabel ? "grid grid-cols-[2rem_1fr] gap-2" : "flex justify-center"
-			)}
-			title={!showLabel ? "Account" : undefined}
-			aria-label={!showLabel ? "Account" : undefined}
-		>
-			<div className="grid place-items-center">
-				<div className="h-7 w-7 rounded-full group-hover:bg-background-tertiary/50 bg-background-secondary/60 border group-hover:border-background-tertiary/70 ease duration-300 border-background-secondary/80" />
-			</div>
-			{showLabel ? (
-				<div className="flex flex-col leading-tight">
-					<span className="text-sm font-medium">Account</span>
-					<span className="text-xs opacity-70">Profile & settings</span>
-				</div>
-			) : null}
-		</div>
-	);
-}
-
 function resolveIcon(icon: string | LucideIcon): LucideIcon {
 	if (typeof icon !== "string") return icon;
 
@@ -391,7 +393,8 @@ function resolveIcon(icon: string | LucideIcon): LucideIcon {
 		headset: Headset,
 		dispatch: Headset,
 		stats: BarChart3,
-		statistics: BarChart3
+		statistics: BarChart3,
+		code: Code
 	};
 
 	return map[key] ?? User;

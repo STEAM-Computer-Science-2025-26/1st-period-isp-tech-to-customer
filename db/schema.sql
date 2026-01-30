@@ -14,10 +14,16 @@ CREATE TABLE IF NOT EXISTS users (
 	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 	email TEXT UNIQUE NOT NULL,
 	password_hash TEXT NOT NULL,
-	role TEXT NOT NULL CHECK (role IN ('admin', 'tech')),
+	-- NOTE: 'dev' users bypass company scoping in the backend.
+	-- TODO: If you want dev users without a company, make company_id nullable and adjust code accordingly.
+	role TEXT NOT NULL CHECK (role IN ('dev', 'admin', 'tech')),
 	company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
 	created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration helper for existing DBs: expand the role check constraint.
+-- (Postgres doesn't let you alter a CHECK in-place; you typically drop/recreate it.)
+-- TODO: If your existing DB already has a named constraint, replace this with the correct name.
 
 -- Indexes for users
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

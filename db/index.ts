@@ -10,7 +10,7 @@ export const pool = new Pool({
 });
 
 // Helper to run queries
-export async function query<T>(text: string, params?: any[]): Promise<T[]> {
+export async function query<T>(text: string, params?: unknown[]): Promise<T[]> {
 	const client = await pool.connect();
 	try {
 		const res = await client.query(text, params);

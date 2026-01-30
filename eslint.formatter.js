@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-const { ESLint } = require("eslint");
+import { ESLint } from "eslint";
 
-module.exports = async function (results, context) {
+export default async function formatter(results, context) {
 	const totalErrors = results.reduce((sum, r) => sum + r.errorCount, 0);
 	const totalWarnings = results.reduce((sum, r) => sum + r.warningCount, 0);
 
@@ -15,4 +14,4 @@ module.exports = async function (results, context) {
 	const stylish = await eslint.loadFormatter("stylish");
 
 	return stylish.format(results, context);
-};
+}
