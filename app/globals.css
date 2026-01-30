@@ -89,16 +89,38 @@ body {
 }
 
 @layer base {
+	* {
+		&::-webkit-scrollbar {
+			@apply w-1.25 h-1.25
+		}
+		&::-webkit-scrollbar-track {
+			@apply absolute rounded;
+		}
+		&::-webkit-scrollbar-thumb {
+			@apply bg-accent-text-dark rounded;
+		}
+		&::-webkit-scrollbar-thumb:hover {
+			@apply bg-accent-text-dark-2 cursor-pointer;
+		}
+	}
 	button {
 		cursor: pointer;
 	}
 	a {
 		cursor: pointer;
 	}
+	
 }
 
 @layer utilities {
-	/*
+	.no-scrollbar {
+		&::-webkit-scrollbar {
+			display: none;
+		}
+		-ms-overflow-style: none; /* IE and Edge */
+		scrollbar-width: none; /* Firefox */
+	}
+		/*
     Debug backgrounds
 
     Usage:
