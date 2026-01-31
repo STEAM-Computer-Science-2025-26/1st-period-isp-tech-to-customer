@@ -91,7 +91,7 @@ body {
 @layer base {
 	* {
 		&::-webkit-scrollbar {
-			@apply w-1.25 h-1.25
+			@apply w-1.25 h-1.25;
 		}
 		&::-webkit-scrollbar-track {
 			@apply absolute rounded;
@@ -109,7 +109,6 @@ body {
 	a {
 		cursor: pointer;
 	}
-	
 }
 
 @layer utilities {
@@ -120,7 +119,7 @@ body {
 		-ms-overflow-style: none; /* IE and Edge */
 		scrollbar-width: none; /* Firefox */
 	}
-		/*
+	/*
     Debug backgrounds
 
     Usage:
