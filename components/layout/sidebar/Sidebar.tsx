@@ -190,7 +190,7 @@ function MobileSidebar({
 	hideToggleButton?: boolean;
 }) {
 	const [isExpandedInternal, setIsExpandedInternal] = useState(false);
-	const { smDown } = useBreakpoints();
+	const { lgDown } = useBreakpoints();
 	const isControlled = mobileOpen !== undefined;
 	const isExpanded = isControlled ? mobileOpen : isExpandedInternal;
 	const setExpanded = (next: boolean) => {
@@ -198,8 +198,8 @@ function MobileSidebar({
 		onMobileOpenChange?.(next);
 	};
 
-	const isMobileStripMode = smDown ? false : !isAutoCollapse;
-	const isMobileDrawerMode = smDown ? true : isAutoCollapse;
+	const isMobileStripMode = lgDown ? false : !isAutoCollapse;
+	const isMobileDrawerMode = lgDown ? true : isAutoCollapse;
 	const showLabels = isExpanded;
 	const isStripCollapsed = isMobileStripMode && !isExpanded;
 
@@ -219,7 +219,7 @@ function MobileSidebar({
 
 	return (
 		<>
-			{isMobileDrawerMode && !smDown && !hideToggleButton ? (
+			{isMobileDrawerMode && !lgDown && !hideToggleButton ? (
 				<button
 					type="button"
 					onClick={toggleExpanded}
@@ -267,18 +267,18 @@ function MobileSidebar({
 							isMobileDrawerMode ? "" : ""
 						)}
 					>
-						{smDown && isMobileDrawerMode ? (
-									<button
-										type="button"
-										onClick={() => setExpanded(false)}
-										className="h-8 w-8 grid place-items-center rounded-md hover:bg-background-secondary/50 transition-colors duration-200"
-										aria-label="Collapse sidebar"
-										title="Collapse sidebar"
-									>
-										<ChevronLeft className="h-5 w-5" />
-									</button>
-								) : null}
-						
+						{lgDown ? (
+							<button
+								type="button"
+								onClick={() => setExpanded(false)}
+								className="h-8 w-8 grid place-items-center rounded-md hover:bg-background-secondary/50 transition-colors duration-200"
+								aria-label="Collapse sidebar"
+								title="Collapse sidebar"
+							>
+								<ChevronLeft className="h-5 w-5" />
+							</button>
+						) : null}
+
 						{isMobileStripMode ? (
 							<button
 								type="button"
@@ -298,7 +298,7 @@ function MobileSidebar({
 							</button>
 						) : null}
 
-						{smDown ? null : (
+						{lgDown ? null : (
 							<button
 								type="button"
 								onClick={toggleAutoCollapse}
@@ -317,7 +317,7 @@ function MobileSidebar({
 								)}
 							</button>
 						)}
-						
+
 						{showLabels ? (
 							<div className="flex items-center min-w-0 ml-1 flex-1 justify-between">
 								<h2 className="text-sm font-semibold tracking-wide opacity-90 truncate">

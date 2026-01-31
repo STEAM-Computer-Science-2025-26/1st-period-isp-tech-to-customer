@@ -150,9 +150,7 @@ export default function Home() {
 			<Header
 				sidebarAutoCollapse={sidebarAutoCollapse}
 				sidebarIsStrip={sidebarIsStrip}
-				onMobileMenuClick={() =>
-					setMobileSidebarOpen((open) => !open)
-				}
+				onMobileMenuClick={() => setMobileSidebarOpen((open) => !open)}
 				mobileMenuOpen={mobileSidebarOpen}
 			/>
 			<MainContent

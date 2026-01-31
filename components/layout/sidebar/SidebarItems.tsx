@@ -7,9 +7,14 @@ import { SidebarItemParams } from "@/app/types/types";
  * (see resolveIcon in Sidebar.tsx).
  */
 export const defaultSidebarItems: SidebarItemParams[] = [
-	{ id: 1, title: "Home", icon: "home", onClick: () => {
-		window.location.href = "/";
-	} },
+	{
+		id: 1,
+		title: "Home",
+		icon: "home",
+		onClick: () => {
+			window.location.href = "/";
+		}
+	},
 	{ id: 2, title: "Settings", icon: "settings" },
 	{ id: 3, title: "Statistics", icon: "statistics" },
 	{ id: 4, title: "Work History", icon: "history" },

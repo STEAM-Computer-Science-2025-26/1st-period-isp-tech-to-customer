@@ -101,9 +101,9 @@ export function TableViewPanel(props: {
 		onAddColumn,
 		onInsertRow,
 		onUpdateRow,
-	onAlterColumn,
-	onDeleteColumn,
-	onDeleteRow
+		onAlterColumn,
+		onDeleteColumn,
+		onDeleteRow
 	} = props;
 
 	const [pendingRow, setPendingRow] = useState<Record<string, string> | null>(
@@ -726,15 +726,16 @@ export function TableViewPanel(props: {
 																<button
 																	type="button"
 																	className="w-full text-left px-2 py-1 text-xs rounded hover:bg-background-secondary/50 text-red-600"
-																	onClick={() => void deleteColumnByName(c.name)}
+																	onClick={() =>
+																		void deleteColumnByName(c.name)
+																	}
 																	disabled={busy}
 																>
 																	<span>Delete</span>
 																</button>
 															</div>
 														</details>
-													)
-												}
+													)}
 												</td>
 											</tr>
 										);
@@ -999,8 +1000,7 @@ export function TableViewPanel(props: {
 																</button>
 															</div>
 														</details>
-													)
-												}
+													)}
 												</td>
 												{visibleColumns.length ? (
 													visibleColumns.map((c) => {

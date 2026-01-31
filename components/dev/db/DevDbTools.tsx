@@ -327,8 +327,8 @@ export function DevDbTools() {
 							onInsertRow={insertRow}
 							onUpdateRow={updateRow}
 							onAlterColumn={alterColumn}
-							onDeleteColumn={(name) => void deleteColumn(name)}
-							onDeleteRow={(pk) => void deleteRow(pk)}
+							onDeleteColumn={deleteColumn}
+							onDeleteRow={deleteRow}
 						/>
 					)}
 				</main>

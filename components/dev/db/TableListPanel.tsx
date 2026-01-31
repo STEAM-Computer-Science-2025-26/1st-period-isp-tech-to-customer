@@ -20,8 +20,8 @@ export function TableListPanel(props: {
 		newTableName,
 		onNewTableNameChange,
 		onCreateTable,
-	onSelectTable,
-	onDeleteTable
+		onSelectTable,
+		onDeleteTable
 	} = props;
 
 	return (
