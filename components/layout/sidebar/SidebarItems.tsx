@@ -14,7 +14,12 @@ export const defaultSidebarItems: SidebarItemParams[] = [
 	{ id: 5, title: "Calendar", icon: "calendar" },
 	{ id: 6, title: "Tools", icon: "tools" },
 	{ id: 7, title: "Dispatch", icon: "dispatch" },
-	{ id: 8, title: "Developer Tools", icon: "code", onClick: () => {
-		window.location.href = "/dev";
-	} }
+	{
+		id: 8,
+		title: "Developer Tools",
+		icon: "code",
+		onClick: () => {
+			window.location.href = "/dev";
+		}
+	}
 ];
