@@ -188,6 +188,68 @@ export function DevDbTools() {
 		}
 	}
 
+	async function deleteColumn(column: string) {
+		if (!selectedTable) throw new Error("Select a table first");
+		setBusy(true);
+		setError(null);
+		try {
+			await apiJson("/api/dev/db/drop-column", {
+				method: "POST",
+				body: JSON.stringify({ table: selectedTable, column })
+			});
+			await loadTable(selectedTable);
+		} catch (e: any) {
+			setError(e?.message ?? "Failed to delete column.");
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function deleteRow(pk: Record<string, any>) {
+		if (!selectedTable) throw new Error("Select a table first");
+		setBusy(true);
+		setError(null);
+		try {
+			await apiJson("/api/dev/db/delete-row", {
+				method: "POST",
+				body: JSON.stringify({ table: selectedTable, pk })
+			});
+			await loadTable(selectedTable);
+		} catch (e: any) {
+			setError(e?.message ?? "Failed to delete row.");
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function deleteTable(name: string) {
+		setBusy(true);
+		setError(null);
+		try {
+			await apiJson("/api/dev/db/drop-table", {
+				method: "POST",
+				body: JSON.stringify({ table: name })
+			});
+			setTables((prev) => prev.filter((t) => t.name !== name));
+			setSchemaByTable((prev) => {
+				const next = { ...prev };
+				delete next[name];
+				return next;
+			});
+			setRowsByTable((prev) => {
+				const next = { ...prev };
+				delete next[name];
+				return next;
+			});
+			if (selectedTable === name) setSelectedTable(null);
+			await loadTables();
+		} catch (e: any) {
+			setError(e?.message ?? "Failed to delete table.");
+		} finally {
+			setBusy(false);
+		}
+	}
+
 	return (
 		<section className="w-full px-2 flex flex-col gap-3">
 			{error ? (
@@ -241,6 +303,7 @@ export function DevDbTools() {
 						onNewTableNameChange={setNewTableName}
 						onCreateTable={createTable}
 						onSelectTable={(name) => void loadTable(name)}
+						onDeleteTable={(name) => void deleteTable(name)}
 					/>
 				</aside>
 
@@ -264,6 +327,8 @@ export function DevDbTools() {
 							onInsertRow={insertRow}
 							onUpdateRow={updateRow}
 							onAlterColumn={alterColumn}
+							onDeleteColumn={(name) => void deleteColumn(name)}
+							onDeleteRow={(pk) => void deleteRow(pk)}
 						/>
 					)}
 				</main>

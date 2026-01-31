@@ -61,7 +61,7 @@ export function BarChart({ yAxisLabel, bars }: BarChartProps) {
 	const safeMax = Math.max(1, maxValue);
 
 	return (
-		<div className="pl-6 pb-8 pr-2 pt-2">
+		<div className="pl-6 pb-8 pr-2 pt-2 max-w-full overflow-x-hidden">
 			<div
 				className="border-l-2 border-b-2 border-background-tertiary rounded-bl-md relative flex flex-col justify-end"
 				aria-label={yAxisLabel}
@@ -650,7 +650,7 @@ export function LineGraph({
 
 	return (
 		<div
-			className="w-full h-full py-2"
+			className="w-full max-w-full h-full py-2 overflow-x-hidden"
 			style={{
 				minHeight: minH,
 				width: "100%",

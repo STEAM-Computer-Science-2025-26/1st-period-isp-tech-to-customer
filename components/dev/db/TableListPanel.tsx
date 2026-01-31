@@ -1,7 +1,7 @@
 "use client";
 
 import type { DbTable } from "./types";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 export function TableListPanel(props: {
 	tables: DbTable[];
@@ -11,6 +11,7 @@ export function TableListPanel(props: {
 	onNewTableNameChange: (value: string) => void;
 	onCreateTable: () => void;
 	onSelectTable: (name: string) => void;
+	onDeleteTable: (name: string) => void;
 }) {
 	const {
 		tables,
@@ -19,7 +20,8 @@ export function TableListPanel(props: {
 		newTableName,
 		onNewTableNameChange,
 		onCreateTable,
-		onSelectTable
+	onSelectTable,
+	onDeleteTable
 	} = props;
 
 	return (
@@ -48,26 +50,47 @@ export function TableListPanel(props: {
 			</div>
 
 			<div className="max-h-105 overflow-auto">
-				<ul className="flex flex-col">
+				<ul className="flex flex-col gap-1">
 					{tables.map((t) => (
 						<li key={t.name}>
-							<button
-								type="button"
-								className={`w-full rounded-md px-3 py-2 text-left text-sm hover:bg-background-secondary/30 ${
+							<div
+								className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-background-secondary/30 flex items-center gap-2 ${
 									selectedTable === t.name ? "bg-background-secondary/50" : ""
 								}`}
-								onClick={() => onSelectTable(t.name)}
-								disabled={busy}
 							>
-								<div className="flex items-center justify-between gap-2">
-									<span className="font-mono">{t.name}</span>
-									{t.comment ? (
-										<span className="truncate text-xs opacity-70">
-											{t.comment}
-										</span>
-									) : null}
-								</div>
-							</button>
+								<button
+									type="button"
+									className="flex-1 min-w-0 text-left"
+									onClick={() => onSelectTable(t.name)}
+									disabled={busy}
+								>
+									<div className="flex items-center justify-between gap-2">
+										<span className="font-mono truncate">{t.name}</span>
+										{t.comment ? (
+											<span className="truncate text-xs opacity-70">
+												{t.comment}
+											</span>
+										) : null}
+									</div>
+								</button>
+								<button
+									type="button"
+									className="size-8 rounded-md border border-accent-text bg-background-secondary/50 hover:bg-background-secondary transition-colors duration-200 flex items-center justify-center"
+									onClick={() => {
+										if (
+											window.confirm(
+												`Delete table "${t.name}"? This cannot be undone.`
+											)
+										) {
+											onDeleteTable(t.name);
+										}
+									}}
+									disabled={busy}
+									title="Delete table"
+								>
+									<Trash2 size={14} />
+								</button>
+							</div>
 						</li>
 					))}
 					{tables.length === 0 ? (

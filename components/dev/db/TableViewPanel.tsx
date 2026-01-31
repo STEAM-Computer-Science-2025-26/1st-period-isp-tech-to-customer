@@ -6,7 +6,7 @@ import {
 	Check,
 	Columns2,
 	Copy,
-	Pencil,
+	MoreVertical,
 	Plus,
 	RefreshCcw,
 	RotateCcw,
@@ -89,6 +89,8 @@ export function TableViewPanel(props: {
 		nullable?: boolean;
 		defaultValue?: string | null;
 	}) => Promise<void>;
+	onDeleteColumn: (name: string) => Promise<void>;
+	onDeleteRow: (pk: Record<string, any>) => Promise<void>;
 }) {
 	const {
 		busy,
@@ -99,7 +101,9 @@ export function TableViewPanel(props: {
 		onAddColumn,
 		onInsertRow,
 		onUpdateRow,
-		onAlterColumn
+	onAlterColumn,
+	onDeleteColumn,
+	onDeleteRow
 	} = props;
 
 	const [pendingRow, setPendingRow] = useState<Record<string, string> | null>(
@@ -327,6 +331,18 @@ export function TableViewPanel(props: {
 		}
 	}
 
+	async function deleteColumnByName(name: string) {
+		setColumnEditError(null);
+		if (!selectedTable) return;
+		if (!window.confirm(`Delete column "${name}"? This cannot be undone.`))
+			return;
+		try {
+			await onDeleteColumn(name);
+		} catch (e: any) {
+			setColumnEditError(e?.message ?? "Failed to delete column");
+		}
+	}
+
 	function startEditRow(index: number) {
 		setRowEditError(null);
 		setSaveError(null);
@@ -380,6 +396,27 @@ export function TableViewPanel(props: {
 		}
 	}
 
+	async function deleteRowAt(index: number) {
+		setRowEditError(null);
+		if (!canEditRows) {
+			setRowEditError("Row deletion requires a primary key.");
+			return;
+		}
+		const row = rows[index];
+		const pk: Record<string, any> = {};
+		for (const c of pkColumns) pk[c.name] = row?.[c.name];
+		if (Object.values(pk).some((v) => v === undefined)) {
+			setRowEditError("Could not determine primary key values for this row.");
+			return;
+		}
+		if (!window.confirm("Delete this row? This cannot be undone.")) return;
+		try {
+			await onDeleteRow(pk);
+		} catch (e: any) {
+			setRowEditError(e?.message ?? "Failed to delete row");
+		}
+	}
+
 	return (
 		<div className="mt-3">
 			<div className="flex items-center gap-2 text-sm">
@@ -414,7 +451,7 @@ export function TableViewPanel(props: {
 				</div>
 			) : (
 				<>
-					<div className="mt-3 rounded-lg border border-accent-text p-3">
+					<div className="mt-3 max-h-[calc(100vh-14rem)] rounded-lg border border-accent-text p-3 overflow-y-auto">
 						<div className="flex items-center justify-between">
 							<h3 className="text-sm font-medium">Columns</h3>
 							<div className="flex items-center gap-2">
@@ -657,26 +694,47 @@ export function TableViewPanel(props: {
 															</button>
 														</div>
 													) : (
-														<button
-															type="button"
-															className="size-8 rounded-lg border border-accent-text bg-background-secondary/50 hover:bg-background-secondary transition-colors duration-200 inline-flex items-center justify-center"
-															onClick={() => {
-																setColumnDraft(null);
-																setColumnDraftError(null);
-																setEditingColumn({
-																	originalName: c.name,
-																	name: c.name,
-																	type: c.type,
-																	nullable: c.nullable !== false,
-																	defaultValue: c.defaultValue ?? ""
-																});
-															}}
-															disabled={busy}
-															title="Edit column"
-														>
-															<Pencil size={14} />
-														</button>
-													)}
+														<details className="relative inline-block text-left">
+															<summary
+																className="size-8 rounded-lg border border-accent-text bg-background-secondary/50 hover:bg-background-secondary transition-colors duration-200 inline-flex items-center justify-center cursor-pointer list-none"
+																title="Column actions"
+																onClick={(e) => {
+																	if (busy) e.preventDefault();
+																}}
+															>
+																<MoreVertical size={14} />
+															</summary>
+															<div className="absolute right-0 z-10 mt-1 min-w-28 rounded-md border border-accent-text bg-background-primary shadow-lg p-1">
+																<button
+																	type="button"
+																	className="w-full text-left px-2 py-1 text-xs rounded hover:bg-background-secondary/50"
+																	onClick={() => {
+																		setColumnDraft(null);
+																		setColumnDraftError(null);
+																		setEditingColumn({
+																			originalName: c.name,
+																			name: c.name,
+																			type: c.type,
+																			nullable: c.nullable !== false,
+																			defaultValue: c.defaultValue ?? ""
+																		});
+																	}}
+																	disabled={busy}
+																>
+																	<span>Edit</span>
+																</button>
+																<button
+																	type="button"
+																	className="w-full text-left px-2 py-1 text-xs rounded hover:bg-background-secondary/50 text-red-600"
+																	onClick={() => void deleteColumnByName(c.name)}
+																	disabled={busy}
+																>
+																	<span>Delete</span>
+																</button>
+															</div>
+														</details>
+													)
+												}
 												</td>
 											</tr>
 										);
@@ -694,7 +752,7 @@ export function TableViewPanel(props: {
 						</div>
 					</div>
 
-					<div className="mt-3 rounded-lg border border-accent-text p-3">
+					<div className="mt-3 max-h-[calc(100vh-14rem)] overflow-y-auto rounded-lg border border-accent-text p-3">
 						<div className="flex items-center justify-between">
 							<h3 className="text-sm font-medium">Rows</h3>
 							<div className="flex items-center gap-2">
@@ -907,20 +965,42 @@ export function TableViewPanel(props: {
 															</button>
 														</div>
 													) : (
-														<button
-															type="button"
-															className="size-8 rounded-lg border border-accent-text bg-background-secondary/50 hover:bg-background-secondary transition-colors duration-200 inline-flex items-center justify-center disabled:opacity-60"
-															onClick={() => startEditRow(idx)}
-															disabled={busy || !canEditRows}
-															title={
-																canEditRows
-																	? "Edit row"
-																	: "Row editing requires a primary key"
-															}
-														>
-															<Pencil size={14} />
-														</button>
-													)}
+														<details className="relative inline-block text-left">
+															<summary
+																className="size-8 rounded-lg border border-accent-text bg-background-secondary/50 hover:bg-background-secondary transition-colors duration-200 inline-flex items-center justify-center cursor-pointer list-none"
+																title="Row actions"
+																onClick={(e) => {
+																	if (busy) e.preventDefault();
+																}}
+															>
+																<MoreVertical size={14} />
+															</summary>
+															<div className="absolute left-0 z-10 mt-1 min-w-28 rounded-md border border-accent-text bg-background-primary shadow-lg p-1">
+																<button
+																	type="button"
+																	className="w-full text-left px-2 py-1 text-xs rounded hover:bg-background-secondary/50"
+																	onClick={() => startEditRow(idx)}
+																	disabled={busy || !canEditRows}
+																	title={
+																		canEditRows
+																			? "Edit row"
+																			: "Row editing requires a primary key"
+																	}
+																>
+																	<span>Edit</span>
+																</button>
+																<button
+																	type="button"
+																	className="w-full text-left px-2 py-1 text-xs rounded hover:bg-background-secondary/50 text-red-600"
+																	onClick={() => void deleteRowAt(idx)}
+																	disabled={busy || !canEditRows}
+																>
+																	<span>Delete</span>
+																</button>
+															</div>
+														</details>
+													)
+												}
 												</td>
 												{visibleColumns.length ? (
 													visibleColumns.map((c) => {

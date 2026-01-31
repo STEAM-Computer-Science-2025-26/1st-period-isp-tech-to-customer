@@ -12,6 +12,9 @@ export type SidebarParams = {
 	mobile?: boolean;
 	title?: string;
 	items?: SidebarItemParams[];
+	mobileOpen?: boolean;
+	onMobileOpenChange?: (open: boolean) => void;
+	hideMobileToggleButton?: boolean;
 };
 
 export type BarChartColor =
