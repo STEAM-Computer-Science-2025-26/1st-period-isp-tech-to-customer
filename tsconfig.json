@@ -2,7 +2,7 @@
 	"compilerOptions": {
 		"target": "ES2020",
 		"module": "esnext",
-		"moduleResolution": "bundler",
+		"moduleResolution": "node",
 		"esModuleInterop": true,
 		"strict": true,
 		"resolveJsonModule": true,
