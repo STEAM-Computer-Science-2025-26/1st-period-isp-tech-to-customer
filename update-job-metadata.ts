@@ -8,8 +8,8 @@ import {
 	estimateJobDuration
 } from "./skill-mapping";
 
-type JobType = 'installation' | 'repair' | 'maintenance' | 'inspection';
-type Priority = 'low' | 'medium' | 'high' | 'emergency';
+type JobType = "installation" | "repair" | "maintenance" | "inspection";
+type Priority = "low" | "medium" | "high" | "emergency";
 
 interface Job {
 	id: string;
@@ -26,10 +26,10 @@ interface Job {
  */
 async function updateJobMetadata() {
 	const sql = getSql();
-	
+
 	console.log("\n📝 Fetching jobs without metadata...\n");
-	
-	const jobs = await sql`
+
+	const jobs = (await sql`
 		SELECT 
 			id,
 			job_type,
@@ -43,7 +43,7 @@ async function updateJobMetadata() {
 			difficulty_level IS NULL 
 			OR physicality_rating IS NULL 
 			OR estimated_duration_minutes IS NULL
-	` as Job[];
+	`) as Job[];
 
 	if (jobs.length === 0) {
 		console.log("✅ All jobs already have metadata!");
@@ -88,10 +88,10 @@ async function updateJobMetadata() {
  */
 async function generateDetailedDescriptions() {
 	const sql = getSql();
-	
+
 	console.log("\n📝 Generating detailed descriptions for jobs...\n");
-	
-	const jobs = await sql`
+
+	const jobs = (await sql`
 		SELECT 
 			id,
 			job_type,
@@ -102,7 +102,7 @@ async function generateDetailedDescriptions() {
 		WHERE 
 			detailed_description IS NULL
 			OR detailed_description = ''
-	` as Job[];
+	`) as Job[];
 
 	if (jobs.length === 0) {
 		console.log("✅ All jobs already have detailed descriptions!");
@@ -115,7 +115,8 @@ async function generateDetailedDescriptions() {
 
 	for (const job of jobs) {
 		// Use initial_notes as detailed_description if available
-		const description = job.initial_notes || `${job.priority} priority ${job.job_type} job`;
+		const description =
+			job.initial_notes || `${job.priority} priority ${job.job_type} job`;
 
 		console.log(`📋 Job ${job.id.substring(0, 8)}...`);
 		console.log(`   → Description: "${description}"`);
@@ -141,9 +142,9 @@ async function generateDetailedDescriptions() {
  */
 async function setDefaultBooleans() {
 	const sql = getSql();
-	
+
 	console.log("\n🔧 Setting default boolean values...\n");
-	
+
 	// Set has_gate_code to false if null
 	const gateCodeResult = await sql`
 		UPDATE jobs
@@ -173,9 +174,9 @@ async function main() {
 		await setDefaultBooleans();
 		await generateDetailedDescriptions();
 		await updateJobMetadata();
-		
+
 		console.log("\n✨ Job Metadata Update Complete!\n");
-		
+
 		// Show summary
 		const sql = getSql();
 		const stats = await sql`
@@ -187,15 +188,16 @@ async function main() {
 				COUNT(detailed_description) as with_description
 			FROM jobs
 		`;
-		
+
 		const stat = stats[0];
 		console.log("📊 Final Statistics:");
 		console.log(`   Total jobs: ${stat.total}`);
 		console.log(`   With difficulty: ${stat.with_difficulty}/${stat.total}`);
 		console.log(`   With physicality: ${stat.with_physicality}/${stat.total}`);
 		console.log(`   With duration: ${stat.with_duration}/${stat.total}`);
-		console.log(`   With description: ${stat.with_description}/${stat.total}\n`);
-		
+		console.log(
+			`   With description: ${stat.with_description}/${stat.total}\n`
+		);
 	} catch (error) {
 		console.error("\n❌ Error during update:", error);
 		process.exit(1);

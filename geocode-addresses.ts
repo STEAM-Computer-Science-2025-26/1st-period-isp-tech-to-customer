@@ -16,10 +16,10 @@ interface GeocodeResult {
 async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
 	try {
 		const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
-		
+
 		const response = await fetch(url, {
 			headers: {
-				'User-Agent': 'HVAC-Dispatch-System/1.0' // Required by Nominatim
+				"User-Agent": "HVAC-Dispatch-System/1.0" // Required by Nominatim
 			}
 		});
 
@@ -29,7 +29,7 @@ async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
 		}
 
 		const data = await response.json();
-		
+
 		if (!data || data.length === 0) {
 			console.warn(`No results found for "${address}"`);
 			return null;
@@ -50,7 +50,7 @@ async function geocodeAddress(address: string): Promise<GeocodeResult | null> {
  * Sleep for given milliseconds
  */
 function sleep(ms: number): Promise<void> {
-	return new Promise(resolve => setTimeout(resolve, ms));
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -58,9 +58,9 @@ function sleep(ms: number): Promise<void> {
  */
 async function geocodeEmployees() {
 	const sql = getSql();
-	
+
 	console.log("\n🔍 Fetching employees without coordinates...\n");
-	
+
 	const employees = await sql`
 		SELECT id, home_address, name
 		FROM employees
@@ -80,7 +80,7 @@ async function geocodeEmployees() {
 
 	for (const emp of employees) {
 		const address = emp.home_address as string;
-		const name = emp.name as string || 'Unknown';
+		const name = (emp.name as string) || "Unknown";
 		const id = emp.id as string;
 
 		console.log(`📍 Geocoding: ${name} - "${address}"`);
@@ -121,9 +121,9 @@ async function geocodeEmployees() {
  */
 async function geocodeJobs() {
 	const sql = getSql();
-	
+
 	console.log("\n\n🔍 Fetching jobs without coordinates...\n");
-	
+
 	const jobs = await sql`
 		SELECT id, address, customer_name
 		FROM jobs
@@ -190,9 +190,9 @@ async function main() {
 	try {
 		await geocodeEmployees();
 		await geocodeJobs();
-		
+
 		console.log("\n\n✨ Geocoding Complete!\n");
-		
+
 		// Show summary
 		const sql = getSql();
 		const empStats = await sql`
@@ -207,11 +207,14 @@ async function main() {
 				COUNT(latitude) as with_coords
 			FROM jobs
 		`;
-		
+
 		console.log("📊 Final Statistics:");
-		console.log(`   Employees: ${empStats[0].with_coords}/${empStats[0].total} have coordinates`);
-		console.log(`   Jobs: ${jobStats[0].with_coords}/${jobStats[0].total} have coordinates\n`);
-		
+		console.log(
+			`   Employees: ${empStats[0].with_coords}/${empStats[0].total} have coordinates`
+		);
+		console.log(
+			`   Jobs: ${jobStats[0].with_coords}/${jobStats[0].total} have coordinates\n`
+		);
 	} catch (error) {
 		console.error("\n❌ Error during geocoding:", error);
 		process.exit(1);

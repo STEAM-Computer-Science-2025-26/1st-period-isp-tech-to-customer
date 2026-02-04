@@ -15,14 +15,14 @@ interface Employee {
  */
 async function standardizeEmployeeSkills() {
 	const sql = getSql();
-	
+
 	console.log("\n🔧 Standardizing employee skills...\n");
-	
-	const employees = await sql`
+
+	const employees = (await sql`
 		SELECT id, name, skills
 		FROM employees
 		ORDER BY name
-	` as Employee[];
+	`) as Employee[];
 
 	console.log(`Found ${employees.length} employees\n`);
 
@@ -31,17 +31,21 @@ async function standardizeEmployeeSkills() {
 
 	for (const emp of employees) {
 		const originalSkills = emp.skills;
-		const standardizedSkills = [...new Set(originalSkills.map(standardizeSkill))];
-		
-		// Check if skills changed
-		const skillsChanged = JSON.stringify(originalSkills.sort()) !== JSON.stringify(standardizedSkills.sort());
+		const standardizedSkills = [
+			...new Set(originalSkills.map(standardizeSkill))
+		];
 
-		console.log(`👤 ${emp.name || 'Unknown'} (${emp.id.substring(0, 8)}...)`);
-		console.log(`   Original: [${originalSkills.join(', ')}]`);
-		
+		// Check if skills changed
+		const skillsChanged =
+			JSON.stringify(originalSkills.sort()) !==
+			JSON.stringify(standardizedSkills.sort());
+
+		console.log(`👤 ${emp.name || "Unknown"} (${emp.id.substring(0, 8)}...)`);
+		console.log(`   Original: [${originalSkills.join(", ")}]`);
+
 		if (skillsChanged) {
-			console.log(`   Standardized: [${standardizedSkills.join(', ')}]`);
-			
+			console.log(`   Standardized: [${standardizedSkills.join(", ")}]`);
+
 			await sql`
 				UPDATE employees
 				SET 
@@ -49,7 +53,7 @@ async function standardizeEmployeeSkills() {
 					updated_at = NOW()
 				WHERE id = ${emp.id}
 			`;
-			
+
 			updateCount++;
 			console.log(`   ✅ Updated\n`);
 		} else {
@@ -68,40 +72,40 @@ async function standardizeEmployeeSkills() {
  */
 async function addSpecialtyTypes() {
 	const sql = getSql();
-	
+
 	console.log("\n🎯 Adding specialty types based on skills...\n");
-	
-	const employees = await sql`
+
+	const employees = (await sql`
 		SELECT id, name, skills
 		FROM employees
 		ORDER BY name
-	` as Employee[];
+	`) as Employee[];
 
 	// Map skills to specialty types
 	const skillToSpecialty: Record<string, string[]> = {
-		'hvac_install': ['installation', 'heating', 'cooling'],
-		'hvac_repair': ['repair', 'heating', 'cooling'],
-		'hvac_maintenance': ['maintenance', 'heating', 'cooling'],
-		'electrical': ['electrical'],
-		'refrigeration': ['cooling', 'refrigeration'],
-		'ductwork': ['ventilation'],
-		'plumbing': ['plumbing']
+		hvac_install: ["installation", "heating", "cooling"],
+		hvac_repair: ["repair", "heating", "cooling"],
+		hvac_maintenance: ["maintenance", "heating", "cooling"],
+		electrical: ["electrical"],
+		refrigeration: ["cooling", "refrigeration"],
+		ductwork: ["ventilation"],
+		plumbing: ["plumbing"]
 	};
 
 	for (const emp of employees) {
 		const specialties = new Set<string>();
-		
+
 		for (const skill of emp.skills) {
 			const standardized = standardizeSkill(skill);
 			const types = skillToSpecialty[standardized] || [];
-			types.forEach(t => specialties.add(t));
+			types.forEach((t) => specialties.add(t));
 		}
 
 		const specialtyArray = Array.from(specialties);
 
-		console.log(`👤 ${emp.name || 'Unknown'}`);
-		console.log(`   Skills: [${emp.skills.join(', ')}]`);
-		console.log(`   Specialties: [${specialtyArray.join(', ')}]`);
+		console.log(`👤 ${emp.name || "Unknown"}`);
+		console.log(`   Skills: [${emp.skills.join(", ")}]`);
+		console.log(`   Specialties: [${specialtyArray.join(", ")}]`);
 
 		await sql`
 			UPDATE employees
@@ -122,9 +126,9 @@ async function addSpecialtyTypes() {
  */
 async function setDefaultMaxDistance() {
 	const sql = getSql();
-	
+
 	console.log("\n📏 Setting default max distance...\n");
-	
+
 	const result = await sql`
 		UPDATE employees
 		SET max_distance_km = 50
@@ -145,9 +149,9 @@ async function main() {
 		await standardizeEmployeeSkills();
 		await addSpecialtyTypes();
 		await setDefaultMaxDistance();
-		
+
 		console.log("\n✨ Employee Standardization Complete!\n");
-		
+
 		// Show summary
 		const sql = getSql();
 		const stats = await sql`
@@ -157,12 +161,14 @@ async function main() {
 				COUNT(max_distance_km) as with_max_distance
 			FROM employees
 		`;
-		
+
 		const stat = stats[0];
 		console.log("📊 Final Statistics:");
 		console.log(`   Total employees: ${stat.total}`);
 		console.log(`   With specialties: ${stat.with_specialties}/${stat.total}`);
-		console.log(`   With max distance: ${stat.with_max_distance}/${stat.total}\n`);
+		console.log(
+			`   With max distance: ${stat.with_max_distance}/${stat.total}\n`
+		);
 
 		// Show skill distribution
 		const skillStats = await sql`
@@ -179,7 +185,6 @@ async function main() {
 			console.log(`   ${s.skill}: ${s.count} techs`);
 		}
 		console.log();
-		
 	} catch (error) {
 		console.error("\n❌ Error during standardization:", error);
 		process.exit(1);
