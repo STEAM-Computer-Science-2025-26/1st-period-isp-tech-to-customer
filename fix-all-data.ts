@@ -1,8 +1,9 @@
 // fix-all-data.ts
 // Master script to run all data fixes
-// Run with: npx tsx fix-all-data.ts
+// Run with: pnpm exec tsx fix-all-data.ts
 
 import { execSync } from "child_process";
+import readline from "readline";
 
 function runScript(scriptPath: string, description: string) {
 	console.log(`\n${"=".repeat(80)}`);
@@ -10,7 +11,7 @@ function runScript(scriptPath: string, description: string) {
 	console.log(`${"=".repeat(80)}\n`);
 
 	try {
-		execSync(`npx tsx ${scriptPath}`, { stdio: "inherit" });
+		execSync(`pnpm exec tsx ${scriptPath}`, { stdio: "inherit" });
 		console.log(`\n✅ ${description} - COMPLETE`);
 	} catch (error) {
 		console.error(`\n❌ ${description} - FAILED`);
@@ -20,21 +21,11 @@ function runScript(scriptPath: string, description: string) {
 
 async function main() {
 	console.log("\n");
-	console.log(
-		"╔════════════════════════════════════════════════════════════════╗"
-	);
-	console.log(
-		"║                                                                ║"
-	);
-	console.log(
-		"║           🔧 HVAC Dispatch System - Data Fix Suite 🔧          ║"
-	);
-	console.log(
-		"║                                                                ║"
-	);
-	console.log(
-		"╚════════════════════════════════════════════════════════════════╝"
-	);
+	console.log("╔════════════════════════════════════════════════════════════════╗");
+	console.log("║                                                                ║");
+	console.log("║           🔧 HVAC Dispatch System - Data Fix Suite 🔧          ║");
+	console.log("║                                                                ║");
+	console.log("╚════════════════════════════════════════════════════════════════╝");
 	console.log("\n");
 	console.log(
 		"This will fix all data issues in preparation for the dispatch algorithm:\n"
@@ -44,15 +35,15 @@ async function main() {
 	console.log("  3️⃣  Update job metadata (difficulty, physicality, duration)");
 	console.log("\n");
 
-	const readline = require("readline").createInterface({
+	const rl = readline.createInterface({
 		input: process.stdin,
 		output: process.stdout
 	});
 
 	const answer = await new Promise<string>((resolve) => {
-		readline.question("Continue? (y/n): ", resolve);
+		rl.question("Continue? (y/n): ", resolve);
 	});
-	readline.close();
+	rl.close();
 
 	if (answer.toLowerCase() !== "y") {
 		console.log("\n❌ Aborted by user\n");
@@ -78,21 +69,11 @@ async function main() {
 		const durationSeconds = ((endTime - startTime) / 1000).toFixed(1);
 
 		console.log("\n");
-		console.log(
-			"╔════════════════════════════════════════════════════════════════╗"
-		);
-		console.log(
-			"║                                                                ║"
-		);
-		console.log(
-			"║                    ✨ ALL FIXES COMPLETE! ✨                   ║"
-		);
-		console.log(
-			"║                                                                ║"
-		);
-		console.log(
-			"╚════════════════════════════════════════════════════════════════╝"
-		);
+		console.log("╔════════════════════════════════════════════════════════════════╗");
+		console.log("║                                                                ║");
+		console.log("║                    ✨ ALL FIXES COMPLETE! ✨                   ║");
+		console.log("║                                                                ║");
+		console.log("╚════════════════════════════════════════════════════════════════╝");
 		console.log("\n");
 		console.log(`⏱️  Total time: ${durationSeconds} seconds\n`);
 		console.log("✅ Your data is now ready for the dispatch algorithm!\n");
