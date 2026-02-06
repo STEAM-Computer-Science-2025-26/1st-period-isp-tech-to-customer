@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@config "../tailwind.config.ts";
 
 :root {
 	/* Breakpoints (override these to customize responsive logic in JS hooks) */

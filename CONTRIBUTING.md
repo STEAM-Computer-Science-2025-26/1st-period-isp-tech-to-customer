@@ -10,26 +10,28 @@ If you’re new to TypeScript/Next.js:
 
 ## Quick Start (Local Dev)
 
-1. Install dependencies:
+1. Install pnpm (required): https://pnpm.io/installation
+
+2. Install dependencies:
 
    ```bash
-   npm install
+   pnpm install
    ```
 
-2. Configure environment variables:
+3. Configure environment variables:
    - Copy `.env.example` to `.env.local`
    - Fill in required values (notably `DATABASE_URL` for Neon/Postgres)
 
-3. Run the dev server:
+4. Run the dev server:
 
    ```bash
-   npm run dev
+   pnpm dev
    ```
 
-4. Lint the project:
+5. Lint the project:
 
    ```bash
-   npm run lint
+   pnpm lint
    ```
 
 ### Database (Neon/Postgres)
@@ -39,7 +41,7 @@ If you’re new to TypeScript/Next.js:
 - You can test DB connectivity with:
 
   ```bash
-  npx tsx db/test-connection.ts
+  pnpm exec tsx db/test-connection.ts
   ```
 
 ## Project Structure Overview
@@ -184,6 +186,6 @@ Server-only code and utilities.
 ## Code Style & Conventions
 
 - TypeScript is in **strict** mode (`tsconfig.json`). Prefer explicit, accurate types.
-- ESLint is configured via `eslint.config.mjs`. Run `npm run lint` before opening a PR.
+- ESLint is configured via `eslint.config.mjs`. Run `pnpm lint` before opening a PR.
 - Client Components must start with `"use client"` if they use state, effects, event handlers, or browser-only APIs.
 - Prefer user-facing error text through `services/publicErrors.ts` rather than hard-coding strings in many places.

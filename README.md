@@ -87,7 +87,7 @@ users
 ### Prerequisites
 
 - **Node.js** (v18 or later)
-- **npm** (Node Package Manager)
+- **pnpm** (Package Manager). Install it first: https://pnpm.io/installation
 - **PostgreSQL database** (we use [Neon](https://neon.tech))
 
 ### Installation
@@ -102,7 +102,7 @@ users
 2. **Install dependencies:**
 
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. **Set up environment variables:**
@@ -127,7 +127,7 @@ users
 
 5. **Test the database connection:**
    ```bash
-   npx tsx server/db/test-connection.ts
+   pnpm exec tsx server/db/test-connection.ts
    ```
 
 ### Development
@@ -135,7 +135,7 @@ users
 Run the development server:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see the app.
@@ -145,14 +145,14 @@ The app will auto-reload when you edit files.
 ### Build for Production (for actual official publishing)
 
 ```bash
-npm run build
-npm start
+pnpm build
+pnpm start
 ```
 
 ### Linting
 
 ```bash
-npm run lint
+pnpm lint
 ```
 
 This checks for errors, shows a custom message if no errors are found, and also runs a Prettier check to make sure your code is formatted
@@ -190,7 +190,7 @@ All API routes are in `app/api/`:
 
 1. Create a feature branch
 2. Make your changes
-3. Run `npm run lint` to check for errors
+3. Run `pnpm lint` to check for errors
 4. Submit a pull request
 
 ## Learn More
