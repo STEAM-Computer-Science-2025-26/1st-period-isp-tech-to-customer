@@ -8,5 +8,9 @@
 		"outDir": "./dist"
 	},
 	"include": ["services/**/*", "db.ts"],
-	"exclude": ["node_modules"]
+	"exclude": [
+		"node_modules",
+		"services/logging/**",
+		"services/routes/loggingRoutes.ts"
+	]
 }

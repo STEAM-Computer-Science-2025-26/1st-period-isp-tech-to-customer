@@ -31,5 +31,14 @@
 		".next/dev/types/**/*.ts",
 		"**/*.mts"
 	],
-	"exclude": ["node_modules"]
+	"exclude": [
+		"node_modules",
+		"services/logging/**",
+		"services/routes/loggingRoutes.ts",
+		"scripts/**",
+		"dispatch/**",
+		"migrations/**",
+		"prisma/**",
+		"src/testPerformanceScore.ts"
+	]
 }
