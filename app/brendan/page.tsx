@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import useState from "react";
-import Button from "@/components/ui/Button";
+import Button from "../../components/ui/Button";
 
 export default function TestPage({}) {
 	return (

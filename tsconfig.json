@@ -1,44 +1,45 @@
 {
-	"compilerOptions": {
-		"target": "ES2020",
-		"module": "esnext",
-		"moduleResolution": "node",
-		"esModuleInterop": true,
-		"strict": true,
-		"resolveJsonModule": true,
-		"allowImportingTsExtensions": true,
-		"noEmit": true,
-		"paths": {
-			"@/*": ["./*"]
-		},
-		"lib": ["dom", "dom.iterable", "esnext"],
-		"allowJs": true,
-		"skipLibCheck": true,
-		"incremental": true,
-		"isolatedModules": true,
-		"jsx": "react-jsx",
-		"plugins": [
-			{
-				"name": "next"
-			}
-		]
-	},
-	"include": [
-		"next-env.d.ts",
-		"**/*.ts",
-		"**/*.tsx",
-		".next/types/**/*.ts",
-		".next/dev/types/**/*.ts",
-		"**/*.mts"
-	],
-	"exclude": [
-		"node_modules",
-		"services/logging/**",
-		"services/routes/loggingRoutes.ts",
-		"scripts/**",
-		"dispatch/**",
-		"migrations/**",
-		"prisma/**",
-		"src/testPerformanceScore.ts"
-	]
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "baseUrl": "src",
+    "paths": {
+      "@/*": ["*"]          // <-- fixed alias to point to src/
+    },
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": [
+    "node_modules",
+    "services/logging/**",
+    "services/routes/loggingRoutes.ts",
+    "scripts/**",
+    "dispatch/**",
+    "migrations/**",
+    "prisma/**",
+    "src/testPerformanceScore.ts"
+  ]
 }
