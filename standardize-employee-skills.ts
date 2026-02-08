@@ -2,7 +2,7 @@
 // Run with: npx tsx standardize-employee-skills.ts
 
 import { getSql } from "./db/connection";
-import { standardizeSkill,} from "./skill-mapping";
+import { standardizeSkill } from "./skill-mapping";
 
 interface Employee {
 	id: string;
