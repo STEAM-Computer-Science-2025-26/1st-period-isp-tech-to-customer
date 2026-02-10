@@ -85,8 +85,8 @@ describe("Stage 1: Eligibility Filters", () => {
 			...perfectTech,
 			id: "tech-005",
 			name: "Tom NoGPS",
-			latitude: null,
-			longitude: null
+			latitude: NaN,
+			longitude: NaN
 		};
 		const result = checkEligibility(tech, sampleJob);
 		expect(result.isEligible).toBe(false);
@@ -137,7 +137,7 @@ describe("Stage 1: Eligibility Filters", () => {
 			{ ...perfectTech, id: "tech-002", isActive: false },
 			{ ...perfectTech, id: "tech-003", isAvailable: false },
 			{ ...perfectTech, id: "tech-004", currentJobsCount: 3 },
-			{ ...perfectTech, id: "tech-005", latitude: null, longitude: null },
+			{ ...perfectTech, id: "tech-005", latitude: NaN, longitude: NaN },
 			{ ...perfectTech, id: "tech-006", latitude: 32.9, longitude: -97.5 },
 			{
 				...perfectTech,

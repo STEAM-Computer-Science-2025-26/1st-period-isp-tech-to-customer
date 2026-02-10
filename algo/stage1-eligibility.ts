@@ -1,4 +1,5 @@
 import { calculateDistance, areValidCoordinates } from "./distance";
+import { TechnicianInput } from "../services/types/technicianInput";
 
 interface JobInput {
 	id: string;
@@ -9,24 +10,6 @@ interface JobInput {
 	minimumSkillLevel: number;
 }
 
-interface TechnicianInput {
-	id: string;
-	name: string;
-	companyId: string;
-	isActive: boolean;
-	isAvailable: boolean;
-	currentJobsCount: number;
-	maxConcurrentJobs: number;
-	latitude: number | null;
-	longitude: number | null;
-	skills: string[];
-	skillLevel: Record<string, number>;
-	distanceMiles: number;
-	recentCompletionRate: number;
-	recentJobCount: number;
-	dailyJobCount: number;
-	maxTravelDistanceMiles: number;
-}
 
 interface EligibilityResult {
 	isEligible: boolean;

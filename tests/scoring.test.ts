@@ -1,4 +1,5 @@
 import { scoreTechnician, scoreAllTechnicians } from "../algo/scoring";
+import { TechnicianInput } from "../services/types/technicianInput";
 
 describe("Stage 2 — Scoring System: Ultimate Bulletproof Tests", () => {
 	const baseJob = {
@@ -11,21 +12,20 @@ describe("Stage 2 — Scoring System: Ultimate Bulletproof Tests", () => {
 
 	const emergencyJob = { ...baseJob, priority: "emergency" };
 
-	const baseTech = {
-		id: "tech-001",
-		name: "Alice",
-		latitude: 32.7767,
-		longitude: -96.797,
-		currentJobsCount: 0,
-		maxConcurrentJobs: 3,
-		skills: ["hvac_repair", "plumbing", "electric"],
-		skillLevel: { hvac_repair: 2, plumbing: 2, electric: 2 },
-		distanceMiles: 0,
-		recentCompletionRate: 0.95,
-		recentJobCount: 15,
-		dailyJobCount: 0
-	};
-
+	const baseTech = createMockTechnician({
+    id: "tech-001",
+    name: "Alice",
+    latitude: 32.7767,
+    longitude: -96.797,
+    currentJobsCount: 0,
+    maxConcurrentJobs: 3,
+    skills: ["hvac_repair", "plumbing", "electric"],
+    skillLevel: { hvac_repair: 2, plumbing: 2, electric: 2 },
+    distanceMiles: 0,
+    recentCompletionRate: 0.95,
+    recentJobCount: 15,
+    dailyJobCount: 0,
+});
 	/** --- EXTREME DISTANCE CASES --- */
 	it("Distance: exactly 0, 50, >50 miles", () => {
 		const zero = scoreTechnician({ ...baseTech, id: "zero" }, baseJob);
@@ -180,7 +180,10 @@ describe("Stage 2 — Scoring System: Ultimate Bulletproof Tests", () => {
 			{ ...baseTech, dailyJobCount: -1 }
 		];
 
-		const scores = invalidTechs.map((t) => scoreTechnician(t, baseJob));
+		// tests intentionally include malformed objects; cast to TechnicianInput to satisfy TS while exercising runtime validation
+		const scores = invalidTechs.map((t) =>
+			scoreTechnician(t as unknown as TechnicianInput, baseJob)
+		);
 		console.log("Invalid Inputs:", scores);
 
 		scores.forEach((s) => {
@@ -189,3 +192,45 @@ describe("Stage 2 — Scoring System: Ultimate Bulletproof Tests", () => {
 		});
 	});
 });
+function createMockTechnician(arg0: {
+	id: string;
+	name: string;
+	latitude: number;
+	longitude: number;
+	currentJobsCount: number;
+	maxConcurrentJobs: number;
+	skills: string[];
+	skillLevel: { hvac_repair: number; plumbing: number; electric: number };
+	distanceMiles: number;
+	recentCompletionRate: number;
+	recentJobCount: number;
+	dailyJobCount: number;
+}) {
+	const defaults = {
+		id: "tech-000",
+		name: "Mock Tech",
+		latitude: 0,
+		longitude: 0,
+		currentJobsCount: 0,
+		maxConcurrentJobs: 3,
+		skills: [] as string[],
+		skillLevel: { hvac_repair: 0, plumbing: 0, electric: 0 },
+		distanceMiles: 0,
+		recentCompletionRate: 1,
+		recentJobCount: 0,
+		dailyJobCount: 0
+	};
+
+	// shallow merge, but ensure nested skillLevel merges too
+	const merged = {
+		...defaults,
+		...arg0,
+		skillLevel: {
+			...defaults.skillLevel,
+			...(arg0.skillLevel || {})
+		}
+	};
+
+	return merged as unknown as TechnicianInput;
+}
+

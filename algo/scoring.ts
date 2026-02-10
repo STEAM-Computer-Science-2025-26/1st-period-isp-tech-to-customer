@@ -1,20 +1,7 @@
 import { calculateDistance } from "./distance";
+import { TechnicianInput } from "../services/types/technicianInput";
 
 /** Technician input type — all fields optional to prevent runtime errors */
-type TechnicianInput = {
-	id?: string;
-	name?: string;
-	latitude?: number;
-	longitude?: number;
-	currentJobsCount?: number;
-	maxConcurrentJobs?: number;
-	skills?: string[];
-	skillLevel?: Record<string, number> | null;
-	distanceMiles?: number;
-	recentCompletionRate?: number;
-	recentJobCount?: number;
-	dailyJobCount?: number;
-};
 
 /** Job input type — optional fields handled safely */
 type JobInput = {
