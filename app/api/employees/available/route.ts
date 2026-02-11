@@ -24,21 +24,27 @@ export async function GET(request: NextRequest) {
 			);
 		}
 
-		let job: { companyId: string } | null = null;
-		if (jobId) {
-			job = await queryOne<{ companyId: string }>`
-        SELECT
-          company_id
-        FROM jobs
-        WHERE id = ${jobId}
-      `;
+		let jobCompanyId: string | null = null;
 
-			if (!job) {
+		if (jobId) {
+			const row = await queryOne(
+				(s) =>
+					s`
+          SELECT company_id
+          FROM jobs
+          WHERE id = ${jobId}
+        `
+			);
+
+			if (!row) {
 				return NextResponse.json(getPublicError("NOT_FOUND"), { status: 404 });
 			}
+
+			// Map the raw DB row to typed value
+			jobCompanyId = (row as { company_id: string }).company_id;
 		}
 
-		const targetCompanyId = job?.companyId || companyId;
+		const targetCompanyId = jobCompanyId || companyId;
 
 		if (!targetCompanyId) {
 			return NextResponse.json(

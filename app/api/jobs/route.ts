@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSql, queryAll, toCamelCase } from "@/db/connection";
+import { getSql, toCamelCase } from "@/db/connection";
 import {
 	CreateJobInput,
 	CreateJobSuccess,
@@ -12,194 +12,54 @@ import { getPublicError } from "@/services/publicErrors";
 // List jobs (optionally filtered)
 export async function GET(request: NextRequest) {
 	try {
+		const sql = getSql();
 		const { searchParams } = new URL(request.url);
 		const companyId = searchParams.get("companyId");
-		const status = searchParams.get("status");
+		const status = searchParams.get("status") as JobStatus | null;
 		const assignedTechId = searchParams.get("assignedTechId");
 
-		const parsedStatus = status as JobStatus | null;
+		// Build dynamic WHERE conditions using parameterized fragments
+		const conditions: any[] = [];
+		if (companyId) conditions.push(sql`company_id = ${Number(companyId)}`);
+		if (status) conditions.push(sql`status = ${status}`);
+		if (assignedTechId)
+			conditions.push(sql`assigned_tech_id = ${Number(assignedTechId)}`);
 
-		let jobs: JobDTO[];
-
-		if (companyId && parsedStatus && assignedTechId) {
-			/* Code Review said this:
-			The GET handler contains significant code duplication with the same SELECT statement 
-			repeated across 8 different conditional branches. Consider extracting the base query 
-			and building WHERE conditions dynamically to reduce duplication and improve maintainability.
-		*/
-			// TODO: Refactor to reduce duplication
-			jobs = await queryAll<JobDTO>`
-        SELECT
-          id,
-          company_id,
-          customer_name,
-          address,
-          phone,
-          job_type,
-          status,
-          priority,
-          assigned_tech_id,
-          scheduled_time,
-          created_at,
-          completed_at,
-          initial_notes,
-          completion_notes
-        FROM jobs
-        WHERE company_id = ${companyId}
-          AND status = ${parsedStatus}
-          AND assigned_tech_id = ${assignedTechId}
-        ORDER BY created_at DESC
-      `;
-		} else if (companyId && parsedStatus) {
-			jobs = await queryAll<JobDTO>`
-        SELECT
-          id,
-          company_id,
-          customer_name,
-          address,
-          phone,
-          job_type,
-          status,
-          priority,
-          assigned_tech_id,
-          scheduled_time,
-          created_at,
-          completed_at,
-          initial_notes,
-          completion_notes
-        FROM jobs
-        WHERE company_id = ${companyId}
-          AND status = ${parsedStatus}
-        ORDER BY created_at DESC
-      `;
-		} else if (companyId && assignedTechId) {
-			jobs = await queryAll<JobDTO>`
-        SELECT
-          id,
-          company_id,
-          customer_name,
-          address,
-          phone,
-          job_type,
-          status,
-          priority,
-          assigned_tech_id,
-          scheduled_time,
-          created_at,
-          completed_at,
-          initial_notes,
-          completion_notes
-        FROM jobs
-        WHERE company_id = ${companyId}
-          AND assigned_tech_id = ${assignedTechId}
-        ORDER BY created_at DESC
-      `;
-		} else if (companyId) {
-			jobs = await queryAll<JobDTO>`
-        SELECT
-          id,
-          company_id,
-          customer_name,
-          address,
-          phone,
-          job_type,
-          status,
-          priority,
-          assigned_tech_id,
-          scheduled_time,
-          created_at,
-          completed_at,
-          initial_notes,
-          completion_notes
-        FROM jobs
-        WHERE company_id = ${companyId}
-        ORDER BY created_at DESC
-      `;
-		} else if (parsedStatus && assignedTechId) {
-			jobs = await queryAll<JobDTO>`
-        SELECT
-          id,
-          company_id,
-          customer_name,
-          address,
-          phone,
-          job_type,
-          status,
-          priority,
-          assigned_tech_id,
-          scheduled_time,
-          created_at,
-          completed_at,
-          initial_notes,
-          completion_notes
-        FROM jobs
-        WHERE status = ${parsedStatus}
-          AND assigned_tech_id = ${assignedTechId}
-        ORDER BY created_at DESC
-      `;
-		} else if (parsedStatus) {
-			jobs = await queryAll<JobDTO>`
-        SELECT
-          id,
-          company_id,
-          customer_name,
-          address,
-          phone,
-          job_type,
-          status,
-          priority,
-          assigned_tech_id,
-          scheduled_time,
-          created_at,
-          completed_at,
-          initial_notes,
-          completion_notes
-        FROM jobs
-        WHERE status = ${parsedStatus}
-        ORDER BY created_at DESC
-      `;
-		} else if (assignedTechId) {
-			jobs = await queryAll<JobDTO>`
-        SELECT
-          id,
-          company_id,
-          customer_name,
-          address,
-          phone,
-          job_type,
-          status,
-          priority,
-          assigned_tech_id,
-          scheduled_time,
-          created_at,
-          completed_at,
-          initial_notes,
-          completion_notes
-        FROM jobs
-        WHERE assigned_tech_id = ${assignedTechId}
-        ORDER BY created_at DESC
-      `;
-		} else {
-			jobs = await queryAll<JobDTO>`
-        SELECT
-          id,
-          company_id,
-          customer_name,
-          address,
-          phone,
-          job_type,
-          status,
-          priority,
-          assigned_tech_id,
-          scheduled_time,
-          created_at,
-          completed_at,
-          initial_notes,
-          completion_notes
-        FROM jobs
-        ORDER BY created_at DESC
-      `;
+		// Combine the parameterized fragments into a single fragment without using sql.join
+		let whereFragment: any = sql``;
+		if (conditions.length) {
+			const combined = conditions.reduce(
+				(acc, cur) => (acc ? sql`${acc} AND ${cur}` : cur),
+				null
+			);
+			whereFragment = sql`WHERE ${combined}`;
 		}
+
+		const rows = await sql`
+      SELECT
+        id,
+        company_id,
+        customer_name,
+        address,
+        phone,
+        job_type,
+        status,
+        priority,
+        assigned_tech_id,
+        scheduled_time,
+        created_at,
+        completed_at,
+        initial_notes,
+        completion_notes
+      FROM jobs
+      ${whereFragment}
+      ORDER BY created_at DESC
+    `;
+
+		const jobs: JobDTO[] = (rows as Array<Record<string, unknown>>).map((row) =>
+			toCamelCase<JobDTO>(row)
+		);
+
 		const response: GetJobsSuccess = { jobs };
 		return NextResponse.json(response);
 	} catch (error) {
