@@ -32,9 +32,7 @@ const updateEmployeeSchema = z
 		email: z.string().email().optional(),
 		role: z.string().optional(),
 		skills: z.array(z.string()).min(1).optional(),
-		skillLevel: z
-			.record(z.string(), z.number().int().min(1).max(5))
-			.optional(),
+		skillLevel: z.record(z.string(), z.number().int().min(1).max(5)).optional(),
 		homeAddress: z.string().min(1).optional(),
 		phone: z.string().optional(),
 		isAvailable: z.boolean().optional(),
@@ -314,10 +312,9 @@ export function deleteEmployee(fastify: FastifyInstance) {
 		}
 
 		const result = isDev
-			? await query(
-					"DELETE FROM employees WHERE id = $1 RETURNING id",
-					[employeeId]
-				)
+			? await query("DELETE FROM employees WHERE id = $1 RETURNING id", [
+					employeeId
+				])
 			: await query(
 					"DELETE FROM employees WHERE id = $1 AND company_id = $2 RETURNING id",
 					[employeeId, authUser.companyId]

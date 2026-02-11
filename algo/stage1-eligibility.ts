@@ -10,7 +10,6 @@ interface JobInput {
 	minimumSkillLevel: number;
 }
 
-
 interface EligibilityResult {
 	isEligible: boolean;
 	failedRules: string[];

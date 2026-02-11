@@ -47,13 +47,7 @@ const updateJobSchema = z
 			.enum(["installation", "repair", "maintenance", "inspection"])
 			.optional(),
 		status: z
-			.enum([
-				"unassigned",
-				"assigned",
-				"in_progress",
-				"completed",
-				"cancelled"
-			])
+			.enum(["unassigned", "assigned", "in_progress", "completed", "cancelled"])
 			.optional(),
 		priority: z.enum(["low", "medium", "high", "emergency"]).optional(),
 		assignedTechId: z.string().uuid().optional(),
@@ -249,9 +243,14 @@ export function updateJobStatus(fastify: FastifyInstance) {
 		const { jobId } = request.params as { jobId: string };
 		const { status, completionNotes } = parsed.data;
 
-		const setCompletedAt = status === "completed" ? ", completed_at = NOW()" : "";
+		const setCompletedAt =
+			status === "completed" ? ", completed_at = NOW()" : "";
 
-		const values: Array<string | null> = [status, completionNotes ?? null, jobId];
+		const values: Array<string | null> = [
+			status,
+			completionNotes ?? null,
+			jobId
+		];
 		let where = `WHERE id = $3`;
 
 		if (!dev) {

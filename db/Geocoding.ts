@@ -32,9 +32,7 @@ can handle failure gracefully without try/catch at every call site.
 on failure, the job should be marked geocoding_status = 'failed'
 so it can be retried or flagged for manual review.
 */
-export async function geocodeAddress(
-	address: string
-): Promise<GeocodeOutcome> {
+export async function geocodeAddress(address: string): Promise<GeocodeOutcome> {
 	// TODO: Replace this stub with a real geocoding provider.
 	// Example providers: Google Maps Geocoding API, Mapbox, Radar.io
 	//
@@ -55,7 +53,7 @@ export async function geocodeAddress(
 	void address; // suppress unused param warning until implemented
 	throw new Error(
 		"geocodeAddress() is not yet implemented. " +
-		"See services/geocoding.ts for instructions."
+			"See services/geocoding.ts for instructions."
 	);
 }
 

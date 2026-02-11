@@ -13,19 +13,19 @@ describe("Stage 2 — Scoring System: Ultimate Bulletproof Tests", () => {
 	const emergencyJob = { ...baseJob, priority: "emergency" };
 
 	const baseTech = createMockTechnician({
-    id: "tech-001",
-    name: "Alice",
-    latitude: 32.7767,
-    longitude: -96.797,
-    currentJobsCount: 0,
-    maxConcurrentJobs: 3,
-    skills: ["hvac_repair", "plumbing", "electric"],
-    skillLevel: { hvac_repair: 2, plumbing: 2, electric: 2 },
-    distanceMiles: 0,
-    recentCompletionRate: 0.95,
-    recentJobCount: 15,
-    dailyJobCount: 0,
-});
+		id: "tech-001",
+		name: "Alice",
+		latitude: 32.7767,
+		longitude: -96.797,
+		currentJobsCount: 0,
+		maxConcurrentJobs: 3,
+		skills: ["hvac_repair", "plumbing", "electric"],
+		skillLevel: { hvac_repair: 2, plumbing: 2, electric: 2 },
+		distanceMiles: 0,
+		recentCompletionRate: 0.95,
+		recentJobCount: 15,
+		dailyJobCount: 0
+	});
 	/** --- EXTREME DISTANCE CASES --- */
 	it("Distance: exactly 0, 50, >50 miles", () => {
 		const zero = scoreTechnician({ ...baseTech, id: "zero" }, baseJob);
@@ -233,4 +233,3 @@ function createMockTechnician(arg0: {
 
 	return merged as unknown as TechnicianInput;
 }
-

@@ -13,7 +13,6 @@ import { Agent, setGlobalDispatcher } from "undici";
 
 let cachedSql: NeonQueryFunction<false, false> | null = null;
 
-
 function maybeAllowSelfSignedCerts(): void {
 	const allow = process.env.ALLOW_SELF_SIGNED_CERTS === "true";
 	const isProd = process.env.NODE_ENV === "production";
@@ -112,7 +111,6 @@ export function rowsToCamelCase<T extends Record<string, unknown>>(
 ): T[] {
 	return rows.map((row) => toCamelCase<T>(row));
 }
-
 
 export async function queryOne<T extends Record<string, unknown>>(
 	queryFn: (sql: NeonQueryFunction<false, false>) => Promise<T[]>

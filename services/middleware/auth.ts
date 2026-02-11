@@ -43,22 +43,15 @@ export async function requireAdmin(
 ) {
 	const user = request.user as JWTPayload;
 	if (user?.role !== "admin") {
-		return reply
-			.code(403)
-			.send({ error: "Forbidden - Admin access required" });
+		return reply.code(403).send({ error: "Forbidden - Admin access required" });
 	}
 }
 
 // Require dev role — call after authenticate
-export async function requireDev(
-	request: FastifyRequest,
-	reply: FastifyReply
-) {
+export async function requireDev(request: FastifyRequest, reply: FastifyReply) {
 	const user = request.user as JWTPayload;
 	if (user?.role !== "dev") {
-		return reply
-			.code(403)
-			.send({ error: "Forbidden - Dev access required" });
+		return reply.code(403).send({ error: "Forbidden - Dev access required" });
 	}
 }
 

@@ -47,15 +47,13 @@ export function dispatch(job: JobInput, technicians: TechnicianInput[]) {
 	const scores = scoreAllTechnicians(eligible, job);
 	const isEmergency = job.priority.toLowerCase() === "emergency";
 
-	console.log(
-		`\n Ranking all eligible technicians for job ${job.id}...`
-	);
+	console.log(`\n Ranking all eligible technicians for job ${job.id}...`);
 
 	const recommendation = createRecommendation(job.id, scores, isEmergency);
 
 	console.log(
 		`\n Top Tech: ${recommendation.assignedTech?.techName ?? "none — manual dispatch required"} ` +
-		`(${recommendation.assignedTech?.totalScore ?? "—"}/100 pts)\n`
+			`(${recommendation.assignedTech?.totalScore ?? "—"}/100 pts)\n`
 	);
 
 	return recommendation;
@@ -104,7 +102,7 @@ export function overrideAssignment(
 	if (!selectedTech) {
 		throw new Error(
 			`Tech with ID ${selectedTechId} is not in the list of eligible technicians for job ${originalRecommendation.jobId}. ` +
-			`Available techs: ${originalRecommendation.recommendations.map((r) => `${r.techId} (${r.techName})`).join(", ")}`
+				`Available techs: ${originalRecommendation.recommendations.map((r) => `${r.techId} (${r.techName})`).join(", ")}`
 		);
 	}
 
@@ -146,9 +144,7 @@ export function getDispatchStats(
 		0
 	);
 	const averageEligibleTechs =
-		totalJobs > 0
-			? Math.round((totalEligible / totalJobs) * 100) / 100
-			: 0;
+		totalJobs > 0 ? Math.round((totalEligible / totalJobs) * 100) / 100 : 0;
 
 	const stats: {
 		totalJobs: number;

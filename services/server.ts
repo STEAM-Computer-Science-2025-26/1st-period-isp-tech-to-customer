@@ -17,7 +17,9 @@ if (!jwtSecret) {
 	process.exit(1);
 }
 
-const allowedOrigins: string[] = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000")
+const allowedOrigins: string[] = (
+	process.env.ALLOWED_ORIGINS ?? "http://localhost:3000"
+)
 	.split(",")
 	.map((o) => o.trim())
 	.filter(Boolean);

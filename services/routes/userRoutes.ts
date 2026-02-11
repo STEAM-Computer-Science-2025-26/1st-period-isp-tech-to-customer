@@ -7,7 +7,6 @@ import { authenticate } from "../middleware/auth";
 import { enforceRateLimit } from "../rateLimit";
 import { getSql } from "../../db/connection";
 
-
 const listUsersSchema = z.object({
 	companyId: z.string().uuid().optional(),
 	role: z.enum(["dev", "admin", "tech"]).optional(),
@@ -120,7 +119,9 @@ export function createUser(fastify: FastifyInstance) {
 		const isCompanyAdmin = authUser?.role === "admin";
 
 		if (!isDev && !isCompanyAdmin) {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const parsed = createUserSchema.safeParse(request.body);
@@ -165,7 +166,9 @@ export function updateUser(fastify: FastifyInstance) {
 		const isCompanyAdmin = authUser?.role === "admin";
 
 		if (!isDev && !isCompanyAdmin) {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const parsed = updateUserSchema.safeParse(request.body);
@@ -198,7 +201,9 @@ export function updateUser(fastify: FastifyInstance) {
 		}
 		if (body.role) {
 			if (body.role === "dev" && !isDev) {
-				return reply.code(403).send({ error: "Forbidden - Dev access required" });
+				return reply
+					.code(403)
+					.send({ error: "Forbidden - Dev access required" });
 			}
 			values.push(body.role);
 			updates.push(`role = $${values.length}`);
@@ -231,16 +236,15 @@ export function deleteUser(fastify: FastifyInstance) {
 		const isCompanyAdmin = authUser?.role === "admin";
 
 		if (!isDev && !isCompanyAdmin) {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const { userId } = request.params as { userId: string };
 
 		const result = isDev
-			? await query(
-					"DELETE FROM users WHERE id = $1 RETURNING id",
-					[userId]
-				)
+			? await query("DELETE FROM users WHERE id = $1 RETURNING id", [userId])
 			: await query(
 					"DELETE FROM users WHERE id = $1 AND company_id = $2 RETURNING id",
 					[userId, authUser.companyId]
@@ -258,12 +262,7 @@ export function loginUser(fastify: FastifyInstance) {
 		// Rate limit: 10 attempts per 15 minutes per IP
 		const ip = request.ip ?? "unknown";
 		const sql = getSql();
-		const rateLimitResult = await enforceRateLimit(
-			sql,
-			`login:${ip}`,
-			10,
-			900
-		);
+		const rateLimitResult = await enforceRateLimit(sql, `login:${ip}`, 10, 900);
 		if (!rateLimitResult.allowed) {
 			return reply.code(429).send({
 				error: "Too many login attempts. Please try again later.",
@@ -293,7 +292,6 @@ export function loginUser(fastify: FastifyInstance) {
 			[email]
 		);
 
-	
 		if (!result[0]) {
 			return reply.code(401).send({ error: "Invalid email or password" });
 		}
