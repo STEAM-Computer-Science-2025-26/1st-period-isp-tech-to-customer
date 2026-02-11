@@ -3,14 +3,8 @@ import { dispatch } from "../../algo/main-dispatch";
 import { enrichMultipleTechnicians } from "./metrics";
 import { assignJobToTech } from "./persistence";
 import { TechnicianInput } from "../types/technicianInput";
-import { string } from "zod";
+import { filterEligibleTechnicians } from "../../algo/stage1-eligibility";
 
-/**
- * @param jobId
- * @param assignedByUserId
- * @param autoAssign
- * @returns
- */
 
 export async function runDispatchForJob(
 	jobId: string,
@@ -55,7 +49,8 @@ export async function runDispatchForJob(
 	const techResult = await query<Record<string, unknown>>(
 		`SELECT 
 			id, name, company_id,
-			is_active, is_available,
+			is_active AS "isActive",
+			is_available AS "isAvailable",
 			current_jobs_count AS "currentJobsCount",
 			max_concurrent_jobs AS "maxConcurrentJobs",
 			latitude, longitude,
@@ -105,7 +100,7 @@ export async function runDispatchForJob(
 		latitude: job.latitude,
 		longitude: job.longitude,
 		requiredSkills,
-		minimumSkillLevel: 2 // This could be dynamic based on job type/priority
+		minimumSkillLevel: 2
 	};
 
 	const recommendation = dispatch(jobInput, technicians);
@@ -119,30 +114,20 @@ export async function runDispatchForJob(
 			jobId,
 			recommendation.assignedTech.techId,
 			assignedByUserId,
-			false, // not manual override
-			undefined, // no override reason
-			recommendation // save full recommendation for analytics
+			false,
+			undefined,
+			recommendation
 		);
 	}
 
 	return recommendation;
 }
 
-/**
- * @param jobId
- * @returns
- */
+
 export async function getDispatchRecommendations(jobId: string) {
 	return runDispatchForJob(jobId, "system", false);
 }
 
-/**
- * @param jobId
- * @param assignedByUserId
- * @param techId
- * @param reason
- *
- */
 
 export async function manualAssignJob(
 	jobId: string,
@@ -150,24 +135,105 @@ export async function manualAssignJob(
 	techId: string,
 	reason: string
 ): Promise<void> {
-	const recommendation = await getDispatchRecommendations(jobId);
-
-	const chosenTech = recommendation.recommendations.find(
-		(r) => r.techId === techId
+	// Fetch the job
+	const jobResult = await query<{
+		id: string;
+		company_id: string;
+		job_type: string;
+		priority: string;
+		address: string;
+		latitude: number;
+		longitude: number;
+		status: string;
+		geocoding_status: string;
+	}>(
+		`SELECT id, company_id, job_type, priority, address,
+                latitude, longitude, status, geocoding_status
+         FROM jobs WHERE id = $1`,
+		[jobId]
 	);
 
-	if (!chosenTech) {
+	if (jobResult.length === 0) {
+		throw new Error(`Job ${jobId} not found`);
+	}
+
+	const job = jobResult[0];
+
+	if (job.status !== "unassigned") {
+		throw new Error(`Job ${jobId} is already ${job.status}. Cannot assign.`);
+	}
+
+	if (!job.latitude || !job.longitude) {
 		throw new Error(
-			`Tech ${techId} is not eligible for job ${jobId}. ` +
-				`Eligible techs: ${recommendation.recommendations.map((r) => r.techId).join(", ")}`
+			`Job ${jobId} has no coordinates. Geocoding status: ${job.geocoding_status}`
 		);
 	}
 
-	await assignJobToTech(
-		jobId,
-		techId,
-		assignedByUserId,
-		true, // is manual override
-		reason
+	const techResult = await query<Record<string, unknown>>(
+		`SELECT 
+			id, name, company_id,
+			is_active AS "isActive",
+			is_available AS "isAvailable",
+			current_jobs_count AS "currentJobsCount",
+			max_concurrent_jobs AS "maxConcurrentJobs",
+			latitude, longitude,
+			max_travel_distance_miles AS "maxTravelDistanceMiles",
+			skills,
+			skill_level AS "skillLevel"
+		FROM employees
+		WHERE company_id = $1
+			AND is_active = true
+			AND is_available = true
+			AND latitude IS NOT NULL
+			AND longitude IS NOT NULL`,
+		[job.company_id]
 	);
+
+	const enrichedTechs = await enrichMultipleTechnicians(techResult);
+	const technicians: TechnicianInput[] = enrichedTechs.map((tech) => ({
+		id: tech.id as string,
+		name: tech.name as string,
+		companyId: tech.companyId as string,
+		isActive: tech.isActive as boolean,
+		isAvailable: tech.isAvailable as boolean,
+		currentJobsCount: tech.currentJobsCount as number,
+		maxConcurrentJobs: tech.maxConcurrentJobs as number,
+		dailyJobCount: (tech.dailyJobCount as number) || 0,
+		recentJobCount: (tech.recentJobCount as number) || 0,
+		recentCompletionRate: (tech.recentCompletionRate as number) || 0,
+		latitude: tech.latitude as number,
+		longitude: tech.longitude as number,
+		maxTravelDistanceMiles: tech.maxTravelDistanceMiles as number,
+		skills: tech.skills as string[],
+		skillLevel: tech.skillLevel as Record<string, number>
+	}));
+
+	const jobSkillsResult = await query<{ required_skills: string[] }>(
+		`SELECT required_skills FROM jobs WHERE id = $1`,
+		[jobId]
+	);
+
+	const requiredSkills = jobSkillsResult[0]?.required_skills || [];
+	const jobInput = {
+		id: job.id,
+		companyId: job.company_id,
+		latitude: job.latitude,
+		longitude: job.longitude,
+		requiredSkills,
+		minimumSkillLevel: 2
+	};
+
+	const { eligible } = filterEligibleTechnicians(technicians, jobInput);
+
+	const chosenTech = eligible.find((t) => t.id === techId);
+
+	if (!chosenTech) {
+		const eligibleIds = eligible.map((t) => `${t.id} (${t.name})`).join(", ");
+		throw new Error(
+			`Tech ${techId} is not eligible for job ${jobId}. ` +
+				`Eligible techs: ${eligibleIds || "none"}`
+		);
+	}
+
+	await assignJobToTech(jobId, techId, assignedByUserId, true, reason);
 }

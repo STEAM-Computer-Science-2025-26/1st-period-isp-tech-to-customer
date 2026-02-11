@@ -1,68 +1,80 @@
-// WHAT THIS DOES:
-// Calculates real performance metrics for technicians by querying job history
-// Replaces the fake/hardcoded values in your current system
+// services/dispatch/metrics.ts
 //
-// METRICS CALCULATED:
-// - recentJobCount: How many jobs completed in last 30 days
-// - recentCompletionRate: % of assigned jobs that were completed (0.0 - 1.0)
-// - dailyJobCount: Jobs completed today
-// - averageRating: Customer satisfaction score
+// Calculates real performance metrics for technicians from job history.
+//
+// BUG 3 FIXES:
+//   - 'jobs_completions' → 'job_completions'  (matches schema.sql + persistence.ts)
+//   - 'job_assignments' table doesn't exist in schema — replaced with a query
+//     against the 'jobs' table filtered by assigned_tech_id, which is what the
+//     schema actually has.
 
-import { count } from "console";
 import { query } from "../../db";
 
-export type techMetrics = {
+export type TechMetrics = {
 	recentJobCount: number;
 	recentCompletionRate: number;
 	dailyJobCount: number;
 	averageRating: number;
 };
-/**
- * @param techId
- * @param lookbackDays
- * @returns
- */
 
+/**
+ * Calculates performance metrics for a single technician.
+ * @param techId
+ * @param lookbackDays  defaults to 30
+ */
 export async function calculateTechMetrics(
 	techId: string,
 	lookbackDays: number = 30
-): Promise<techMetrics> {
+): Promise<TechMetrics> {
+	// Validate lookbackDays is a safe positive integer before interpolating
+	// into the query string (avoids SQL injection if the caller passes user input).
+	const safeLookback = Math.max(1, Math.floor(Math.abs(lookbackDays)));
+
 	const [completionData, assignmentData, ratingData] = await Promise.all([
+		// BUG 3 FIX: was 'jobs_completions' — correct table is 'job_completions'
 		query<{ count: string; daily_job_count: string }>(
 			`SELECT
-                COUNT(*) FILTER (WHERE completed_at > NOW() - INTERVAL '${lookbackDays} days') as count,
-                COUNT(*) FILTER (WHERE completed_at >= CURRENT_DATE) AS daily_job_count
-            FROM jobs_completions
-            WHERE assigned_tech_id = $1`,
-			[techId]
-		),
-		query<{ assigned: string; completed: string }>(
-			`SELECT
-                COUNT(*) as assigned,
-                COUNT(*) FILTER (WHERE j.status = 'completed') as completed
-            FROM job_assignments ja
-            LEFT JOIN jobs j ON ja.job_id = j.id
-            WHERE ja.tech_id = $1
-                AND ja.assigned_at > NOW() - INTERVAL '${lookbackDays} days'`,
+                COUNT(*) FILTER (
+                    WHERE completed_at > NOW() - INTERVAL '${safeLookback} days'
+                ) AS count,
+                COUNT(*) FILTER (
+                    WHERE completed_at >= CURRENT_DATE
+                ) AS daily_job_count
+            FROM job_completions
+            WHERE tech_id = $1`,
 			[techId]
 		),
 
+		// BUG 3 FIX: 'job_assignments' table doesn't exist in the schema.
+		// The schema tracks assignments via jobs.assigned_tech_id.
+		// We count total assigned jobs vs completed jobs from the jobs table directly.
+		query<{ assigned: string; completed: string }>(
+			`SELECT
+                COUNT(*) AS assigned,
+                COUNT(*) FILTER (WHERE status = 'completed') AS completed
+            FROM jobs
+            WHERE assigned_tech_id = $1
+                AND created_at > NOW() - INTERVAL '${safeLookback} days'`,
+			[techId]
+		),
+
+		// BUG 3 FIX: was 'jobs_completions' — correct table is 'job_completions'
 		query<{ avg_rating: string }>(
 			`SELECT
-                COALESCE(AVG(customer_rating), 3.0) as avg_rating
-            FROM jobs_completions
-            WHERE assigned_tech_id = $1
+                COALESCE(AVG(customer_rating), 3.0) AS avg_rating
+            FROM job_completions
+            WHERE tech_id = $1
                 AND customer_rating IS NOT NULL
-                AND completed_at > NOW() - INTERVAL '${lookbackDays} days'`,
+                AND completed_at > NOW() - INTERVAL '${safeLookback} days'`,
 			[techId]
 		)
 	]);
 
-	const recentJobCount = parseInt(completionData[0]?.count || "0");
-	const dailyJobCount = parseInt(completionData[0]?.daily_job_count || "0");
-	const assigned = parseInt(assignmentData[0]?.assigned || "0");
-	const completed = parseInt(assignmentData[0]?.completed || "0");
-	const averageRating = parseFloat(ratingData[0]?.avg_rating || "3.0");
+	const recentJobCount = parseInt(completionData[0]?.count ?? "0");
+	const dailyJobCount = parseInt(completionData[0]?.daily_job_count ?? "0");
+	const assigned = parseInt(assignmentData[0]?.assigned ?? "0");
+	const completed = parseInt(assignmentData[0]?.completed ?? "0");
+	const averageRating = parseFloat(ratingData[0]?.avg_rating ?? "3.0");
 
 	const recentCompletionRate = assigned > 0 ? completed / assigned : 0;
 
@@ -73,30 +85,26 @@ export async function calculateTechMetrics(
 		averageRating
 	};
 }
-/**
- * @params tech
- * @returns
- */
 
+/**
+ * Enriches a single raw DB tech row with computed metrics.
+ */
 export async function enrichTechWithMetrics(
 	tech: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
 	const metrics = await calculateTechMetrics(tech.id as string);
-	return {
-		...tech,
-		...metrics
-	};
+	return { ...tech, ...metrics };
 }
 
 /**
- * @param techs = await query(`SELECT * FROM employees WHERE company_id = $1 AND is_available = true`, [companyId])
- * @returns
+ * Enriches an array of raw DB tech rows with computed metrics.
+ * All metrics queries run in parallel per technician.
+ *
+ * NOTE: This runs 3 queries per technician in parallel — fine for MVP,
+ * but replace with a single batched query when tech pool grows large.
  */
-
 export async function enrichMultipleTechnicians(
 	technicians: Record<string, unknown>[]
 ): Promise<Record<string, unknown>[]> {
-	return await Promise.all(
-		technicians.map((tech) => enrichTechWithMetrics(tech))
-	);
+	return Promise.all(technicians.map((tech) => enrichTechWithMetrics(tech)));
 }

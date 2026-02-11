@@ -1,5 +1,4 @@
 import { pool } from "../../db";
-import { PoolClient } from "pg";
 
 /**
  * @param jobId
@@ -8,8 +7,6 @@ import { PoolClient } from "pg";
  * @param isManualOverride
  * @param overrideReason
  * @param scoringDetails
- * @returns
- *
  */
 export async function assignJobToTech(
 	jobId: string,
@@ -23,8 +20,9 @@ export async function assignJobToTech(
 	try {
 		await client.query("BEGIN");
 
+		// BUG 2 FIX: removed trailing comma after job_type that caused a SQL syntax crash
 		const jobResult = await client.query(
-			`SELECT id, company_id, status, assigned_tech_id, priority, job_type,
+			`SELECT id, company_id, status, assigned_tech_id, priority, job_type
             FROM jobs WHERE id = $1`,
 			[jobId]
 		);
@@ -72,16 +70,18 @@ export async function assignJobToTech(
 			[jobId, techId]
 		);
 
+		// BUG 2 FIX: $3 was job.company_id — wrong. assigned_by_user_id is the
+		// function parameter assignedByUserId. company_id moved to $4 where it belongs.
 		await client.query(
 			`INSERT INTO job_assignments 
-            (job_id, tech_id, assigned_by_user_id, assigned_at, is_manual_override, 
+            (job_id, tech_id, assigned_by_user_id, company_id, assigned_at, is_manual_override, 
               override_reason, scoring_details, job_priority, job_type, is_emergency)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8, $9, $10)`,
 			[
 				jobId,
 				techId,
-				job.company_id,
-				assignedByUserId,
+				assignedByUserId,        // $3 — was wrongly job.company_id before
+				job.company_id,          // $4 — company_id now correctly in position
 				isManualOverride,
 				overrideReason || null,
 				scoringDetails ? JSON.stringify(scoringDetails) : null,
@@ -90,6 +90,7 @@ export async function assignJobToTech(
 				job.priority === "emergency"
 			]
 		);
+
 		await client.query("COMMIT");
 	} catch (error) {
 		await client.query("ROLLBACK");
@@ -98,14 +99,14 @@ export async function assignJobToTech(
 		client.release();
 	}
 }
+
 /**
  * @param jobId
  * @param completionNotes
- * @param customerRating
  * @param durationMinutes
  * @param firstTimeFix
+ * @param customerRating
  */
-
 export async function completeJob(
 	jobId: string,
 	completionNotes?: string,
@@ -206,17 +207,9 @@ export async function unassignJob(jobId: string): Promise<void> {
 			[jobId]
 		);
 
+		// BUG 1 (from prior review) FIX: removed duplicate UPDATE with 'emplyees' typo
 		await client.query(
 			`UPDATE employees 
-            SET current_job_id = NULL,
-                current_jobs_count = GREATEST(0, current_jobs_count - 1),
-                updated_at = NOW()
-            WHERE id = $1`,
-			[job.assigned_tech_id]
-		);
-
-		await client.query(
-			`UPDATE emplyees
             SET current_job_id = NULL,
                 current_jobs_count = GREATEST(0, current_jobs_count - 1),
                 updated_at = NOW()
@@ -236,7 +229,6 @@ export async function unassignJob(jobId: string): Promise<void> {
 /**
  * @param jobId
  */
-
 export async function startJob(jobId: string): Promise<void> {
 	const result = await pool.query(
 		`UPDATE jobs 
