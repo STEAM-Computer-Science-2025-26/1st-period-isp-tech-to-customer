@@ -7,7 +7,7 @@ import { areValidCoordinates } from "../../algo/distance";
 const updateLocationSchema = z.object({
 	latitude: z.number().min(-90).max(90),
 	longitude: z.number().min(-180).max(180)
-});    
+});
 
 type AuthUser = {
 	userId?: string;
@@ -56,7 +56,9 @@ export function updateEmployeeLocation(fastify: FastifyInstance) {
 				if (employee.company_id !== authUser.companyId) {
 					return reply
 						.code(403)
-						.send({ error: "Forbidden - Cannot update employee from other company" });
+						.send({
+							error: "Forbidden - Cannot update employee from other company"
+						});
 				}
 			} else {
 				const userId = authUser.userId ?? authUser.id;
@@ -67,7 +69,7 @@ export function updateEmployeeLocation(fastify: FastifyInstance) {
 				}
 			}
 		}
-        const result = await query(
+		const result = await query(
 			`UPDATE employees 
 			SET latitude = $1, longitude = $2, location_updated_at = NOW(), updated_at = NOW()
 			WHERE id = $3

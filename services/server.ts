@@ -1,35 +1,27 @@
 import "dotenv/config";
 import Fastify from "fastify";
-import { jobRoutes } from "./routes/jobRoutesUpdated"; 
+import { jobRoutes } from "./routes/jobRoutesUpdated";
 import { userRoutes } from "./routes/userRoutes";
 import { companyRoutes } from "./routes/companyRoutes";
 import { registerEmployeeRoutes } from "./routes/employeeRoutes";
-import { dispatchRoutes } from "./routes/dispatchRoutes"; 
-import { employeeLocationRoutes } from "./routes/employeeLocationRoutes"; 
-import { healthRoutes } from "./routes/healthRoutes"; 
+import { dispatchRoutes } from "./routes/dispatchRoutes";
+import { employeeLocationRoutes } from "./routes/employeeLocationRoutes";
+import { healthRoutes } from "./routes/healthRoutes";
 import fastifyCors from "@fastify/cors";
 import fastifyJwt from "@fastify/jwt";
-import { errorHandler, notFoundHandler } from "./middleware/errorHandler"; 
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
 function validateEnvironment() {
-	const required = [
-		"DATABASE_URL",
-		"JWT_SECRET",
-		"GOOGLE_MAPS_API_KEY"
-	];
+	const required = ["DATABASE_URL", "JWT_SECRET", "GOOGLE_MAPS_API_KEY"];
 
 	const missing = required.filter((key) => !process.env[key]);
 
 	if (missing.length > 0) {
-		console.error(
-			"\n❌ CRITICAL: Missing required environment variables:\n"
-		);
+		console.error("\n❌ CRITICAL: Missing required environment variables:\n");
 		missing.forEach((key) => {
 			console.error(`   - ${key}`);
 		});
-		console.error(
-			"\nAdd these to your .env file and restart the server.\n"
-		);
+		console.error("\nAdd these to your .env file and restart the server.\n");
 		process.exit(1);
 	}
 }
@@ -81,7 +73,7 @@ await jobRoutes(fastify);
 await userRoutes(fastify);
 await companyRoutes(fastify);
 await registerEmployeeRoutes(fastify);
-await dispatchRoutes(fastify); 
+await dispatchRoutes(fastify);
 await employeeLocationRoutes(fastify);
 
 fastify.get("/", async () => ({

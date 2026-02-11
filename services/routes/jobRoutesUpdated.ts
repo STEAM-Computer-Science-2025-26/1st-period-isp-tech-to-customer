@@ -14,7 +14,7 @@ const listJobsSchema = z.object({
 });
 
 const createJobSchema = z.object({
-	companyId: z.string().uuid().optional(), 
+	companyId: z.string().uuid().optional(),
 	customerName: z.string().min(1),
 	address: z.string().min(1),
 	phone: z.string().min(1),
@@ -22,7 +22,7 @@ const createJobSchema = z.object({
 	priority: z.enum(["low", "medium", "high", "emergency"]),
 	scheduledTime: z.string().datetime().optional(),
 	initialNotes: z.string().optional(),
-	requiredSkills: z.array(z.string()).optional() 
+	requiredSkills: z.array(z.string()).optional()
 });
 
 const updateJobStatusSchema = z.object({
@@ -57,7 +57,7 @@ const updateJobSchema = z
 		message: "At least one field must be provided"
 	});
 
-    type AuthUser = {
+type AuthUser = {
 	userId?: string;
 	id?: string;
 	email?: string;
@@ -242,11 +242,7 @@ export function createJob(fastify: FastifyInstance) {
 			createdJob.longitude = geo.longitude;
 			createdJob.geocodingStatus = geo.geocodingStatus;
 		} catch (error) {
-			
-			console.error(
-				`Geocoding failed for job ${createdJob.id}:`,
-				error
-			);
+			console.error(`Geocoding failed for job ${createdJob.id}:`, error);
 		}
 
 		return { job: createdJob };
@@ -447,5 +443,3 @@ export async function jobRoutes(fastify: FastifyInstance) {
 		deleteJob(authenticatedRoutes);
 	});
 }
-
-
