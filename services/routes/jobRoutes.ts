@@ -1,6 +1,72 @@
 import { FastifyInstance } from "fastify";
 import { query } from "../../db";
+import { z } from "zod";
 import { authenticate } from "../middleware/auth";
+
+// ============================================================
+// Schemas
+// ============================================================
+
+const listJobsSchema = z.object({
+	companyId: z.string().uuid().optional(),
+	status: z
+		.enum(["unassigned", "assigned", "in_progress", "completed", "cancelled"])
+		.optional(),
+	assignedTechId: z.string().uuid().optional(),
+	priority: z.enum(["low", "medium", "high", "emergency"]).optional()
+});
+
+const createJobSchema = z.object({
+	companyId: z.string().uuid().optional(), // dev only — ignored for non-dev
+	customerName: z.string().min(1),
+	address: z.string().min(1),
+	phone: z.string().min(1),
+	jobType: z.enum(["installation", "repair", "maintenance", "inspection"]),
+	priority: z.enum(["low", "medium", "high", "emergency"]),
+	scheduledTime: z.string().datetime().optional(),
+	initialNotes: z.string().optional()
+});
+
+const updateJobStatusSchema = z.object({
+	status: z.enum([
+		"unassigned",
+		"assigned",
+		"in_progress",
+		"completed",
+		"cancelled"
+	]),
+	completionNotes: z.string().optional()
+});
+
+const updateJobSchema = z
+	.object({
+		customerName: z.string().min(1).optional(),
+		address: z.string().min(1).optional(),
+		phone: z.string().min(1).optional(),
+		jobType: z
+			.enum(["installation", "repair", "maintenance", "inspection"])
+			.optional(),
+		status: z
+			.enum([
+				"unassigned",
+				"assigned",
+				"in_progress",
+				"completed",
+				"cancelled"
+			])
+			.optional(),
+		priority: z.enum(["low", "medium", "high", "emergency"]).optional(),
+		assignedTechId: z.string().uuid().optional(),
+		scheduledTime: z.string().datetime().optional(),
+		initialNotes: z.string().optional()
+	})
+	.refine((data) => Object.keys(data).length > 0, {
+		message: "At least one field must be provided"
+	});
+
+// ============================================================
+// Helpers
+// ============================================================
 
 type AuthUser = {
 	userId?: string;
@@ -22,28 +88,33 @@ function requireCompanyId(user: AuthUser): string | null {
 	return user.companyId ?? null;
 }
 
-/** Register the GET /jobs endpoint (runs when a client requests GET /jobs). */
+// ============================================================
+// Route handlers
+// ============================================================
+
 export function listJobs(fastify: FastifyInstance) {
 	fastify.get("/jobs", async (request, reply) => {
-		// TODO: Add pagination (limit/offset) and validate filters.
 		const user = getAuthUser(request);
 		const dev = isDev(user);
 
-		const { companyId, status, assignedTechId, priority } = request.query as {
-			companyId?: string;
-			status?: string;
-			assignedTechId?: string;
-			priority?: string;
-		};
+		const parsed = listJobsSchema.safeParse(request.query);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid query parameters",
+				details: parsed.error.flatten().fieldErrors
+			});
+		}
 
+		const { status, assignedTechId, priority } = parsed.data;
 		const effectiveCompanyId = dev
-			? (companyId ?? requireCompanyId(user))
+			? (parsed.data.companyId ?? requireCompanyId(user))
 			: requireCompanyId(user);
+
 		if (!effectiveCompanyId) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 
-		let sql = `SELECT 
+		let sql = `SELECT
 			id,
 			company_id AS "companyId",
 			customer_name AS "customerName",
@@ -58,7 +129,10 @@ export function listJobs(fastify: FastifyInstance) {
 			completed_at AS "completedAt",
 			initial_notes AS "initialNotes",
 			completion_notes AS "completionNotes",
-			updated_at AS "updatedAt"
+			updated_at AS "updatedAt",
+			latitude,
+			longitude,
+			geocoding_status AS "geocodingStatus"
 		FROM jobs`;
 
 		const conditions: string[] = [];
@@ -88,60 +162,52 @@ export function listJobs(fastify: FastifyInstance) {
 	});
 }
 
-/** Register the POST /jobs endpoint (runs when a client requests POST /jobs). */
 export function createJob(fastify: FastifyInstance) {
 	fastify.post("/jobs", async (request, reply) => {
-		// TODO: Validate body with zod.
-		// TODO: Derive companyId from request.user.companyId (don't trust body.companyId).
 		const user = getAuthUser(request);
 		const dev = isDev(user);
 
-		const body = request.body as {
-			companyId?: string;
-			customerName: string;
-			address: string;
-			phone: string;
-			jobType: string;
-			priority: string;
-			scheduledTime?: string;
-			initialNotes?: string;
-		};
+		const parsed = createJobSchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid request body",
+				details: parsed.error.flatten().fieldErrors
+			});
+		}
 
+		const body = parsed.data;
+
+		// companyId always comes from the token for non-dev users.
+		// body.companyId is only respected for dev users.
 		const effectiveCompanyId = dev
 			? (body.companyId ?? requireCompanyId(user))
 			: requireCompanyId(user);
+
 		if (!effectiveCompanyId) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 
 		const result = await query(
 			`INSERT INTO jobs (
-				company_id,
-				customer_name,
-				address,
-				phone,
-				job_type,
-				priority,
-				status,
-				scheduled_time,
-				initial_notes
+				company_id, customer_name, address, phone,
+				job_type, priority, status, scheduled_time, initial_notes
 			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-			RETURNING 
+			RETURNING
 				id,
 				company_id AS "companyId",
 				customer_name AS "customerName",
-				address,
-				phone,
+				address, phone,
 				job_type AS "jobType",
-				status,
-				priority,
+				status, priority,
 				assigned_tech_id AS "assignedTechId",
 				scheduled_time AS "scheduledTime",
 				created_at AS "createdAt",
 				completed_at AS "completedAt",
 				initial_notes AS "initialNotes",
 				completion_notes AS "completionNotes",
-				updated_at AS "updatedAt"`,
+				updated_at AS "updatedAt",
+				latitude, longitude,
+				geocoding_status AS "geocodingStatus"`,
 			[
 				effectiveCompanyId,
 				body.customerName,
@@ -150,63 +216,64 @@ export function createJob(fastify: FastifyInstance) {
 				body.jobType,
 				body.priority,
 				"unassigned",
-				body.scheduledTime || null,
-				body.initialNotes || null
+				body.scheduledTime ?? null,
+				body.initialNotes ?? null
 			]
 		);
+
+		// TODO: kick off geocoding here once provider is wired in:
+		// const geo = await tryGeocodeJob(body.address);
+		// await query(
+		//   `UPDATE jobs SET latitude=$1, longitude=$2, geocoding_status=$3 WHERE id=$4`,
+		//   [geo.latitude, geo.longitude, geo.geocodingStatus, result[0].id]
+		// );
 
 		return { job: result[0] };
 	});
 }
 
-/** Register the PUT /jobs/:jobId/status endpoint (runs when a client requests it). */
 export function updateJobStatus(fastify: FastifyInstance) {
 	fastify.put("/jobs/:jobId/status", async (request, reply) => {
-		// TODO: Validate status values and allowed transitions.
 		const user = getAuthUser(request);
 		const dev = isDev(user);
 		const companyId = requireCompanyId(user);
 
+		const parsed = updateJobStatusSchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid request body",
+				details: parsed.error.flatten().fieldErrors
+			});
+		}
+
 		const { jobId } = request.params as { jobId: string };
-		const body = request.body as {
-			status: string;
-			completionNotes?: string;
-		};
+		const { status, completionNotes } = parsed.data;
 
-		const setCompletedAt =
-			body.status === "completed" ? ", completed_at = NOW()" : "";
+		const setCompletedAt = status === "completed" ? ", completed_at = NOW()" : "";
 
-		const values: Array<string | null> = [
-			body.status,
-			body.completionNotes || null,
-			jobId
-		];
+		const values: Array<string | null> = [status, completionNotes ?? null, jobId];
 		let where = `WHERE id = $3`;
+
 		if (!dev) {
-			if (!companyId)
+			if (!companyId) {
 				return reply
 					.code(403)
 					.send({ error: "Forbidden - Missing company in token" });
+			}
 			values.push(companyId);
 			where += ` AND company_id = $4`;
 		}
 
 		const result = await query(
-			`UPDATE jobs 
-			SET status = $1,
-				completion_notes = $2,
-				updated_at = NOW()
-				${setCompletedAt}
+			`UPDATE jobs
+			SET status = $1, completion_notes = $2, updated_at = NOW()${setCompletedAt}
 			${where}
-			RETURNING 
-				id,
-				company_id AS "companyId",
+			RETURNING
+				id, company_id AS "companyId",
 				customer_name AS "customerName",
-				address,
-				phone,
+				address, phone,
 				job_type AS "jobType",
-				status,
-				priority,
+				status, priority,
 				assigned_tech_id AS "assignedTechId",
 				scheduled_time AS "scheduledTime",
 				created_at AS "createdAt",
@@ -220,60 +287,26 @@ export function updateJobStatus(fastify: FastifyInstance) {
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Job not found" });
 		}
-
 		return { job: result[0] };
 	});
 }
 
-/** Register the DELETE /jobs/:jobId endpoint (runs when a client requests it). */
-export function deleteJob(fastify: FastifyInstance) {
-	fastify.delete("/jobs/:jobId", async (request, reply) => {
-		const user = getAuthUser(request);
-		const dev = isDev(user);
-		const companyId = requireCompanyId(user);
-
-		const { jobId } = request.params as { jobId: string };
-		const result = dev
-			? await query("DELETE FROM jobs WHERE id = $1 RETURNING id", [jobId])
-			: await query(
-					"DELETE FROM jobs WHERE id = $1 AND company_id = $2 RETURNING id",
-					[jobId, companyId]
-				);
-
-		if (!result[0]) {
-			return reply.code(404).send({ error: "Job not found" });
-		}
-
-		return { message: `Job ${jobId} deleted` };
-	});
-}
-
-/*
-get jobId from params
-get fields to update from request body(optional)
-customer name, address, phone, job type, status, priority, assigned tech ID, scheduled time, initial notes
-updates the job in the database
-returns a success message and jobId/404 error if not found
-*/
 export function updateJob(fastify: FastifyInstance) {
 	fastify.put("/jobs/:jobId", async (request, reply) => {
-		// TODO: Validate body with zod.
 		const user = getAuthUser(request);
 		const dev = isDev(user);
 		const companyId = requireCompanyId(user);
 
+		const parsed = updateJobSchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid request body",
+				details: parsed.error.flatten().fieldErrors
+			});
+		}
+
 		const { jobId } = request.params as { jobId: string };
-		const body = request.body as {
-			customerName?: string;
-			address?: string;
-			phone?: string;
-			jobType?: string;
-			status?: string;
-			priority?: string;
-			assignedTechId?: string;
-			scheduledTime?: string;
-			initialNotes?: string;
-		};
+		const body = parsed.data;
 
 		const updates: string[] = [];
 		const values: Array<string | null> = [];
@@ -285,6 +318,10 @@ export function updateJob(fastify: FastifyInstance) {
 		if (body.address !== undefined) {
 			values.push(body.address);
 			updates.push(`address = $${values.length}`);
+			// If address changes, geocoding needs to re-run
+			updates.push(`geocoding_status = 'pending'`);
+			updates.push(`latitude = NULL`);
+			updates.push(`longitude = NULL`);
 		}
 		if (body.phone !== undefined) {
 			values.push(body.phone);
@@ -315,17 +352,15 @@ export function updateJob(fastify: FastifyInstance) {
 			updates.push(`initial_notes = $${values.length}`);
 		}
 
-		if (updates.length === 0) {
-			return { message: "No fields to update", jobId };
-		}
-
 		values.push(jobId);
 		let where = `WHERE id = $${values.length}`;
+
 		if (!dev) {
-			if (!companyId)
+			if (!companyId) {
 				return reply
 					.code(403)
 					.send({ error: "Forbidden - Missing company in token" });
+			}
 			values.push(companyId);
 			where += ` AND company_id = $${values.length}`;
 		}
@@ -334,6 +369,7 @@ export function updateJob(fastify: FastifyInstance) {
 			`UPDATE jobs SET ${updates.join(", ")}, updated_at = NOW() ${where} RETURNING id`,
 			values
 		);
+
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Job not found" });
 		}
@@ -341,10 +377,28 @@ export function updateJob(fastify: FastifyInstance) {
 	});
 }
 
-/**
- * Convenience "bundle" function: call this ONCE during server startup.
- * It registers all job endpoints so they are available.
- */
+export function deleteJob(fastify: FastifyInstance) {
+	fastify.delete("/jobs/:jobId", async (request, reply) => {
+		const user = getAuthUser(request);
+		const dev = isDev(user);
+		const companyId = requireCompanyId(user);
+
+		const { jobId } = request.params as { jobId: string };
+
+		const result = dev
+			? await query("DELETE FROM jobs WHERE id = $1 RETURNING id", [jobId])
+			: await query(
+					"DELETE FROM jobs WHERE id = $1 AND company_id = $2 RETURNING id",
+					[jobId, companyId]
+				);
+
+		if (!result[0]) {
+			return reply.code(404).send({ error: "Job not found" });
+		}
+		return { message: `Job ${jobId} deleted` };
+	});
+}
+
 export async function jobRoutes(fastify: FastifyInstance) {
 	fastify.register(async (authenticatedRoutes) => {
 		authenticatedRoutes.addHook("onRequest", authenticate);

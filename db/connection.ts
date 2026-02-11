@@ -1,4 +1,10 @@
-// /db/connection.ts
+// db/connection.ts
+//
+// Neon serverless HTTP driver — used by the test script (db/test-connection.ts)
+// and any edge/serverless contexts where a persistent Pool is not appropriate.
+//
+// For the main Fastify server, use db/index.ts (Pool + WebSocket transport).
+
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import dotenv from "dotenv";
 import fs from "node:fs";
@@ -7,24 +13,17 @@ import { Agent, setGlobalDispatcher } from "undici";
 
 let cachedSql: NeonQueryFunction<false, false> | null = null;
 
-// Allow opting into self-signed certificates for local development.
-// Useful on Windows/corp networks where HTTPS interception adds a custom CA.
+
 function maybeAllowSelfSignedCerts(): void {
 	const allow = process.env.ALLOW_SELF_SIGNED_CERTS === "true";
 	const isProd = process.env.NODE_ENV === "production";
 	if (allow && !isProd) {
-		// Node respects this flag for TLS validation; safe to limit to dev.
 		process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
-		// Also configure Undici (used by global fetch) to accept self-signed certs.
-		// This avoids "SELF_SIGNED_CERT_IN_CHAIN" when the env flag is ignored.
 		try {
-			const agent = new Agent({
-				connect: { rejectUnauthorized: false }
-			});
+			const agent = new Agent({ connect: { rejectUnauthorized: false } });
 			setGlobalDispatcher(agent);
 		} catch {
-			// If undici is unavailable, fall back to NODE_TLS_REJECT_UNAUTHORIZED.
+			// undici might not be used in this environment, so ignore if it fails
 		}
 	}
 }
@@ -46,18 +45,15 @@ function tryLoadDatabaseUrlFromDotenv(): void {
 	}
 }
 
-/**
- * Lazily create the SQL query function.
- *
- * Important: Do not throw at import-time.
- * Next.js `next build` evaluates route modules while collecting data.
- */
 export function getSql(): NeonQueryFunction<false, false> {
 	tryLoadDatabaseUrlFromDotenv();
 	maybeAllowSelfSignedCerts();
+
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
-		throw new Error("DATABASE_URL environment variable is not set");
+		throw new Error(
+			"DATABASE_URL environment variable is not set. Cannot create SQL client."
+		);
 	}
 
 	if (!cachedSql) {
@@ -67,10 +63,6 @@ export function getSql(): NeonQueryFunction<false, false> {
 	return cachedSql;
 }
 
-/**
- * Test database connection
- * Returns structured result for production-safe logging
- */
 export async function testConnection(): Promise<{
 	success: boolean;
 	error?: unknown;
@@ -88,9 +80,6 @@ export async function testConnection(): Promise<{
 	}
 }
 
-/**
- * Convert snake_case object keys to camelCase
- */
 export function toCamelCase<T extends Record<string, unknown>>(
 	obj: Record<string, unknown>
 ): T {
@@ -104,9 +93,6 @@ export function toCamelCase<T extends Record<string, unknown>>(
 	return result as T;
 }
 
-/**
- * Convert camelCase object keys to snake_case
- */
 export function toSnakeCase<T extends Record<string, unknown>>(
 	obj: T
 ): Record<string, unknown> {
@@ -121,49 +107,24 @@ export function toSnakeCase<T extends Record<string, unknown>>(
 	return result;
 }
 
-/**
- * Convert an array of rows from snake_case to camelCase
- */
 export function rowsToCamelCase<T extends Record<string, unknown>>(
 	rows: Record<string, unknown>[]
 ): T[] {
 	return rows.map((row) => toCamelCase<T>(row));
 }
 
-/**
- * Execute a query that should return a single row
- * Returns null if no rows found
- */
+
 export async function queryOne<T extends Record<string, unknown>>(
-	query: TemplateStringsArray,
-	...params: unknown[]
+	queryFn: (sql: NeonQueryFunction<false, false>) => Promise<T[]>
 ): Promise<T | null> {
 	const sql = getSql();
-	const rows = await sql(query, ...(params as never[]));
-	/* 
-  Code Review said this:
-    The type assertion as never[] bypasses TypeScript's type checking in an unsafe way. Consider
-    using a more specific type or restructuring the function signature to properly handle
-    the parameter spread.
-  */
-	// TODO: Refactor to avoid unsafe type assertion
-	return rows.length > 0 ? toCamelCase<T>(rows[0]) : null;
+	const rows = await queryFn(sql);
+	return rows.length > 0 ? rows[0] : null;
 }
 
-/**
- * Execute a query and return all rows mapped to camelCase
- */
 export async function queryAll<T extends Record<string, unknown>>(
-	query: TemplateStringsArray,
-	...params: unknown[]
+	queryFn: (sql: NeonQueryFunction<false, false>) => Promise<T[]>
 ): Promise<T[]> {
 	const sql = getSql();
-	const rows = await sql(query, ...(params as never[]));
-	/* 
-  Code Review said this:
-    The type assertion as never[] bypasses TypeScript's type checking in an unsafe way. Consider
-    using a more specific type or restructuring the function signature to properly handle
-    the parameter spread.
-  */
-	return rowsToCamelCase<T>(rows);
+	return queryFn(sql);
 }

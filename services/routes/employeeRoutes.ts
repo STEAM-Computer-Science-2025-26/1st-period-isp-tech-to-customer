@@ -3,6 +3,82 @@ import { query } from "../../db";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 
+// ============================================================
+// Schemas
+// ============================================================
+
+const listEmployeesSchema = z.object({
+	companyId: z.string().uuid().optional()
+});
+
+const createEmployeeSchema = z.object({
+	userId: z.string().uuid(),
+	companyId: z.string().uuid().optional(), // dev only
+	name: z.string().min(1),
+	email: z.string().email().optional(),
+	role: z.string().optional(),
+	skills: z.array(z.string()).min(1),
+	skillLevel: z.record(z.string(), z.number().int().min(1).max(5)).optional(),
+	homeAddress: z.string().min(1),
+	phone: z.string().optional(),
+	maxConcurrentJobs: z.number().int().min(1).max(20).optional(),
+	internalNotes: z.string().optional(),
+	createdByUserId: z.string().uuid().optional()
+});
+
+const updateEmployeeSchema = z
+	.object({
+		name: z.string().min(1).optional(),
+		email: z.string().email().optional(),
+		role: z.string().optional(),
+		skills: z.array(z.string()).min(1).optional(),
+		skillLevel: z
+			.record(z.string(), z.number().int().min(1).max(5))
+			.optional(),
+		homeAddress: z.string().min(1).optional(),
+		phone: z.string().optional(),
+		isAvailable: z.boolean().optional(),
+		maxConcurrentJobs: z.number().int().min(1).max(20).optional(),
+		isActive: z.boolean().optional(),
+		internalNotes: z.string().optional(),
+		latitude: z.number().min(-90).max(90).optional(),
+		longitude: z.number().min(-180).max(180).optional()
+	})
+	.refine((data) => Object.keys(data).length > 0, {
+		message: "At least one field must be provided"
+	});
+
+// ============================================================
+// Shared SELECT columns (keeps queries DRY)
+// ============================================================
+
+const EMPLOYEE_SELECT = `
+	id,
+	user_id AS "userId",
+	company_id AS "companyId",
+	name, email, role, skills,
+	skill_level AS "skillLevel",
+	home_address AS "homeAddress",
+	phone,
+	is_available AS "isAvailable",
+	availability_updated_at AS "availabilityUpdatedAt",
+	current_job_id AS "currentJobId",
+	max_concurrent_jobs AS "maxConcurrentJobs",
+	is_active AS "isActive",
+	rating,
+	last_job_completed_at AS "lastJobCompletedAt",
+	internal_notes AS "internalNotes",
+	created_by_user_id AS "createdByUserId",
+	latitude, longitude,
+	location_updated_at AS "locationUpdatedAt",
+	created_at AS "createdAt",
+	updated_at AS "updatedAt"
+`;
+
+// ============================================================
+// Helpers
+// ============================================================
+
 type AuthUser = {
 	userId?: string;
 	id?: string;
@@ -10,71 +86,47 @@ type AuthUser = {
 	companyId?: string;
 };
 
-export function listEmployees(fastify: FastifyInstance) {
-	const querySchema = z.object({
-		companyId: z.string().optional()
-	});
+// ============================================================
+// Route handlers
+// ============================================================
 
+export function listEmployees(fastify: FastifyInstance) {
 	fastify.get("/employees", async (request, reply) => {
-		// TODO: Protect with JWT auth.
-		// TODO: Enforce company scoping based on request.user.companyId (don't trust query companyId).
-		// TODO: Consider pagination (limit/offset) to avoid returning huge datasets.
 		const authUser = request.user as AuthUser;
 		const isDev = authUser?.role === "dev";
-		const parsed = querySchema.safeParse(request.query);
+
+		const parsed = listEmployeesSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid query parameters" });
+			return reply.code(400).send({
+				error: "Invalid query parameters",
+				details: parsed.error.flatten().fieldErrors
+			});
 		}
 
-		const requestedCompanyId = parsed.data.companyId;
 		const effectiveCompanyId = isDev
-			? (requestedCompanyId ?? authUser?.companyId)
+			? (parsed.data.companyId ?? authUser?.companyId)
 			: authUser?.companyId;
+
 		if (!effectiveCompanyId) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
-		let sql = `SELECT 
-                        id, 
-                        user_id AS "userId",
-                        company_id AS "companyId",
-                        name,
-                        email,
-                        role,
-                        skills,
-                        skill_level AS "skillLevel",
-                        home_address AS "homeAddress",
-                        phone,
-                        is_available AS "isAvailable",
-                        availability_updated_at AS "availabilityUpdatedAt",
-                        current_job_id AS "currentJobId",
-                        max_concurrent_jobs AS "maxConcurrentJobs",
-                        is_active AS "isActive",
-                        rating,
-                        last_job_completed_at AS "lastJobCompletedAt",
-                        internal_notes AS "internalNotes",
-                        created_by_user_id AS "createdByUserId",
-                        latitude,
-                        longitude,
-                        location_updated_at AS "locationUpdatedAt",
-                        created_at AS "createdAt",
-                        updated_at AS "updatedAt"
-                    FROM employees`;
-		const params: string[] = [effectiveCompanyId];
-		sql += ` WHERE company_id = $1`;
 
-		sql += ` ORDER BY name ASC`;
-
-		const result = await query(sql, params);
+		const result = await query(
+			`SELECT ${EMPLOYEE_SELECT} FROM employees
+			WHERE company_id = $1
+			ORDER BY name ASC`,
+			[effectiveCompanyId]
+		);
 		return { employees: result };
 	});
 }
 
 export function getEmployee(fastify: FastifyInstance) {
 	fastify.get("/employees/:employeeId", async (request, reply) => {
-		// TODO: Protect with JWT auth and verify the employee belongs to request.user.companyId.
 		const { employeeId } = request.params as { employeeId: string };
 		const authUser = request.user as AuthUser;
 		const isDev = authUser?.role === "dev";
+
 		if (!authUser?.companyId && !isDev) {
 			return reply
 				.code(403)
@@ -82,38 +134,13 @@ export function getEmployee(fastify: FastifyInstance) {
 		}
 
 		const result = await query(
-			`SELECT 
-                id, 
-                user_id AS "userId",
-                company_id AS "companyId",
-                name,
-                email,
-                role,
-                skills,
-                skill_level AS "skillLevel",
-                home_address AS "homeAddress",
-                phone,
-                is_available AS "isAvailable",
-                availability_updated_at AS "availabilityUpdatedAt",
-                current_job_id AS "currentJobId",
-                max_concurrent_jobs AS "maxConcurrentJobs",
-                is_active AS "isActive",
-                rating,
-                last_job_completed_at AS "lastJobCompletedAt",
-                internal_notes AS "internalNotes",
-                created_by_user_id AS "createdByUserId",
-                latitude,
-                longitude,
-                location_updated_at AS "locationUpdatedAt",
-                created_at AS "createdAt",
-                updated_at AS "updatedAt"
-            FROM employees 
+			`SELECT ${EMPLOYEE_SELECT} FROM employees
 			WHERE id = $1${isDev ? "" : " AND company_id = $2"}`,
 			isDev ? [employeeId] : [employeeId, authUser.companyId]
 		);
+
 		if (result.length === 0) {
-			reply.status(404);
-			return { error: "Employee not found" };
+			return reply.code(404).send({ error: "Employee not found" });
 		}
 		return { employee: result[0] };
 	});
@@ -121,35 +148,28 @@ export function getEmployee(fastify: FastifyInstance) {
 
 export function createEmployee(fastify: FastifyInstance) {
 	fastify.post("/employees", async (request, reply) => {
-		// TODO: Protect with JWT auth.
-		// TODO: Validate body with zod (required fields, email format, skills array, etc).
-		// TODO: Avoid trusting body.companyId; derive from request.user.companyId.
 		const authUser = request.user as AuthUser;
 		const isDev = authUser?.role === "dev";
+
 		if (!authUser?.companyId && !isDev) {
 			return reply
 				.code(403)
 				.send({ error: "Forbidden - Missing company in token" });
 		}
 
-		const body = request.body as {
-			userId: string;
-			companyId: string;
-			name: string;
-			email: string;
-			role?: string;
-			skills: string[];
-			skillLevel?: Record<string, number>;
-			homeAddress: string;
-			phone?: string;
-			maxConcurrentJobs?: number;
-			internalNotes?: string;
-			createdByUserId?: string;
-		};
+		const parsed = createEmployeeSchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid request body",
+				details: parsed.error.flatten().fieldErrors
+			});
+		}
 
+		const body = parsed.data;
 		const effectiveCompanyId = isDev
 			? (body.companyId ?? authUser.companyId)
 			: authUser.companyId;
+
 		if (!effectiveCompanyId) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
@@ -159,56 +179,22 @@ export function createEmployee(fastify: FastifyInstance) {
 
 		const result = await query(
 			`INSERT INTO employees (
-                user_id, 
-                company_id, 
-                name,
-                email,
-                role,
-                skills, 
-                skill_level,
-                home_address, 
-                phone,
-                max_concurrent_jobs,
-                internal_notes,
-                created_by_user_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
-            RETURNING 
-                id, 
-                user_id AS "userId",
-                company_id AS "companyId",
-                name,
-                email,
-                role,
-                skills,
-                skill_level AS "skillLevel",
-                home_address AS "homeAddress",
-                phone,
-                is_available AS "isAvailable",
-                availability_updated_at AS "availabilityUpdatedAt",
-                current_job_id AS "currentJobId",
-                max_concurrent_jobs AS "maxConcurrentJobs",
-                is_active AS "isActive",
-                rating,
-                last_job_completed_at AS "lastJobCompletedAt",
-                internal_notes AS "internalNotes",
-                created_by_user_id AS "createdByUserId",
-                latitude,
-                longitude,
-                location_updated_at AS "locationUpdatedAt",
-                created_at AS "createdAt",
-                updated_at AS "updatedAt"`,
+				user_id, company_id, name, email, role, skills, skill_level,
+				home_address, phone, max_concurrent_jobs, internal_notes, created_by_user_id
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			RETURNING ${EMPLOYEE_SELECT}`,
 			[
 				body.userId,
 				effectiveCompanyId,
 				body.name,
-				body.email,
-				body.role || null,
+				body.email ?? null,
+				body.role ?? null,
 				body.skills,
-				JSON.stringify(body.skillLevel || {}),
+				JSON.stringify(body.skillLevel ?? {}),
 				body.homeAddress,
-				body.phone || null,
-				body.maxConcurrentJobs || 1,
-				body.internalNotes || null,
+				body.phone ?? null,
+				body.maxConcurrentJobs ?? 1,
+				body.internalNotes ?? null,
 				effectiveCreatedByUserId
 			]
 		);
@@ -218,32 +204,25 @@ export function createEmployee(fastify: FastifyInstance) {
 
 export function updateEmployee(fastify: FastifyInstance) {
 	fastify.put("/employees/:employeeId", async (request, reply) => {
-		// TODO: Protect with JWT auth and enforce company scoping.
-		// TODO: Validate body with zod (types, ranges for lat/long, etc).
 		const { employeeId } = request.params as { employeeId: string };
 		const authUser = request.user as AuthUser;
 		const isDev = authUser?.role === "dev";
+
 		if (!authUser?.companyId && !isDev) {
 			return reply
 				.code(403)
 				.send({ error: "Forbidden - Missing company in token" });
 		}
-		const body = request.body as {
-			name?: string;
-			email?: string;
-			role?: string;
-			skills?: string[];
-			skillLevel?: Record<string, number>;
-			homeAddress?: string;
-			phone?: string;
-			isAvailable?: boolean;
-			maxConcurrentJobs?: number;
-			isActive?: boolean;
-			internalNotes?: string;
-			latitude?: number;
-			longitude?: number;
-		};
 
+		const parsed = updateEmployeeSchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid request body",
+				details: parsed.error.flatten().fieldErrors
+			});
+		}
+
+		const body = parsed.data;
 		const updates: string[] = [];
 		const values: Array<string | number | boolean | string[] | null> = [];
 
@@ -302,61 +281,32 @@ export function updateEmployee(fastify: FastifyInstance) {
 			updates.push(`longitude = $${values.length}`);
 		}
 
-		if (updates.length === 0) {
-			return { message: "No fields to update", employeeId };
-		}
-
 		values.push(employeeId);
 		if (!isDev) {
 			values.push(authUser.companyId ?? null);
 		}
 
 		const result = await query(
-			`UPDATE employees 
-            SET ${updates.join(", ")}, updated_at = NOW() 
-        WHERE id = $${values.length}${isDev ? "" : ` AND company_id = $${values.length + 1}`} 
-            RETURNING 
-                id, 
-                user_id AS "userId",
-                company_id AS "companyId",
-                name,
-                email,
-                role,
-                skills,
-                skill_level AS "skillLevel",
-                home_address AS "homeAddress",
-                phone,
-                is_available AS "isAvailable",
-                availability_updated_at AS "availabilityUpdatedAt",
-                current_job_id AS "currentJobId",
-                max_concurrent_jobs AS "maxConcurrentJobs",
-                is_active AS "isActive",
-                rating,
-                last_job_completed_at AS "lastJobCompletedAt",
-                internal_notes AS "internalNotes",
-                created_by_user_id AS "createdByUserId",
-                latitude,
-                longitude,
-                location_updated_at AS "locationUpdatedAt",
-                created_at AS "createdAt",
-                updated_at AS "updatedAt"`,
+			`UPDATE employees
+			SET ${updates.join(", ")}, updated_at = NOW()
+			WHERE id = $${values.length}${isDev ? "" : ` AND company_id = $${values.length + 1}`}
+			RETURNING ${EMPLOYEE_SELECT}`,
 			values
 		);
 
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Employee not found" });
 		}
-
 		return { employee: result[0] };
 	});
 }
 
 export function deleteEmployee(fastify: FastifyInstance) {
 	fastify.delete("/employees/:employeeId", async (request, reply) => {
-		// TODO: Protect with JWT auth and enforce company scoping.
 		const { employeeId } = request.params as { employeeId: string };
 		const authUser = request.user as AuthUser;
 		const isDev = authUser?.role === "dev";
+
 		if (!authUser?.companyId && !isDev) {
 			return reply
 				.code(403)
@@ -364,13 +314,15 @@ export function deleteEmployee(fastify: FastifyInstance) {
 		}
 
 		const result = isDev
-			? await query("DELETE FROM employees WHERE id = $1 RETURNING id", [
-					employeeId
-				])
+			? await query(
+					"DELETE FROM employees WHERE id = $1 RETURNING id",
+					[employeeId]
+				)
 			: await query(
 					"DELETE FROM employees WHERE id = $1 AND company_id = $2 RETURNING id",
 					[employeeId, authUser.companyId]
 				);
+
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Employee not found" });
 		}

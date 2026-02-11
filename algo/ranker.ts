@@ -15,66 +15,62 @@ type DispatchRecommendation = {
 	requiresManualDispatch: boolean;
 	isEmergency: boolean;
 	timestamp: string;
-	manualDispatchReason?: string; // optional field for manual dispatch cases
+	manualDispatchReason?: string;
 };
 
 /*
-tiebreaker
-
-compare performance scores
-compare distances
-compare workload scores
-compare IDs
+tiebreaker priority:
+1. higher total score
+2. lower distance
+3. higher workload score
+4. lexicographic ID (deterministic)
 */
-
 function compareTechnicians(a: TechnicianScore, b: TechnicianScore): number {
 	if (a.totalScore !== b.totalScore) {
-		return b.totalScore - a.totalScore; // higher total score wins
+		return b.totalScore - a.totalScore;
 	}
 	if (a.distanceMiles !== b.distanceMiles) {
-		return a.distanceMiles - b.distanceMiles; // lower distance wins
+		return a.distanceMiles - b.distanceMiles;
 	}
 	if (a.workloadScore !== b.workloadScore) {
-		return b.workloadScore - a.workloadScore; // higher workload score wins
+		return b.workloadScore - a.workloadScore;
 	}
-	return a.techId.localeCompare(b.techId); // lexicographical order of IDs
+	return a.techId.localeCompare(b.techId);
 }
 
 /*
-ranks techs by score
-
-sorts by total score
-if score falls within tiebreaker, apply tiebreaker
-return array(sorted)
+sorts by total score descending.
+when two scores are within tieThreshold of each other,
+falls back to compareTechnicians for a deterministic result.
 */
-
 export function rankTechnicians(
 	scores: TechnicianScore[],
 	tieThreshold: number = 0.1
 ): TechnicianScore[] {
-	const sorted = [...scores].sort((a, b) => {
+	return [...scores].sort((a, b) => {
 		const scoreDiff = Math.abs(a.totalScore - b.totalScore);
 		if (scoreDiff <= tieThreshold) {
 			return compareTechnicians(a, b);
 		}
-		return b.totalScore - a.totalScore; // higher total score wins
+		return b.totalScore - a.totalScore;
 	});
-	return sorted;
 }
 
 /*
-handle no eligible techs case
-rank all techs
-take top 3 for recommendations
-auto-assigns number 1 ranked tech(idk, ill mark it starts so we can delete it)
-*/
+builds a DispatchRecommendation from a scored list.
 
+- empty scores   → requiresManualDispatch: true,  assignedTech: null
+- non-empty      → requiresManualDispatch: false,  assignedTech: ranked[0]
+
+top 3 are included in recommendations for dispatcher visibility.
+*/
 export function createRecommendation(
 	jobId: string,
 	scores: TechnicianScore[],
 	isEmergency: boolean
 ): DispatchRecommendation {
 	const timestamp = new Date().toISOString();
+
 	if (scores.length === 0) {
 		return {
 			jobId,
@@ -83,32 +79,34 @@ export function createRecommendation(
 			totalEligibleTechs: 0,
 			requiresManualDispatch: true,
 			isEmergency,
-			timestamp
+			timestamp,
+			manualDispatchReason: "No eligible technicians found for this job."
 		};
 	}
-	const tieThreshold = 0.1; // or any appropriate default value
-	const ranked = rankTechnicians(scores, tieThreshold);
+
+	const ranked = rankTechnicians(scores);
 	const top3 = ranked.slice(0, 3);
-	//start here
 	const assignedTech = ranked[0];
+
 	return {
 		jobId,
 		recommendations: top3,
 		assignedTech,
 		totalEligibleTechs: scores.length,
-		requiresManualDispatch: true, // we can change this to false if we want to auto-assign the top tech
+		requiresManualDispatch: false,
 		isEmergency,
 		timestamp
 	};
 }
 
 /*
-creates a header with job info
-handles manual dispatch case
-show assigned tech
-list top 3 recommendations with scores and distance
+formats a recommendation for human-readable console/log output.
+
+manual dispatch case: shows reason why no auto-assignment was made.
+auto-assigned case:   shows the assigned tech + top 3 ranked list.
+
+note: distance is stored as miles throughout the algo layer.
 */
-//AI GENERATED FORMAT FOR DISPATCH RECOMMENDATION
 export function formatRecommendation(rec: DispatchRecommendation): string {
 	let output = `\n📋 DISPATCH RECOMMENDATION\n`;
 	output += `${"=".repeat(60)}\n`;
@@ -119,18 +117,22 @@ export function formatRecommendation(rec: DispatchRecommendation): string {
 
 	if (rec.requiresManualDispatch) {
 		output += `⚠️  MANUAL DISPATCH REQUIRED\n`;
-		output += `Reason: ${rec.manualDispatchReason}\n`;
+		if (rec.manualDispatchReason) {
+			output += `Reason: ${rec.manualDispatchReason}\n`;
+		}
 		return output;
 	}
 
+	// assignedTech is guaranteed non-null here because requiresManualDispatch
+	// is only false when scores.length > 0 (see createRecommendation above).
 	output += `✅ AUTO-ASSIGNED: ${rec.assignedTech!.techName}\n`;
 	output += `   Score: ${rec.assignedTech!.totalScore}/100\n`;
-	output += `   Distance: ${rec.assignedTech!.distanceMiles.toFixed(1)} km\n\n`;
+	output += `   Distance: ${rec.assignedTech!.distanceMiles.toFixed(1)} mi\n\n`;
 
-	output += `TOP 3 RECOMMENDATIONS:\n`;
+	output += `TOP ${rec.recommendations.length} RECOMMENDATIONS:\n`;
 	rec.recommendations.forEach((tech, index) => {
 		output += `\n${index + 1}. ${tech.techName} (${tech.totalScore}/100 points)\n`;
-		output += `   Distance: ${tech.distanceMiles.toFixed(1)} km\n`;
+		output += `   Distance: ${tech.distanceMiles.toFixed(1)} mi\n`;
 	});
 
 	return output;
