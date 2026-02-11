@@ -54,11 +54,9 @@ export function updateEmployeeLocation(fastify: FastifyInstance) {
 
 			if (isAdmin) {
 				if (employee.company_id !== authUser.companyId) {
-					return reply
-						.code(403)
-						.send({
-							error: "Forbidden - Cannot update employee from other company"
-						});
+					return reply.code(403).send({
+						error: "Forbidden - Cannot update employee from other company"
+					});
 				}
 			} else {
 				const userId = authUser.userId ?? authUser.id;
