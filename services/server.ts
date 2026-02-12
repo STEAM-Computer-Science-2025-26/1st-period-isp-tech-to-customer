@@ -1,3 +1,5 @@
+// services/server.ts
+
 import "dotenv/config";
 import Fastify from "fastify";
 import { jobRoutes } from "./routes/jobRoutesUpdated";
@@ -12,7 +14,7 @@ import fastifyJwt from "@fastify/jwt";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
 function validateEnvironment() {
-	const required = ["DATABASE_URL", "JWT_SECRET", "GOOGLE_MAPS_API_KEY"];
+	const required = ["DATABASE_URL", "JWT_SECRET", "GEOCODIO_API_KEY"];
 
 	const missing = required.filter((key) => !process.env[key]);
 
@@ -22,6 +24,7 @@ function validateEnvironment() {
 			console.error(`   - ${key}`);
 		});
 		console.error("\nAdd these to your .env file and restart the server.\n");
+		console.error("Get GEOCODIO_API_KEY from: https://www.geocod.io\n");
 		process.exit(1);
 	}
 }
@@ -95,7 +98,9 @@ const start = async () => {
 		console.log(`   Log level: ${process.env.LOG_LEVEL || "info"}`);
 		console.log("\n📍 API Endpoints:");
 		console.log(`   Health:     GET  /health`);
+		console.log(`   Ready:      GET  /health/ready`);
 		console.log(`   Jobs:       GET  /jobs`);
+		console.log(`   Create Job: POST /jobs`);
 		console.log(`   Dispatch:   POST /jobs/:id/dispatch`);
 		console.log(`   Assign:     POST /jobs/:id/assign`);
 		console.log(`   Complete:   POST /jobs/:id/complete`);

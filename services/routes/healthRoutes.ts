@@ -1,5 +1,8 @@
+// services/routes/healthRoutes.ts
+
 import { FastifyInstance } from "fastify";
 import { pool } from "../../db";
+import { geocodeAddress } from "./geocoding";
 
 export function healthCheck(fastify: FastifyInstance) {
 	fastify.get("/health", async () => {
@@ -29,7 +32,7 @@ export function readinessCheck(fastify: FastifyInstance) {
 		const requiredEnvVars = [
 			"DATABASE_URL",
 			"JWT_SECRET",
-			"GOOGLE_MAPS_API_KEY"
+			"GEOCODIO_API_KEY"
 		];
 
 		const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
@@ -37,6 +40,18 @@ export function readinessCheck(fastify: FastifyInstance) {
 			checks.environment = `missing: ${missingVars.join(", ")}`;
 		} else {
 			checks.environment = "ok";
+		}
+
+		// Check 3: Geocoding API
+		try {
+			const testResult = await geocodeAddress("1600 Amphitheatre Parkway, Mountain View, CA");
+			if (testResult.success) {
+				checks.geocoding = "ok";
+			} else {
+				checks.geocoding = `failed - ${testResult.error}`;
+			}
+		} catch (error) {
+			checks.geocoding = `failed - ${error instanceof Error ? error.message : "unknown error"}`;
 		}
 
 		// Determine overall status

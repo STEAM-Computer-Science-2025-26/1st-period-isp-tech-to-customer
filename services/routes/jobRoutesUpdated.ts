@@ -1,8 +1,14 @@
+// services/routes/jobRoutesUpdated.ts
+
 import { FastifyInstance } from "fastify";
 import { query } from "../../db";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 import { tryGeocodeJob } from "./geocoding";
+
+// ============================================================
+// Schemas
+// ============================================================
 
 const listJobsSchema = z.object({
 	companyId: z.string().uuid().optional(),
@@ -16,7 +22,7 @@ const listJobsSchema = z.object({
 const createJobSchema = z.object({
 	companyId: z.string().uuid().optional(),
 	customerName: z.string().min(1),
-	address: z.string().min(1),
+	address: z.string().min(5, "Address must be at least 5 characters"),
 	phone: z.string().min(1),
 	jobType: z.enum(["installation", "repair", "maintenance", "inspection"]),
 	priority: z.enum(["low", "medium", "high", "emergency"]),
@@ -39,7 +45,7 @@ const updateJobStatusSchema = z.object({
 const updateJobSchema = z
 	.object({
 		customerName: z.string().min(1).optional(),
-		address: z.string().min(1).optional(),
+		address: z.string().min(5).optional(),
 		phone: z.string().min(1).optional(),
 		jobType: z
 			.enum(["installation", "repair", "maintenance", "inspection"])
@@ -56,6 +62,10 @@ const updateJobSchema = z
 	.refine((data) => Object.keys(data).length > 0, {
 		message: "At least one field must be provided"
 	});
+
+// ============================================================
+// Helpers
+// ============================================================
 
 type AuthUser = {
 	userId?: string;
@@ -76,6 +86,10 @@ function isDev(user: AuthUser): boolean {
 function requireCompanyId(user: AuthUser): string | null {
 	return user.companyId ?? null;
 }
+
+// ============================================================
+// Route Handlers
+// ============================================================
 
 export function listJobs(fastify: FastifyInstance) {
 	fastify.get("/jobs", async (request, reply) => {
@@ -171,6 +185,7 @@ export function createJob(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 
+		// Step 1: Insert job WITHOUT coordinates
 		const result = await query<{
 			id: string;
 			companyId: string;
@@ -228,21 +243,26 @@ export function createJob(fastify: FastifyInstance) {
 		);
 
 		const createdJob = result[0];
+
+		// Step 2: Geocode the address (async, don't block job creation)
 		try {
 			const geo = await tryGeocodeJob(body.address);
 
 			await query(
 				`UPDATE jobs 
-				SET latitude=$1, longitude=$2, geocoding_status=$3 
+				SET latitude=$1, longitude=$2, geocoding_status=$3, updated_at=NOW()
 				WHERE id=$4`,
 				[geo.latitude, geo.longitude, geo.geocodingStatus, createdJob.id]
 			);
 
+			// Update the returned job object with geocoded data
 			createdJob.latitude = geo.latitude;
 			createdJob.longitude = geo.longitude;
 			createdJob.geocodingStatus = geo.geocodingStatus;
 		} catch (error) {
-			console.error(`Geocoding failed for job ${createdJob.id}:`, error);
+			// Don't fail job creation if geocoding fails
+			console.error(`⚠️  Geocoding failed for job ${createdJob.id}:`, error);
+			// Job remains with geocoding_status='pending', which can be retried later
 		}
 
 		return { job: createdJob };
@@ -340,6 +360,7 @@ export function updateJob(fastify: FastifyInstance) {
 		if (body.address !== undefined) {
 			values.push(body.address);
 			updates.push(`address = $${values.length}`);
+			// Reset geocoding status when address changes
 			updates.push(`geocoding_status = 'pending'`);
 			updates.push(`latitude = NULL`);
 			updates.push(`longitude = NULL`);
@@ -399,15 +420,20 @@ export function updateJob(fastify: FastifyInstance) {
 			return reply.code(404).send({ error: "Job not found" });
 		}
 
+		// If address changed, re-geocode it
 		if (body.address !== undefined) {
-			const geo = await tryGeocodeJob(body.address);
-			await query(
-				`UPDATE jobs SET latitude=$1, longitude=$2, geocoding_status=$3 WHERE id=$4`,
-				[geo.latitude, geo.longitude, geo.geocodingStatus, jobId]
-			);
+			try {
+				const geo = await tryGeocodeJob(body.address);
+				await query(
+					`UPDATE jobs SET latitude=$1, longitude=$2, geocoding_status=$3, updated_at=NOW() WHERE id=$4`,
+					[geo.latitude, geo.longitude, geo.geocodingStatus, jobId]
+				);
+			} catch (error) {
+				console.error(`⚠️  Re-geocoding failed for job ${jobId}:`, error);
+			}
 		}
 
-		return { message: "Job updated successfully", job: result[0] };
+		return { message: "Job updated successfully", jobId: result[0].id };
 	});
 }
 

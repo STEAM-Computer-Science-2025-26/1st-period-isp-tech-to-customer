@@ -1,5 +1,5 @@
-// services/routes/geocoding-fixed.ts
-// WORKING GEOCODING IMPLEMENTATION
+// services/routes/geocoding.ts
+// WORKING GEOCODING IMPLEMENTATION using Geocod.io
 
 export type GeocodeResult = {
 	latitude: number;
@@ -12,13 +12,14 @@ export type GeocodeOutcome =
 	| { success: false; error: string };
 
 /**
- * Geocodes address using Geocod.io (already configured in original)
+ * Geocodes address using Geocod.io
+ * Get your API key from https://www.geocod.io
  */
 export async function geocodeAddress(address: string): Promise<GeocodeOutcome> {
-	const apiKey = process.env.GOOGLE_MAPS_API_KEY ?? "";
+	const apiKey = process.env.GEOCODIO_API_KEY;
 
 	if (!apiKey) {
-		console.error("GOOGLE_MAPS_API_KEY not set");
+		console.error("GEOCODIO_API_KEY not set in environment variables");
 		return { success: false, error: "API key not configured" };
 	}
 
@@ -31,7 +32,8 @@ export async function geocodeAddress(address: string): Promise<GeocodeOutcome> {
 		const response = await fetch(url);
 
 		if (!response.ok) {
-			console.error("Geocoding provider error:", response.status);
+			const errorText = await response.text();
+			console.error("Geocoding provider error:", response.status, errorText);
 			return {
 				success: false,
 				error: `Provider error: ${response.status}`
@@ -41,11 +43,16 @@ export async function geocodeAddress(address: string): Promise<GeocodeOutcome> {
 		const data = await response.json();
 
 		if (!data.results || data.results.length === 0) {
-			return { success: false, error: "No results found" };
+			return { success: false, error: "No results found for address" };
 		}
 
-		const location = data.results[0].location;
-		const formattedAddress = data.results[0].formatted_address;
+		const bestResult = data.results[0];
+		const location = bestResult.location;
+		const formattedAddress = bestResult.formatted_address;
+
+		if (!location || typeof location.lat !== "number" || typeof location.lng !== "number") {
+			return { success: false, error: "Invalid location data returned" };
+		}
 
 		return {
 			success: true,
@@ -59,11 +66,15 @@ export async function geocodeAddress(address: string): Promise<GeocodeOutcome> {
 		console.error("Geocoding request failed:", error);
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : "Request failed"
+			error: error instanceof Error ? error.message : "Network request failed"
 		};
 	}
 }
 
+/**
+ * Attempts to geocode a job address and returns the DB update payload.
+ * Use this in createJob() after inserting the row.
+ */
 export async function tryGeocodeJob(address: string): Promise<{
 	latitude: number | null;
 	longitude: number | null;
@@ -72,6 +83,7 @@ export async function tryGeocodeJob(address: string): Promise<{
 	const outcome = await geocodeAddress(address);
 
 	if (outcome.success) {
+		console.log(`✅ Geocoded address: "${address}" -> (${outcome.result.latitude}, ${outcome.result.longitude})`);
 		return {
 			latitude: outcome.result.latitude,
 			longitude: outcome.result.longitude,
@@ -79,7 +91,7 @@ export async function tryGeocodeJob(address: string): Promise<{
 		};
 	}
 
-	console.error(`Geocoding failed for address "${address}": ${outcome.error}`);
+	console.error(`❌ Geocoding failed for address "${address}": ${outcome.error}`);
 	return {
 		latitude: null,
 		longitude: null,
