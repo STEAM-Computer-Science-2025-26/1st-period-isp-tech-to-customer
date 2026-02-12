@@ -1,4 +1,3 @@
-
 import { query, pool } from "../../db";
 
 export type JobRecord = {
@@ -36,7 +35,10 @@ export class JobRepository {
 		return result[0] || null;
 	}
 
-	async findByIdWithLock(jobId: string, client: any): Promise<JobRecord | null> {
+	async findByIdWithLock(
+		jobId: string,
+		client: any
+	): Promise<JobRecord | null> {
 		const result = await client.query(
 			`SELECT 
 				id, 
@@ -87,7 +89,11 @@ export class JobRepository {
 		);
 	}
 
-	async assignToTech(jobId: string, techId: string, client: any): Promise<void> {
+	async assignToTech(
+		jobId: string,
+		techId: string,
+		client: any
+	): Promise<void> {
 		await client.query(
 			`UPDATE jobs 
 			SET assigned_tech_id = $1, status = 'assigned', updated_at = NOW()

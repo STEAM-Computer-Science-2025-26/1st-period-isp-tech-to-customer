@@ -110,9 +110,8 @@ export async function enrichMultipleTechnicians(
 }
 
 export function contentType(arg0: string, contentType: any) {
-    throw new Error("Function not implemented.");
+	throw new Error("Function not implemented.");
 }
 export function metrics(): unknown {
-    throw new Error("Function not implemented.");
+	throw new Error("Function not implemented.");
 }
-

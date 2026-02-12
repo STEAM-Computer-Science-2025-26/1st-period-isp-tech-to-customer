@@ -22,10 +22,7 @@ export async function assignJobToTech(
 		await client.query("BEGIN");
 
 		// CRITICAL CHANGE: lock the job FIRST
-		await client.query(
-			`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`,
-			[jobId]
-		);
+		await client.query(`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`, [jobId]);
 
 		// Now safely read the job
 		const jobResult = await client.query(
@@ -47,10 +44,9 @@ export async function assignJobToTech(
 		}
 
 		// Lock the technician row too — you were missing this
-		await client.query(
-			`SELECT id FROM employees WHERE id = $1 FOR UPDATE`,
-			[techId]
-		);
+		await client.query(`SELECT id FROM employees WHERE id = $1 FOR UPDATE`, [
+			techId
+		]);
 
 		const techResult = await client.query(
 			`SELECT id, current_jobs_count, max_concurrent_jobs
@@ -113,7 +109,6 @@ export async function assignJobToTech(
 		client.release();
 	}
 }
-
 
 /**
  * @param jobId

@@ -42,7 +42,9 @@ export class DispatchOrchestrator {
 
 		// 2. Validate job state
 		if (job.status !== "unassigned") {
-			throw new Error(`Job ${jobId} is already ${job.status}. Cannot dispatch.`);
+			throw new Error(
+				`Job ${jobId} is already ${job.status}. Cannot dispatch.`
+			);
 		}
 
 		if (!job.latitude || !job.longitude) {
@@ -195,9 +197,7 @@ export class DispatchOrchestrator {
 
 			const tech = techResult.rows[0];
 			if (tech.current_jobs_count >= tech.max_concurrent_jobs) {
-				throw new Error(
-					`Tech ${techId} has reached max concurrent jobs limit`
-				);
+				throw new Error(`Tech ${techId} has reached max concurrent jobs limit`);
 			}
 
 			// Perform assignment

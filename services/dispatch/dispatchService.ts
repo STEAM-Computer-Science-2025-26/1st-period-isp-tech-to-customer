@@ -25,7 +25,10 @@ export async function runDispatchForJob(
 		throw new Error(`Job ${jobId} not found`);
 	}
 
-	const result = await orchestrator.dispatchJob(jobId, { autoAssign, assignedByUserId });
+	const result = await orchestrator.dispatchJob(jobId, {
+		autoAssign,
+		assignedByUserId
+	});
 
 	// Record dispatch results
 	if ((metrics as any).recordDispatchResult) {

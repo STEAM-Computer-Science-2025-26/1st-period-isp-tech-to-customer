@@ -8,6 +8,15 @@ import {
 } from "../dispatch/dispatchService";
 import { completeJob, unassignJob, startJob } from "../dispatch/persistence";
 
+// === DEFINE THE CONTRACT YOU SHOULD ALREADY HAVE ===
+// If you want this somewhere else, move it to services/types/dispatch.ts
+export type DispatchRecommendation = {
+	requiresManualDispatch: boolean;
+	technicianId?: string | null;
+	score?: number;
+	reason?: string;
+};
+
 const manualAssignSchema = z.object({
 	techId: z.string().uuid(),
 	reason: z.string().min(10, "Reason must be at least 10 characters")
@@ -42,11 +51,15 @@ export function dispatchJob(fastify: FastifyInstance) {
 		const userId = getUserId(user);
 
 		try {
-			const recommendation = await runDispatchForJob(jobId, userId, true);
+			const recommendation = (await runDispatchForJob(
+				jobId,
+				userId,
+				true
+			)) as unknown as DispatchRecommendation;
 
 			return {
 				recommendation,
-				assigned: !recommendation.requiresManualDispatch
+				assigned: recommendation.requiresManualDispatch === false
 			};
 		} catch (error) {
 			if (error instanceof Error) {
@@ -70,7 +83,9 @@ export function getRecommendations(fastify: FastifyInstance) {
 		const { jobId } = request.params as { jobId: string };
 
 		try {
-			const recommendation = await getDispatchRecommendations(jobId);
+			const recommendation: DispatchRecommendation =
+				await getDispatchRecommendations(jobId);
+
 			return { recommendation };
 		} catch (error) {
 			if (error instanceof Error && error.message.includes("not found")) {
@@ -190,7 +205,6 @@ export function unassignJobRoute(fastify: FastifyInstance) {
 }
 
 export async function dispatchRoutes(fastify: FastifyInstance) {
-	// All dispatch routes require authentication
 	fastify.register(async (authenticatedRoutes) => {
 		authenticatedRoutes.addHook("onRequest", authenticate);
 

@@ -1,4 +1,3 @@
-
 import { query } from "../../db";
 import { TechnicianInput } from "../types/technicianInput";
 
@@ -24,7 +23,6 @@ export type TechMetrics = {
 };
 
 export class TechnicianRepository {
-
 	async findEligibleForDispatch(companyId: string): Promise<TechRecord[]> {
 		const result = await query<any>(
 			`SELECT 
@@ -49,7 +47,9 @@ export class TechnicianRepository {
 		return result;
 	}
 
-	async batchQueryMetrics(techIds: string[]): Promise<Map<string, TechMetrics>> {
+	async batchQueryMetrics(
+		techIds: string[]
+	): Promise<Map<string, TechMetrics>> {
 		if (techIds.length === 0) {
 			return new Map();
 		}
@@ -116,7 +116,6 @@ export class TechnicianRepository {
 
 		return metricsMap;
 	}
-
 
 	async enrichWithMetrics(techs: TechRecord[]): Promise<TechnicianInput[]> {
 		const techIds = techs.map((t) => t.id);

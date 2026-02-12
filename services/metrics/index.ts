@@ -115,31 +115,31 @@ export async function trackDispatch<T>(
 
 	try {
 		const result = await operation();
-		
-		dispatchAttempts.inc({ 
-			status: "success", 
+
+		dispatchAttempts.inc({
+			status: "success",
 			company_id: companyId,
-			priority 
+			priority
 		});
 
-		timer({ 
-			success: "true", 
+		timer({
+			success: "true",
 			manual_required: "false",
-			company_id: companyId 
+			company_id: companyId
 		});
 
 		return result;
 	} catch (error) {
-		dispatchAttempts.inc({ 
-			status: "error", 
+		dispatchAttempts.inc({
+			status: "error",
 			company_id: companyId,
-			priority 
+			priority
 		});
 
-		timer({ 
-			success: "false", 
+		timer({
+			success: "false",
 			manual_required: "unknown",
-			company_id: companyId 
+			company_id: companyId
 		});
 
 		throw error;
@@ -158,9 +158,9 @@ export function recordDispatchResult(
 	eligibleTechsGauge.observe({ company_id: companyId }, eligibleCount);
 
 	if (requiresManual) {
-		assignmentManualRequired.inc({ 
-			company_id: companyId, 
-			reason: reason || "unknown" 
+		assignmentManualRequired.inc({
+			company_id: companyId,
+			reason: reason || "unknown"
 		});
 	} else {
 		assignmentSuccess.inc({ company_id: companyId });
@@ -178,7 +178,7 @@ export async function trackGeocoding<T>(
 
 	try {
 		const result = await operation();
-		
+
 		geocodingAttempts.inc({ status: "success", provider });
 		timer({ status: "success" });
 
