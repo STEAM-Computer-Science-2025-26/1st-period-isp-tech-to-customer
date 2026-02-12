@@ -108,3 +108,11 @@ export async function enrichMultipleTechnicians(
 ): Promise<Record<string, unknown>[]> {
 	return Promise.all(technicians.map((tech) => enrichTechWithMetrics(tech)));
 }
+
+export function contentType(arg0: string, contentType: any) {
+    throw new Error("Function not implemented.");
+}
+export function metrics(): unknown {
+    throw new Error("Function not implemented.");
+}
+

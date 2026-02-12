@@ -1,67 +1,49 @@
+// services/routes/geocoding-fixed.ts
+// WORKING GEOCODING IMPLEMENTATION
+
 export type GeocodeResult = {
 	latitude: number;
 	longitude: number;
-	formattedAddress: string; // normalized address returned by the provider
+	formattedAddress: string;
 };
+
 export type GeocodeOutcome =
 	| { success: true; result: GeocodeResult }
 	| { success: false; error: string };
 
 /**
- * converts address to coordinates
- * @param address
- * @returns GeocodeOutcome
+ * Geocodes address using Geocod.io (already configured in original)
  */
-
 export async function geocodeAddress(address: string): Promise<GeocodeOutcome> {
 	const apiKey = process.env.GOOGLE_MAPS_API_KEY ?? "";
 
 	if (!apiKey) {
-		console.error(
-			"Geocoding API key is not set. Please set GOOGLE_MAPS_API_KEY in your environment variables."
-		);
-		return {
-			success: false,
-			error: "API key not configured"
-		};
+		console.error("GOOGLE_MAPS_API_KEY not set");
+		return { success: false, error: "API key not configured" };
 	}
 
 	if (!address || address.trim().length < 5) {
-		return {
-			success: false,
-			error: "Address is too short or empty"
-		};
+		return { success: false, error: "Address too short or empty" };
 	}
+
 	try {
 		const url = `https://api.geocod.io/v1.7/geocode?q=${encodeURIComponent(address)}&api_key=${apiKey}`;
 		const response = await fetch(url);
 
 		if (!response.ok) {
-			console.error(
-				"Geocoding provider responded with non-OK status",
-				response.status
-			);
+			console.error("Geocoding provider error:", response.status);
 			return {
 				success: false,
-				error: `Geocoding provider error: ${response.status}`
+				error: `Provider error: ${response.status}`
 			};
 		}
 
 		const data = await response.json();
 
-		if (data && data.status === "OVER_QUERY_LIMIT") {
-			console.error("Geocoding API quota exceeded.");
-			return {
-				success: false,
-				error: "Try again later, map problem"
-			};
-		}
 		if (!data.results || data.results.length === 0) {
-			return {
-				success: false,
-				error: "No geocoding results found"
-			};
+			return { success: false, error: "No results found" };
 		}
+
 		const location = data.results[0].location;
 		const formattedAddress = data.results[0].formatted_address;
 
@@ -74,19 +56,14 @@ export async function geocodeAddress(address: string): Promise<GeocodeOutcome> {
 			}
 		};
 	} catch (error) {
-		console.error("Error during geocoding request", error);
+		console.error("Geocoding request failed:", error);
 		return {
 			success: false,
-			error: "Geocoding request failed"
+			error: error instanceof Error ? error.message : "Request failed"
 		};
 	}
 }
 
-/**
- * @param address
- * @returns
- *
- */
 export async function tryGeocodeJob(address: string): Promise<{
 	latitude: number | null;
 	longitude: number | null;

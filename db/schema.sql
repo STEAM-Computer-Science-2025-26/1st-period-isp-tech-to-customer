@@ -200,3 +200,84 @@ ALTER TABLE jobs
 
 CREATE INDEX IF NOT EXISTS idx_jobs_geocoding_status
 	ON jobs(geocoding_status);
+CREATE TABLE IF NOT EXISTS job_completions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    tech_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    completed_at TIMESTAMPTZ DEFAULT NOW(),
+    duration_minutes INTEGER,
+    first_time_fix BOOLEAN DEFAULT TRUE,
+    customer_rating INTEGER CHECK (customer_rating BETWEEN 1 AND 5),
+    completion_notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_job_completions_tech_id ON job_completions(tech_id);
+CREATE INDEX idx_job_completions_completed_at ON job_completions(completed_at);
+
+CREATE TABLE IF NOT EXISTS job_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    tech_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    assigned_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    assigned_at TIMESTAMPTZ DEFAULT NOW(),
+    is_manual_override BOOLEAN DEFAULT FALSE,
+    override_reason TEXT,
+    scoring_details JSONB,
+    job_priority TEXT,
+    job_type TEXT,
+    is_emergency BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_job_assignments_job_id ON job_assignments(job_id);
+CREATE INDEX idx_job_assignments_tech_id ON job_assignments(tech_id);
+
+-- db/schema-updated.sql
+-- ADD THESE TABLES TO YOUR EXISTING SCHEMA
+
+-- ============================================================
+-- JOB COMPLETIONS (for metrics tracking)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS job_completions (
+	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+	tech_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+	company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+	completed_at TIMESTAMPTZ DEFAULT NOW(),
+	duration_minutes INTEGER,
+	first_time_fix BOOLEAN DEFAULT TRUE,
+	customer_rating INTEGER CHECK (customer_rating BETWEEN 1 AND 5),
+	completion_notes TEXT,
+	created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_completions_tech_id ON job_completions(tech_id);
+CREATE INDEX IF NOT EXISTS idx_job_completions_completed_at ON job_completions(completed_at);
+CREATE INDEX IF NOT EXISTS idx_job_completions_company_id ON job_completions(company_id);
+
+-- ============================================================
+-- JOB ASSIGNMENTS (for dispatch tracking and analytics)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS job_assignments (
+	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+	tech_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+	company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+	assigned_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+	assigned_at TIMESTAMPTZ DEFAULT NOW(),
+	is_manual_override BOOLEAN DEFAULT FALSE,
+	override_reason TEXT,
+	scoring_details JSONB,
+	job_priority TEXT,
+	job_type TEXT,
+	is_emergency BOOLEAN DEFAULT FALSE,
+	created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_assignments_job_id ON job_assignments(job_id);
+CREATE INDEX IF NOT EXISTS idx_job_assignments_tech_id ON job_assignments(tech_id);
+CREATE INDEX IF NOT EXISTS idx_job_assignments_company_id ON job_assignments(company_id);
+CREATE INDEX IF NOT EXISTS idx_job_assignments_assigned_at ON job_assignments(assigned_at);

@@ -17,13 +17,20 @@ export async function assignJobToTech(
 	scoringDetails?: Record<string, unknown>
 ): Promise<void> {
 	const client = await pool.connect();
+
 	try {
 		await client.query("BEGIN");
 
-		// BUG 2 FIX: removed trailing comma after job_type that caused a SQL syntax crash
+		// CRITICAL CHANGE: lock the job FIRST
+		await client.query(
+			`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`,
+			[jobId]
+		);
+
+		// Now safely read the job
 		const jobResult = await client.query(
 			`SELECT id, company_id, status, assigned_tech_id, priority, job_type
-            FROM jobs WHERE id = $1`,
+             FROM jobs WHERE id = $1`,
 			[jobId]
 		);
 
@@ -39,9 +46,15 @@ export async function assignJobToTech(
 			);
 		}
 
+		// Lock the technician row too — you were missing this
+		await client.query(
+			`SELECT id FROM employees WHERE id = $1 FOR UPDATE`,
+			[techId]
+		);
+
 		const techResult = await client.query(
 			`SELECT id, current_jobs_count, max_concurrent_jobs
-            FROM employees WHERE id = $1`,
+             FROM employees WHERE id = $1`,
 			[techId]
 		);
 
@@ -55,33 +68,34 @@ export async function assignJobToTech(
 			throw new Error(`Tech ${techId} has reached max concurrent jobs limit`);
 		}
 
+		// Perform the assignment
 		await client.query(
-			`UPDATE jobs SET assigned_tech_id = $1, status = 'assigned', updated_at = NOW()
-            WHERE id = $2`,
+			`UPDATE jobs 
+             SET assigned_tech_id = $1, status = 'assigned', updated_at = NOW()
+             WHERE id = $2`,
 			[techId, jobId]
 		);
 
 		await client.query(
 			`UPDATE employees
-            SET current_job_id = $1,
-                current_jobs_count = current_jobs_count + 1,
-                updated_at = NOW()
-            WHERE id = $2`,
+             SET current_job_id = $1,
+                 current_jobs_count = current_jobs_count + 1,
+                 updated_at = NOW()
+             WHERE id = $2`,
 			[jobId, techId]
 		);
 
-		// BUG 2 FIX: $3 was job.company_id — wrong. assigned_by_user_id is the
-		// function parameter assignedByUserId. company_id moved to $4 where it belongs.
 		await client.query(
 			`INSERT INTO job_assignments 
-            (job_id, tech_id, assigned_by_user_id, company_id, assigned_at, is_manual_override, 
-              override_reason, scoring_details, job_priority, job_type, is_emergency)
+            (job_id, tech_id, assigned_by_user_id, company_id, assigned_at, 
+             is_manual_override, override_reason, scoring_details, 
+             job_priority, job_type, is_emergency)
             VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8, $9, $10)`,
 			[
 				jobId,
 				techId,
-				assignedByUserId,        // $3 — was wrongly job.company_id before
-				job.company_id,          // $4 — company_id now correctly in position
+				assignedByUserId,
+				job.company_id,
 				isManualOverride,
 				overrideReason || null,
 				scoringDetails ? JSON.stringify(scoringDetails) : null,
@@ -99,6 +113,7 @@ export async function assignJobToTech(
 		client.release();
 	}
 }
+
 
 /**
  * @param jobId

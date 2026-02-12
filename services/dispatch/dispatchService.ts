@@ -1,239 +1,70 @@
-import { query } from "../../db";
-import { dispatch } from "../../algo/main-dispatch";
-import { enrichMultipleTechnicians } from "./metrics";
-import { assignJobToTech } from "./persistence";
-import { TechnicianInput } from "../types/technicianInput";
-import { filterEligibleTechnicians } from "../../algo/stage1-eligibility";
+// services/dispatch/dispatchService-instrumented.ts
 
+import { DispatchOrchestrator } from "./dispatchOrchestrator";
+import { TechnicianRepository } from "../repositories/TechnicianRepository";
+import { JobRepository } from "../repositories/JobRepository";
+import * as metrics from "./metrics";
 
+// Singleton instances
+const techRepo = new TechnicianRepository();
+const jobRepo = new JobRepository();
+const orchestrator = new DispatchOrchestrator(techRepo, jobRepo);
+
+/**
+ * Run dispatch for a job with metrics tracking
+ */
 export async function runDispatchForJob(
 	jobId: string,
 	assignedByUserId: string,
 	autoAssign: boolean = true
-): Promise<ReturnType<typeof dispatch>> {
-	const jobResult = await query<{
-		id: string;
-		company_id: string;
-		job_type: string;
-		priority: string;
-		address: string;
-		latitude: number;
-		longitude: number;
-		status: string;
-		geocoding_status: string;
-	}>(
-		`SELECT 
-            id, company_id, job_type, priority, address, 
-            latitude, longitude, status, geocoding_status
-        FROM jobs
-        WHERE id = $1`,
-		[jobId]
-	);
-
-	if (jobResult.length === 0) {
+) {
+	// Get job to extract company ID and priority for metrics
+	// Get job to extract company ID and priority for metrics
+	const job = await jobRepo.findById(jobId);
+	if (!job) {
 		throw new Error(`Job ${jobId} not found`);
 	}
 
-	const job = jobResult[0];
+	const result = await orchestrator.dispatchJob(jobId, { autoAssign, assignedByUserId });
 
-	if (job.status !== "unassigned") {
-		throw new Error(`Job ${jobId} is already ${job.status}. Cannot dispatch.`);
-	}
-
-	if (!job.latitude || !job.longitude) {
-		throw new Error(
-			`Job ${jobId} has no coordinates. Geocoding status: ${job.geocoding_status}`
+	// Record dispatch results
+	if ((metrics as any).recordDispatchResult) {
+		(metrics as any).recordDispatchResult(
+			result.totalEligibleTechs,
+			result.requiresManualDispatch,
+			result.manualDispatchReason
 		);
 	}
-
-	const techResult = await query<Record<string, unknown>>(
-		`SELECT 
-			id, name, company_id,
-			is_active AS "isActive",
-			is_available AS "isAvailable",
-			current_jobs_count AS "currentJobsCount",
-			max_concurrent_jobs AS "maxConcurrentJobs",
-			latitude, longitude,
-			max_travel_distance_miles AS "maxTravelDistanceMiles",
-			skills,
-			skill_level AS "skillLevel"
-		FROM employees
-		WHERE company_id = $1
-			AND is_active = true
-			AND is_available = true
-			AND latitude IS NOT NULL
-			AND longitude IS NOT NULL`,
-		[job.company_id]
-	);
-
-	const enrichedTechs = await enrichMultipleTechnicians(techResult);
-	const technicians: TechnicianInput[] = enrichedTechs.map((tech) => ({
-		id: tech.id as string,
-		name: tech.name as string,
-		companyId: tech.companyId as string,
-		isActive: tech.isActive as boolean,
-		isAvailable: tech.isAvailable as boolean,
-		currentJobsCount: tech.currentJobsCount as number,
-		maxConcurrentJobs: tech.maxConcurrentJobs as number,
-		dailyJobCount: (tech.dailyJobCount as number) || 0,
-		recentJobCount: (tech.recentJobCount as number) || 0,
-		recentCompletionRate: (tech.recentCompletionRate as number) || 0,
-		latitude: tech.latitude as number,
-		longitude: tech.longitude as number,
-		maxTravelDistanceMiles: tech.maxTravelDistanceMiles as number,
-		skills: tech.skills as string[],
-		skillLevel: tech.skillLevel as Record<string, number>
-	}));
-
-	const jobSkillsResult = await query<{ required_skills: string[] }>(
-		`SELECT required_skills FROM jobs WHERE id = $1`,
-		[jobId]
-	);
-
-	const requiredSkills = jobSkillsResult[0]?.required_skills || [];
-	const jobInput = {
-		id: job.id,
-		companyId: job.company_id,
-		jobType: job.job_type,
-		priority: job.priority,
-		address: job.address,
-		latitude: job.latitude,
-		longitude: job.longitude,
-		requiredSkills,
-		minimumSkillLevel: 2
-	};
-
-	const recommendation = dispatch(jobInput, technicians);
-
-	if (
-		autoAssign &&
-		!recommendation.requiresManualDispatch &&
-		recommendation.assignedTech
-	) {
-		await assignJobToTech(
-			jobId,
-			recommendation.assignedTech.techId,
-			assignedByUserId,
-			false,
-			undefined,
-			recommendation
-		);
-	}
-
-	return recommendation;
 }
 
-
+/**
+ * Get dispatch recommendations without assigning
+ */
 export async function getDispatchRecommendations(jobId: string) {
-	return runDispatchForJob(jobId, "system", false);
+	const job = await jobRepo.findById(jobId);
+	if (!job) {
+		throw new Error(`Job ${jobId} not found`);
+	}
+
+	const result = await orchestrator.dispatchJob(jobId, { autoAssign: false });
+
+	// Track eligible techs even for preview
+	// eligible techs metric not available; skip observing in preview
+	return result;
 }
 
-
+/**
+ * Manually assign a job to a specific tech
+ */
 export async function manualAssignJob(
 	jobId: string,
 	assignedByUserId: string,
 	techId: string,
 	reason: string
 ): Promise<void> {
-	// Fetch the job
-	const jobResult = await query<{
-		id: string;
-		company_id: string;
-		job_type: string;
-		priority: string;
-		address: string;
-		latitude: number;
-		longitude: number;
-		status: string;
-		geocoding_status: string;
-	}>(
-		`SELECT id, company_id, job_type, priority, address,
-                latitude, longitude, status, geocoding_status
-         FROM jobs WHERE id = $1`,
-		[jobId]
-	);
+	return orchestrator.manualAssign(jobId, techId, assignedByUserId, reason);
+}
 
-	if (jobResult.length === 0) {
-		throw new Error(`Job ${jobId} not found`);
-	}
-
-	const job = jobResult[0];
-
-	if (job.status !== "unassigned") {
-		throw new Error(`Job ${jobId} is already ${job.status}. Cannot assign.`);
-	}
-
-	if (!job.latitude || !job.longitude) {
-		throw new Error(
-			`Job ${jobId} has no coordinates. Geocoding status: ${job.geocoding_status}`
-		);
-	}
-
-	const techResult = await query<Record<string, unknown>>(
-		`SELECT 
-			id, name, company_id,
-			is_active AS "isActive",
-			is_available AS "isAvailable",
-			current_jobs_count AS "currentJobsCount",
-			max_concurrent_jobs AS "maxConcurrentJobs",
-			latitude, longitude,
-			max_travel_distance_miles AS "maxTravelDistanceMiles",
-			skills,
-			skill_level AS "skillLevel"
-		FROM employees
-		WHERE company_id = $1
-			AND is_active = true
-			AND is_available = true
-			AND latitude IS NOT NULL
-			AND longitude IS NOT NULL`,
-		[job.company_id]
-	);
-
-	const enrichedTechs = await enrichMultipleTechnicians(techResult);
-	const technicians: TechnicianInput[] = enrichedTechs.map((tech) => ({
-		id: tech.id as string,
-		name: tech.name as string,
-		companyId: tech.companyId as string,
-		isActive: tech.isActive as boolean,
-		isAvailable: tech.isAvailable as boolean,
-		currentJobsCount: tech.currentJobsCount as number,
-		maxConcurrentJobs: tech.maxConcurrentJobs as number,
-		dailyJobCount: (tech.dailyJobCount as number) || 0,
-		recentJobCount: (tech.recentJobCount as number) || 0,
-		recentCompletionRate: (tech.recentCompletionRate as number) || 0,
-		latitude: tech.latitude as number,
-		longitude: tech.longitude as number,
-		maxTravelDistanceMiles: tech.maxTravelDistanceMiles as number,
-		skills: tech.skills as string[],
-		skillLevel: tech.skillLevel as Record<string, number>
-	}));
-
-	const jobSkillsResult = await query<{ required_skills: string[] }>(
-		`SELECT required_skills FROM jobs WHERE id = $1`,
-		[jobId]
-	);
-
-	const requiredSkills = jobSkillsResult[0]?.required_skills || [];
-	const jobInput = {
-		id: job.id,
-		companyId: job.company_id,
-		latitude: job.latitude,
-		longitude: job.longitude,
-		requiredSkills,
-		minimumSkillLevel: 2
-	};
-
-	const { eligible } = filterEligibleTechnicians(technicians, jobInput);
-
-	const chosenTech = eligible.find((t) => t.id === techId);
-
-	if (!chosenTech) {
-		const eligibleIds = eligible.map((t) => `${t.id} (${t.name})`).join(", ");
-		throw new Error(
-			`Tech ${techId} is not eligible for job ${jobId}. ` +
-				`Eligible techs: ${eligibleIds || "none"}`
-		);
-	}
-
-	await assignJobToTech(jobId, techId, assignedByUserId, true, reason);
+function recordDispatchResult(totalEligibleTechs: number, arg1: any) {
+	throw new Error("Function not implemented.");
 }
