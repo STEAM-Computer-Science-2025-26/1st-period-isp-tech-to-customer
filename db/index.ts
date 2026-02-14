@@ -1,8 +1,14 @@
 import { Pool } from "pg";
 import type { QueryResultRow } from "pg";
+import dotenv from "dotenv";
+
+dotenv.config(); // <— ensures DATABASE_URL is loaded from .env
 
 export const pool = new Pool({
-	connectionString: process.env.DATABASE_URL
+	connectionString: process.env.DATABASE_URL,
+	ssl: process.env.DATABASE_URL?.includes("sslmode=require")
+		? { rejectUnauthorized: false }
+		: false,
 });
 
 export async function query<T extends QueryResultRow = QueryResultRow>(

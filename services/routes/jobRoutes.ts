@@ -3,7 +3,6 @@ import { query } from "../../db";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 
-// ============================================================
 // Schemas
 // ============================================================
 

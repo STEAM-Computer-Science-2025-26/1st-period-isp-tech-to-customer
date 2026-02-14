@@ -1,4 +1,5 @@
 // services/server.ts
+import locationRoutes from './routes/locationRoutes';
 
 import "dotenv/config";
 import Fastify from "fastify";
@@ -15,14 +16,10 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
 function validateEnvironment() {
 	const required = ["DATABASE_URL", "JWT_SECRET", "GEOCODIO_API_KEY"];
-
 	const missing = required.filter((key) => !process.env[key]);
-
 	if (missing.length > 0) {
 		console.error("\n❌ CRITICAL: Missing required environment variables:\n");
-		missing.forEach((key) => {
-			console.error(`   - ${key}`);
-		});
+		missing.forEach((key) => console.error(`   - ${key}`));
 		console.error("\nAdd these to your .env file and restart the server.\n");
 		console.error("Get GEOCODIO_API_KEY from: https://www.geocod.io\n");
 		process.exit(1);
@@ -38,19 +35,13 @@ const allowedOrigins: string[] = (
 	.map((o) => o.trim())
 	.filter(Boolean);
 
-// Create Fastify instance with structured logging
 const fastify = Fastify({
 	logger: {
 		level: process.env.LOG_LEVEL || "info",
-		// Pretty print in development, JSON in production
 		...(process.env.NODE_ENV !== "production" && {
 			transport: {
 				target: "pino-pretty",
-				options: {
-					colorize: true,
-					translateTime: "HH:MM:ss",
-					ignore: "pid,hostname"
-				}
+				options: { colorize: true, translateTime: "HH:MM:ss", ignore: "pid,hostname" }
 			}
 		})
 	}
@@ -58,7 +49,6 @@ const fastify = Fastify({
 
 await fastify.register(fastifyCors, {
 	origin: (origin, cb) => {
-		// allow requests with no origin (server-to-server, curl, Postman)
 		if (!origin) return cb(null, true);
 		if (allowedOrigins.includes(origin)) return cb(null, true);
 		cb(new Error(`CORS: origin '${origin}' is not allowed`), false);
@@ -68,9 +58,19 @@ await fastify.register(fastifyCors, {
 
 await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET! });
 
+// ===== Add authenticate decorator here =====
+fastify.decorate('authenticate', async (request: any, reply: any) => {
+	try {
+		await request.jwtVerify();
+	} catch (err) {
+		reply.send(err);
+	}
+});
+
 fastify.setErrorHandler(errorHandler);
 fastify.setNotFoundHandler(notFoundHandler);
 
+// ===== Register all routes =====
 await healthRoutes(fastify);
 await jobRoutes(fastify);
 await userRoutes(fastify);
@@ -78,6 +78,7 @@ await companyRoutes(fastify);
 await registerEmployeeRoutes(fastify);
 await dispatchRoutes(fastify);
 await employeeLocationRoutes(fastify);
+await fastify.register(locationRoutes); // Proper registration of FastifyPluginAsync
 
 fastify.get("/", async () => ({
 	status: "running",

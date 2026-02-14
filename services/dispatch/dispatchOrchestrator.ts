@@ -19,7 +19,7 @@ export type DispatchResult = {
 	requiresManualDispatch: boolean;
 	isEmergency: boolean;
 	timestamp: string;
-	manualDispatchReason?: string;
+	manualDispatchReason?: string;  
 };
 
 export class DispatchOrchestrator {

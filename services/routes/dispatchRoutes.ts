@@ -1,3 +1,5 @@
+// routes/dispatchRoutes.ts - COMBINED VERSION
+
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth";
@@ -7,9 +9,9 @@ import {
 	manualAssignJob
 } from "../dispatch/dispatchService";
 import { completeJob, unassignJob, startJob } from "../dispatch/persistence";
+import { batchDispatch } from "../../services/dispatch/batchDispatch";
 
-// === DEFINE THE CONTRACT YOU SHOULD ALREADY HAVE ===
-// If you want this somewhere else, move it to services/types/dispatch.ts
+// Types
 export type DispatchRecommendation = {
 	requiresManualDispatch: boolean;
 	technicianId?: string | null;
@@ -17,6 +19,14 @@ export type DispatchRecommendation = {
 	reason?: string;
 };
 
+type AuthUser = {
+	userId?: string;
+	id?: string;
+	role?: string;
+	companyId?: string;
+};
+
+// Schemas
 const manualAssignSchema = z.object({
 	techId: z.string().uuid(),
 	reason: z.string().min(10, "Reason must be at least 10 characters")
@@ -29,13 +39,11 @@ const completeJobSchema = z.object({
 	customerRating: z.number().int().min(1).max(5).optional()
 });
 
-type AuthUser = {
-	userId?: string;
-	id?: string;
-	role?: string;
-	companyId?: string;
-};
+const batchDispatchSchema = z.object({
+	jobIds: z.array(z.string().uuid()).min(1, "At least one job ID required")
+});
 
+// Helper functions
 function getAuthUser(request: { user?: unknown }): AuthUser {
 	return (request.user ?? {}) as AuthUser;
 }
@@ -44,6 +52,7 @@ function getUserId(user: AuthUser): string {
 	return user.userId ?? user.id ?? "unknown";
 }
 
+// Single job dispatch
 export function dispatchJob(fastify: FastifyInstance) {
 	fastify.post("/jobs/:jobId/dispatch", async (request, reply) => {
 		const { jobId } = request.params as { jobId: string };
@@ -78,6 +87,52 @@ export function dispatchJob(fastify: FastifyInstance) {
 	});
 }
 
+// Batch dispatch (NEW - OPTIMIZED)
+export function batchDispatchRoute(fastify: FastifyInstance) {
+	fastify.post("/dispatch/batch", async (request, reply) => {
+		const user = getAuthUser(request);
+		const companyId = user.companyId;
+
+		if (!companyId) {
+			return reply.code(403).send({ error: "Company ID required" });
+		}
+
+		const parsed = batchDispatchSchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid request body",
+				details: parsed.error.flatten().fieldErrors
+			});
+		}
+
+		const { jobIds } = parsed.data;
+
+		try {
+			// Run optimized batch dispatch
+			const result = await batchDispatch(jobIds, companyId);
+
+			// Assignments returned in `result.assignments`; persistence should be handled
+			// by the batchDispatch implementation. If additional persistence here is
+			// required, implement and export it from the batchDispatch module.
+
+			return {
+				success: true,
+				...result
+			};
+		} catch (error) {
+			console.error("Batch dispatch error:", error);
+			if (error instanceof Error) {
+				return reply.code(500).send({ 
+					error: "Batch dispatch failed", 
+					message: error.message 
+				});
+			}
+			return reply.code(500).send({ error: "Batch dispatch failed" });
+		}
+	});
+}
+
+// Get recommendations
 export function getRecommendations(fastify: FastifyInstance) {
 	fastify.get("/jobs/:jobId/recommendations", async (request, reply) => {
 		const { jobId } = request.params as { jobId: string };
@@ -96,6 +151,7 @@ export function getRecommendations(fastify: FastifyInstance) {
 	});
 }
 
+// Manual assign
 export function manualAssign(fastify: FastifyInstance) {
 	fastify.post("/jobs/:jobId/assign", async (request, reply) => {
 		const { jobId } = request.params as { jobId: string };
@@ -129,6 +185,7 @@ export function manualAssign(fastify: FastifyInstance) {
 	});
 }
 
+// Complete job
 export function completeJobRoute(fastify: FastifyInstance) {
 	fastify.post("/jobs/:jobId/complete", async (request, reply) => {
 		const { jobId } = request.params as { jobId: string };
@@ -167,6 +224,7 @@ export function completeJobRoute(fastify: FastifyInstance) {
 	});
 }
 
+// Start job
 export function startJobRoute(fastify: FastifyInstance) {
 	fastify.post("/jobs/:jobId/start", async (request, reply) => {
 		const { jobId } = request.params as { jobId: string };
@@ -183,6 +241,7 @@ export function startJobRoute(fastify: FastifyInstance) {
 	});
 }
 
+// Unassign job
 export function unassignJobRoute(fastify: FastifyInstance) {
 	fastify.delete("/jobs/:jobId/assignment", async (request, reply) => {
 		const { jobId } = request.params as { jobId: string };
@@ -204,15 +263,20 @@ export function unassignJobRoute(fastify: FastifyInstance) {
 	});
 }
 
+// Main route registration
 export async function dispatchRoutes(fastify: FastifyInstance) {
 	fastify.register(async (authenticatedRoutes) => {
 		authenticatedRoutes.addHook("onRequest", authenticate);
 
+		// Single job operations
 		dispatchJob(authenticatedRoutes);
 		getRecommendations(authenticatedRoutes);
 		manualAssign(authenticatedRoutes);
 		completeJobRoute(authenticatedRoutes);
 		startJobRoute(authenticatedRoutes);
 		unassignJobRoute(authenticatedRoutes);
+
+		// Batch operations (NEW)
+		batchDispatchRoute(authenticatedRoutes);
 	});
 }

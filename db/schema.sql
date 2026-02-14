@@ -281,3 +281,9 @@ CREATE INDEX IF NOT EXISTS idx_job_assignments_job_id ON job_assignments(job_id)
 CREATE INDEX IF NOT EXISTS idx_job_assignments_tech_id ON job_assignments(tech_id);
 CREATE INDEX IF NOT EXISTS idx_job_assignments_company_id ON job_assignments(company_id);
 CREATE INDEX IF NOT EXISTS idx_job_assignments_assigned_at ON job_assignments(assigned_at);
+
+-- Add these to schema.sql
+CREATE INDEX idx_jobs_company_status ON jobs(company_id, status);
+CREATE INDEX idx_jobs_company_priority ON jobs(company_id, priority);
+CREATE INDEX idx_employees_company_available ON employees(company_id, is_available, is_active);
+CREATE INDEX idx_job_completions_tech_completed ON job_completions(tech_id, completed_at DESC);

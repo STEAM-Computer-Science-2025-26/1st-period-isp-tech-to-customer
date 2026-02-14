@@ -25,6 +25,8 @@ export async function assignJobToTech(
 		await client.query(`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`, [jobId]);
 
 		// Now safely read the job
+		await client.query(`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`, [jobId]);
+
 		const jobResult = await client.query(
 			`SELECT id, company_id, status, assigned_tech_id, priority, job_type
              FROM jobs WHERE id = $1`,
