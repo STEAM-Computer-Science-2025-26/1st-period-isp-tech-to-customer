@@ -1,4 +1,7 @@
-import { query, pool } from "../../db";
+// services/repositories/JobRepository.ts
+// UPDATED - Uses Neon instead of pg Pool
+
+import { getSql, getClient } from "../../db";
 
 export type JobRecord = {
 	id: string;
@@ -15,8 +18,10 @@ export type JobRecord = {
 
 export class JobRepository {
 	async findById(jobId: string): Promise<JobRecord | null> {
-		const result = await query<any>(
-			`SELECT 
+		const sql = getSql();
+		
+		const result = await sql`
+			SELECT 
 				id, 
 				company_id AS "companyId",
 				job_type AS "jobType",
@@ -28,11 +33,24 @@ export class JobRepository {
 				geocoding_status AS "geocodingStatus",
 				required_skills AS "requiredSkills"
 			FROM jobs
-			WHERE id = $1`,
-			[jobId]
-		);
+			WHERE id = ${jobId}
+		`;
 
-		return result[0] || null;
+		const row: any = result[0];
+		if (!row) return null;
+
+		return {
+			id: row.id,
+			companyId: row.companyId,
+			jobType: row.jobType,
+			priority: row.priority,
+			address: row.address,
+			latitude: row.latitude,
+			longitude: row.longitude,
+			status: row.status,
+			geocodingStatus: row.geocodingStatus,
+			requiredSkills: row.requiredSkills || []
+		};
 	}
 
 	async findByIdWithLock(
@@ -81,12 +99,16 @@ export class JobRepository {
 		longitude: number | null,
 		status: "complete" | "failed"
 	): Promise<void> {
-		await query(
-			`UPDATE jobs 
-			SET latitude = $1, longitude = $2, geocoding_status = $3, updated_at = NOW()
-			WHERE id = $4`,
-			[latitude, longitude, status, jobId]
-		);
+		const sql = getSql();
+		
+		await sql`
+			UPDATE jobs 
+			SET latitude = ${latitude}, 
+			    longitude = ${longitude}, 
+			    geocoding_status = ${status}, 
+			    updated_at = NOW()
+			WHERE id = ${jobId}
+		`;
 	}
 
 	async assignToTech(
@@ -96,8 +118,8 @@ export class JobRepository {
 	): Promise<void> {
 		await client.query(
 			`UPDATE jobs 
-			SET assigned_tech_id = $1, status = 'assigned', updated_at = NOW()
-			WHERE id = $2`,
+			 SET assigned_tech_id = $1, status = 'assigned', updated_at = NOW()
+			 WHERE id = $2`,
 			[techId, jobId]
 		);
 	}
@@ -141,15 +163,15 @@ export class JobRepository {
 	): Promise<void> {
 		await client.query(
 			`UPDATE employees
-			SET current_job_id = $1,
-				current_jobs_count = current_jobs_count + 1,
-				updated_at = NOW()
-			WHERE id = $2`,
+			 SET current_job_id = $1,
+			     current_jobs_count = current_jobs_count + 1,
+			     updated_at = NOW()
+			 WHERE id = $2`,
 			[jobId, techId]
 		);
 	}
 
 	async getClient() {
-		return pool.connect();
+		return getClient();
 	}
 }

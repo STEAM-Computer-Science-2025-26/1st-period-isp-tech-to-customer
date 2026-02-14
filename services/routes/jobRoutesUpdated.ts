@@ -1,4 +1,5 @@
 // services/routes/jobRoutesUpdated.ts
+// FIXED VERSION - Production Ready
 
 import { FastifyInstance } from "fastify";
 import { query } from "../../db";
@@ -85,6 +86,39 @@ function isDev(user: AuthUser): boolean {
 
 function requireCompanyId(user: AuthUser): string | null {
 	return user.companyId ?? null;
+}
+
+/**
+ * Background geocoding - doesn't block HTTP response
+ * Failures are logged but don't affect job creation
+ */
+async function geocodeJobAsync(jobId: string, address: string): Promise<void> {
+	try {
+		const geo = await tryGeocodeJob(address);
+		
+		await query(
+			`UPDATE jobs 
+			 SET latitude = $1, 
+			     longitude = $2, 
+			     geocoding_status = $3,
+			     updated_at = NOW()
+			 WHERE id = $4`,
+			[geo.latitude, geo.longitude, geo.geocodingStatus, jobId]
+		);
+
+		console.log(`✅ Geocoded job ${jobId}: ${geo.geocodingStatus}`);
+	} catch (error) {
+		console.error(`❌ Geocoding failed for job ${jobId}:`, error);
+		
+		// Mark as failed so we can retry later
+		await query(
+			`UPDATE jobs 
+			 SET geocoding_status = 'failed',
+			     updated_at = NOW()
+			 WHERE id = $1`,
+			[jobId]
+		).catch(err => console.error('Failed to update geocoding status:', err));
+	}
 }
 
 // ============================================================
@@ -185,7 +219,7 @@ export function createJob(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 
-		// Step 1: Insert job WITHOUT coordinates
+		// ✅ FIX: Insert job immediately without waiting for geocoding
 		const result = await query<{
 			id: string;
 			companyId: string;
@@ -209,8 +243,9 @@ export function createJob(fastify: FastifyInstance) {
 		}>(
 			`INSERT INTO jobs (
 				company_id, customer_name, address, phone,
-				job_type, priority, status, scheduled_time, initial_notes, required_skills
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+				job_type, priority, status, scheduled_time, initial_notes, required_skills,
+				geocoding_status
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 			RETURNING
 				id,
 				company_id AS "companyId",
@@ -238,33 +273,21 @@ export function createJob(fastify: FastifyInstance) {
 				"unassigned",
 				body.scheduledTime ?? null,
 				body.initialNotes ?? null,
-				body.requiredSkills ?? null
+				body.requiredSkills ?? null,
+				"pending" // Initial geocoding status
 			]
 		);
 
 		const createdJob = result[0];
 
-		// Step 2: Geocode the address (async, don't block job creation)
-		try {
-			const geo = await tryGeocodeJob(body.address);
+		// ✅ FIX: Fire-and-forget background geocoding
+		// Don't await - let it run asynchronously
+		geocodeJobAsync(createdJob.id, body.address).catch(err => {
+			// Error already logged in geocodeJobAsync
+			// This catch prevents unhandled promise rejection
+		});
 
-			await query(
-				`UPDATE jobs 
-				SET latitude=$1, longitude=$2, geocoding_status=$3, updated_at=NOW()
-				WHERE id=$4`,
-				[geo.latitude, geo.longitude, geo.geocodingStatus, createdJob.id]
-			);
-
-			// Update the returned job object with geocoded data
-			createdJob.latitude = geo.latitude;
-			createdJob.longitude = geo.longitude;
-			createdJob.geocodingStatus = geo.geocodingStatus;
-		} catch (error) {
-			// Don't fail job creation if geocoding fails
-			console.error(`⚠️  Geocoding failed for job ${createdJob.id}:`, error);
-			// Job remains with geocoding_status='pending', which can be retried later
-		}
-
+		// Return immediately - geocoding happens in background
 		return { job: createdJob };
 	});
 }
@@ -322,7 +345,10 @@ export function updateJobStatus(fastify: FastifyInstance) {
 				completed_at AS "completedAt",
 				initial_notes AS "initialNotes",
 				completion_notes AS "completionNotes",
-				updated_at AS "updatedAt"`,
+				updated_at AS "updatedAt",
+				latitude, longitude,
+				geocoding_status AS "geocodingStatus",
+				required_skills AS "requiredSkills"`,
 			values
 		);
 
@@ -352,6 +378,8 @@ export function updateJob(fastify: FastifyInstance) {
 
 		const updates: string[] = [];
 		const values: Array<string | null | string[]> = [];
+		let addressChanged = false;
+		let newAddress: string | null = null;
 
 		if (body.customerName !== undefined) {
 			values.push(body.customerName);
@@ -360,7 +388,9 @@ export function updateJob(fastify: FastifyInstance) {
 		if (body.address !== undefined) {
 			values.push(body.address);
 			updates.push(`address = $${values.length}`);
-			// Reset geocoding status when address changes
+			addressChanged = true;
+			newAddress = body.address;
+			// Reset geocoding when address changes
 			updates.push(`geocoding_status = 'pending'`);
 			updates.push(`latitude = NULL`);
 			updates.push(`longitude = NULL`);
@@ -420,17 +450,10 @@ export function updateJob(fastify: FastifyInstance) {
 			return reply.code(404).send({ error: "Job not found" });
 		}
 
-		// If address changed, re-geocode it
-		if (body.address !== undefined) {
-			try {
-				const geo = await tryGeocodeJob(body.address);
-				await query(
-					`UPDATE jobs SET latitude=$1, longitude=$2, geocoding_status=$3, updated_at=NOW() WHERE id=$4`,
-					[geo.latitude, geo.longitude, geo.geocodingStatus, jobId]
-				);
-			} catch (error) {
-				console.error(`⚠️  Re-geocoding failed for job ${jobId}:`, error);
-			}
+		if (addressChanged && newAddress) {
+			geocodeJobAsync(jobId, newAddress).catch(err => {
+				// Error already logged in geocodeJobAsync
+			});
 		}
 
 		return { message: "Job updated successfully", jobId: result[0].id };
@@ -459,6 +482,60 @@ export function deleteJob(fastify: FastifyInstance) {
 	});
 }
 
+
+export function retryGeocoding(fastify: FastifyInstance) {
+	fastify.post("/jobs/:jobId/retry-geocoding", async (request, reply) => {
+		const user = getAuthUser(request);
+		const dev = isDev(user);
+		const companyId = requireCompanyId(user);
+
+		const { jobId } = request.params as { jobId: string };
+
+		// Get job to verify it exists and get address
+		let whereClause = "WHERE id = $1";
+		const params: string[] = [jobId];
+
+		if (!dev) {
+			if (!companyId) {
+				return reply
+					.code(403)
+					.send({ error: "Forbidden - Missing company in token" });
+			}
+			params.push(companyId);
+			whereClause += " AND company_id = $2";
+		}
+
+		const result = await query(
+			`SELECT id, address, geocoding_status AS "geocodingStatus" 
+			 FROM jobs ${whereClause}`,
+			params
+		);
+
+		if (!result[0]) {
+			return reply.code(404).send({ error: "Job not found" });
+		}
+
+		const job = result[0] as { id: string; address: string; geocodingStatus: string };
+
+		if (job.geocodingStatus === "complete") {
+			return reply.code(400).send({ 
+				error: "Job already geocoded successfully" 
+			});
+		}
+
+		geocodeJobAsync(job.id, job.address).catch(err => {
+			// Error already logged
+		});
+
+		return { 
+			message: "Geocoding retry initiated",
+			jobId: job.id,
+			status: "pending" 
+		};
+	});
+}
+// ============================================================
+
 export async function jobRoutes(fastify: FastifyInstance) {
 	fastify.register(async (authenticatedRoutes) => {
 		authenticatedRoutes.addHook("onRequest", authenticate);
@@ -467,5 +544,6 @@ export async function jobRoutes(fastify: FastifyInstance) {
 		updateJobStatus(authenticatedRoutes);
 		updateJob(authenticatedRoutes);
 		deleteJob(authenticatedRoutes);
+		retryGeocoding(authenticatedRoutes); // NEW: retry endpoint
 	});
 }

@@ -1,6 +1,10 @@
-import { pool } from "../../db";
+// services/dispatch/persistence.ts
+// FIXED VERSION - Uses Neon, proper transaction handling
+
+import { getSql, transaction } from "../../db";
 
 /**
+ * Assign a job to a technician with proper locking
  * @param jobId
  * @param techId
  * @param assignedByUserId
@@ -16,20 +20,19 @@ export async function assignJobToTech(
 	overrideReason?: string,
 	scoringDetails?: Record<string, unknown>
 ): Promise<void> {
-	const client = await pool.connect();
+	const sql = getSql();
 
-	try {
-		await client.query("BEGIN");
+	await transaction(async (client) => {
+		// ✅ FIX: Lock the job FIRST before reading
+		await client.query(
+			`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`,
+			[jobId]
+		);
 
-		// CRITICAL CHANGE: lock the job FIRST
-		await client.query(`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`, [jobId]);
-
-		// Now safely read the job
-		await client.query(`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`, [jobId]);
-
+		// ✅ Now safely read the job
 		const jobResult = await client.query(
 			`SELECT id, company_id, status, assigned_tech_id, priority, job_type
-             FROM jobs WHERE id = $1`,
+			 FROM jobs WHERE id = $1`,
 			[jobId]
 		);
 
@@ -39,20 +42,22 @@ export async function assignJobToTech(
 
 		const job = jobResult.rows[0];
 
+		// Check if already assigned AFTER locking
 		if (job.assigned_tech_id) {
 			throw new Error(
 				`Job ${jobId} is already assigned to tech ${job.assigned_tech_id}`
 			);
 		}
 
-		// Lock the technician row too — you were missing this
-		await client.query(`SELECT id FROM employees WHERE id = $1 FOR UPDATE`, [
-			techId
-		]);
+		// Lock the technician row
+		await client.query(
+			`SELECT id FROM employees WHERE id = $1 FOR UPDATE`,
+			[techId]
+		);
 
 		const techResult = await client.query(
 			`SELECT id, current_jobs_count, max_concurrent_jobs
-             FROM employees WHERE id = $1`,
+			 FROM employees WHERE id = $1`,
 			[techId]
 		);
 
@@ -69,26 +74,27 @@ export async function assignJobToTech(
 		// Perform the assignment
 		await client.query(
 			`UPDATE jobs 
-             SET assigned_tech_id = $1, status = 'assigned', updated_at = NOW()
-             WHERE id = $2`,
+			 SET assigned_tech_id = $1, status = 'assigned', updated_at = NOW()
+			 WHERE id = $2`,
 			[techId, jobId]
 		);
 
 		await client.query(
 			`UPDATE employees
-             SET current_job_id = $1,
-                 current_jobs_count = current_jobs_count + 1,
-                 updated_at = NOW()
-             WHERE id = $2`,
+			 SET current_job_id = $1,
+			     current_jobs_count = current_jobs_count + 1,
+			     updated_at = NOW()
+			 WHERE id = $2`,
 			[jobId, techId]
 		);
 
+		// Log the assignment
 		await client.query(
 			`INSERT INTO job_assignments 
-            (job_id, tech_id, assigned_by_user_id, company_id, assigned_at, 
-             is_manual_override, override_reason, scoring_details, 
-             job_priority, job_type, is_emergency)
-            VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8, $9, $10)`,
+			(job_id, tech_id, assigned_by_user_id, company_id, assigned_at, 
+			 is_manual_override, override_reason, scoring_details, 
+			 job_priority, job_type, is_emergency)
+			VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8, $9, $10)`,
 			[
 				jobId,
 				techId,
@@ -102,17 +108,11 @@ export async function assignJobToTech(
 				job.priority === "emergency"
 			]
 		);
-
-		await client.query("COMMIT");
-	} catch (error) {
-		await client.query("ROLLBACK");
-		throw error;
-	} finally {
-		client.release();
-	}
+	});
 }
 
 /**
+ * Complete a job
  * @param jobId
  * @param completionNotes
  * @param durationMinutes
@@ -126,43 +126,49 @@ export async function completeJob(
 	firstTimeFix?: boolean,
 	customerRating?: number
 ): Promise<void> {
-	const client = await pool.connect();
+	const sql = getSql();
 
-	try {
-		await client.query("BEGIN");
+	await transaction(async (client) => {
 		const jobResult = await client.query(
 			`SELECT id, company_id, assigned_tech_id, status
-			FROM jobs WHERE id = $1`,
+			 FROM jobs WHERE id = $1`,
 			[jobId]
 		);
-		if (jobResult.rows.length === 0) {
+
+		if (jobResult.rowCount === 0) {
 			throw new Error(`Job ${jobId} not found`);
 		}
+
 		const job = jobResult.rows[0];
+
 		if (!job.assigned_tech_id) {
 			throw new Error(`Job ${jobId} has no assigned technician`);
 		}
+
 		if (job.status === "completed") {
 			throw new Error(`Job ${jobId} is already marked as completed`);
 		}
+
 		await client.query(
 			`UPDATE jobs 
-			SET status = 'completed', 
-				completed_at = NOW(), 
-				completion_notes = $1,
-				updated_at = NOW()
-			WHERE id = $2`,
+			 SET status = 'completed', 
+			     completed_at = NOW(), 
+			     completion_notes = $1,
+			     updated_at = NOW()
+			 WHERE id = $2`,
 			[completionNotes || null, jobId]
 		);
+
 		await client.query(
 			`UPDATE employees 
-			SET current_job_id = NULL,
-				current_jobs_count = GREATEST(0, current_jobs_count - 1),
-				last_job_completed_at = NOW(),
-				updated_at = NOW()
-			WHERE id = $1`,
+			 SET current_job_id = NULL,
+			     current_jobs_count = GREATEST(0, current_jobs_count - 1),
+			     last_job_completed_at = NOW(),
+			     updated_at = NOW()
+			 WHERE id = $1`,
 			[job.assigned_tech_id]
 		);
+
 		await client.query(
 			`INSERT INTO job_completions 
 			(job_id, tech_id, company_id, completion_notes, duration_minutes, 
@@ -178,32 +184,27 @@ export async function completeJob(
 				customerRating || null
 			]
 		);
-		await client.query("COMMIT");
-	} catch (error) {
-		await client.query("ROLLBACK");
-		throw error;
-	} finally {
-		client.release();
-	}
+	});
 }
 
 /**
+ * Unassign a job from a technician
  * @param jobId
  */
 export async function unassignJob(jobId: string): Promise<void> {
-	const client = await pool.connect();
-	try {
-		await client.query("BEGIN");
+	const sql = getSql();
 
+	await transaction(async (client) => {
 		const jobResult = await client.query(
 			`SELECT id, assigned_tech_id, status
-            FROM jobs WHERE id = $1`,
+			 FROM jobs WHERE id = $1`,
 			[jobId]
 		);
 
-		if (jobResult.rows.length === 0) {
+		if (jobResult.rowCount === 0) {
 			throw new Error("Job not found");
 		}
+
 		const job = jobResult.rows[0];
 
 		if (!job.assigned_tech_id) {
@@ -214,43 +215,37 @@ export async function unassignJob(jobId: string): Promise<void> {
 
 		await client.query(
 			`UPDATE jobs 
-            SET assigned_tech_id = NULL, status = 'unassigned', updated_at = NOW()
-            WHERE id = $1`,
+			 SET assigned_tech_id = NULL, status = 'unassigned', updated_at = NOW()
+			 WHERE id = $1`,
 			[jobId]
 		);
 
-		// BUG 1 (from prior review) FIX: removed duplicate UPDATE with 'emplyees' typo
 		await client.query(
 			`UPDATE employees 
-            SET current_job_id = NULL,
-                current_jobs_count = GREATEST(0, current_jobs_count - 1),
-                updated_at = NOW()
-            WHERE id = $1`,
+			 SET current_job_id = NULL,
+			     current_jobs_count = GREATEST(0, current_jobs_count - 1),
+			     updated_at = NOW()
+			 WHERE id = $1`,
 			[job.assigned_tech_id]
 		);
-
-		await client.query("COMMIT");
-	} catch (error) {
-		await client.query("ROLLBACK");
-		throw error;
-	} finally {
-		client.release();
-	}
+	});
 }
 
 /**
+ * Start a job (move from assigned to in_progress)
  * @param jobId
  */
 export async function startJob(jobId: string): Promise<void> {
-	const result = await pool.query(
-		`UPDATE jobs 
-		SET status = 'in_progress', updated_at = NOW()
-		WHERE id = $1 AND status = 'assigned'
-		RETURNING id`,
-		[jobId]
-	);
+	const sql = getSql();
 
-	if (result.rows.length === 0) {
+	const result = await sql`
+		UPDATE jobs 
+		SET status = 'in_progress', updated_at = NOW()
+		WHERE id = ${jobId} AND status = 'assigned'
+		RETURNING id
+	`;
+
+	if (result.length === 0) {
 		throw new Error(`Job ${jobId} not found or not in 'assigned' status`);
 	}
 }

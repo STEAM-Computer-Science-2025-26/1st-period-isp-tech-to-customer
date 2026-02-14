@@ -1,4 +1,7 @@
-import { query } from "../../db";
+// services/repositories/TechnicianRepository.ts
+// UPDATED - Uses Neon instead of pg Pool
+
+import { getSql } from "../../db";
 import { TechnicianInput } from "../types/technicianInput";
 
 export type TechRecord = {
@@ -24,27 +27,31 @@ export type TechMetrics = {
 
 export class TechnicianRepository {
 	async findEligibleForDispatch(companyId: string): Promise<TechRecord[]> {
-		const result = await query<any>(
-			`SELECT 
-				id, name, company_id AS "companyId",
+		const sql = getSql();
+		
+		const result = await sql`
+			SELECT 
+				id, 
+				name, 
+				company_id AS "companyId",
 				is_active AS "isActive",
 				is_available AS "isAvailable",
 				current_jobs_count AS "currentJobsCount",
 				max_concurrent_jobs AS "maxConcurrentJobs",
-				latitude, longitude,
+				latitude, 
+				longitude,
 				max_travel_distance_miles AS "maxTravelDistanceMiles",
 				skills,
 				skill_level AS "skillLevel"
 			FROM employees
-			WHERE company_id = $1
+			WHERE company_id = ${companyId}
 				AND is_active = true
 				AND is_available = true
 				AND latitude IS NOT NULL
-				AND longitude IS NOT NULL`,
-			[companyId]
-		);
+				AND longitude IS NOT NULL
+		`;
 
-		return result;
+		return result as TechRecord[];
 	}
 
 	async batchQueryMetrics(
@@ -54,12 +61,11 @@ export class TechnicianRepository {
 			return new Map();
 		}
 
-		const completions = await query<{
-			tech_id: string;
-			count: string;
-			daily_job_count: string;
-		}>(
-			`SELECT
+		const sql = getSql();
+
+		// Query completions
+		const completions = await sql`
+			SELECT
 				tech_id,
 				COUNT(*) FILTER (
 					WHERE completed_at > NOW() - INTERVAL '30 days'
@@ -68,27 +74,23 @@ export class TechnicianRepository {
 					WHERE completed_at >= CURRENT_DATE
 				) AS daily_job_count
 			FROM job_completions
-			WHERE tech_id = ANY($1)
-			GROUP BY tech_id`,
-			[techIds]
-		);
+			WHERE tech_id = ANY(${techIds})
+			GROUP BY tech_id
+		`;
 
-		const assignments = await query<{
-			tech_id: string;
-			assigned: string;
-			completed: string;
-		}>(
-			`SELECT
+		// Query assignments
+		const assignments = await sql`
+			SELECT
 				assigned_tech_id AS tech_id,
 				COUNT(*) AS assigned,
 				COUNT(*) FILTER (WHERE status = 'completed') AS completed
 			FROM jobs
-			WHERE assigned_tech_id = ANY($1)
+			WHERE assigned_tech_id = ANY(${techIds})
 				AND created_at > NOW() - INTERVAL '30 days'
-			GROUP BY assigned_tech_id`,
-			[techIds]
-		);
+			GROUP BY assigned_tech_id
+		`;
 
+		// Build metrics map
 		const metricsMap = new Map<string, TechMetrics>();
 
 		for (const techId of techIds) {
@@ -100,16 +102,16 @@ export class TechnicianRepository {
 		}
 
 		for (const row of completions) {
-			const metrics = metricsMap.get(row.tech_id)!;
-			metrics.recentJobCount = parseInt(row.count);
-			metrics.dailyJobCount = parseInt(row.daily_job_count);
+			const metrics = metricsMap.get(row.tech_id as string)!;
+			metrics.recentJobCount = parseInt(row.count as string);
+			metrics.dailyJobCount = parseInt(row.daily_job_count as string);
 		}
 
 		for (const row of assignments) {
-			const metrics = metricsMap.get(row.tech_id);
+			const metrics = metricsMap.get(row.tech_id as string);
 			if (metrics) {
-				const assigned = parseInt(row.assigned);
-				const completed = parseInt(row.completed);
+				const assigned = parseInt(row.assigned as string);
+				const completed = parseInt(row.completed as string);
 				metrics.recentCompletionRate = assigned > 0 ? completed / assigned : 0;
 			}
 		}

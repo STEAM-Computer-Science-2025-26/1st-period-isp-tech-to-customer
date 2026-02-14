@@ -3,14 +3,15 @@ import jwt from "jsonwebtoken";
 import { queryOne } from "@/db/connection";
 import { LoginInput, LoginSuccess, UserDTO } from "@/services/types/userTypes";
 import { getPublicError } from "@/services/publicErrors";
+import bcrypt from 'bcryptjs';
 
 // Helper to convert DB row into UserDTO + passwordHash
 function mapUser(row: Record<string, any>): UserDTO & { passwordHash: string } {
   return {
     id: row.id,
     email: row.email,
-    role: row.role,
-    companyId: row.companyId,
+    role: row.role as UserDTO["role"],
+    companyId: row.companyId ?? "",
     passwordHash: row.passwordHash,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
           company_id as "companyId",
           password_hash as "passwordHash",
           created_at as "createdAt",
-          created_at as "updatedAt"
+          updated_at as "updatedAt"
         FROM users
         WHERE email = ${body.email}
       `
@@ -55,23 +56,20 @@ export async function POST(request: NextRequest) {
 
     const user = mapUser(row);
 
-    const isValidPassword = user.passwordHash === body.password;
+    const isValidPassword = await bcrypt.compare(body.password, user.passwordHash);
     if (!isValidPassword) {
       return NextResponse.json(getPublicError("INVALID_CREDENTIALS"), {
         status: 401
       });
     }
 
-    // REAL JWT that Fastify can verify
-    const token = jwt.sign(
-      {
-        id: user.id,
-        role: user.role,
-        companyId: user.companyId
-      },
-      JWT_SECRET,
-      { expiresIn: "24h" }
-    );
+    const jwtPayload = {
+      id: user.id,
+      role: user.role,
+      companyId: user.companyId
+    };
+
+    const token = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: "24h" });
 
     const response: LoginSuccess = {
       token,
