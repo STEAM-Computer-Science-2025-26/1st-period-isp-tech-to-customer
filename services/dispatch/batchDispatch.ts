@@ -68,7 +68,7 @@ export async function batchDispatch(
     };
   }
 
-  // Fetch technicians
+  // Fetch technicians with correct column names
   const techRows = await db.query<{
     id: string;
     name: string;
@@ -76,8 +76,8 @@ export async function batchDispatch(
     phone: string;
     skills: string[];
     is_available: boolean;
-    current_job_count: number;
-    max_jobs_per_day: number | null;
+    current_jobs_count: number;
+    max_concurrent_jobs: number | null;
     current_latitude: string | null;
     current_longitude: string | null;
     location_updated_at: string | null;
@@ -90,8 +90,14 @@ export async function batchDispatch(
       e.phone,
       e.skills,
       e.is_available,
-      e.current_job_count,
-      e.max_jobs_per_day,
+      COALESCE(
+        (SELECT COUNT(*)::integer
+         FROM jobs
+         WHERE assigned_tech_id = e.id
+           AND status IN ('assigned', 'in_progress')),
+        0
+      ) AS current_jobs_count,
+      e.max_concurrent_jobs,
       tl.latitude AS current_latitude,
       tl.longitude AS current_longitude,
       tl.updated_at AS location_updated_at,
@@ -108,10 +114,6 @@ export async function batchDispatch(
       AND e.role = 'tech'
       AND e.is_available = true
       AND (
-        e.current_job_count < e.max_jobs_per_day
-        OR e.max_jobs_per_day IS NULL
-      )
-      AND (
         tl.updated_at > NOW() - INTERVAL '10 minutes'
         OR tl.updated_at IS NULL
       )
@@ -124,8 +126,8 @@ export async function batchDispatch(
     phone: row.phone,
     skills: row.skills,
     isAvailable: row.is_available,
-    currentJobCount: row.current_job_count,
-    maxJobsPerDay: row.max_jobs_per_day,
+    currentJobCount: row.current_jobs_count,
+    maxJobsPerDay: row.max_concurrent_jobs,
     currentLatitude: row.current_latitude,
     currentLongitude: row.current_longitude,
     locationUpdatedAt: row.location_updated_at,
@@ -244,38 +246,4 @@ export async function batchDispatch(
       durationMs: Date.now() - startTime
     }
   };
-}
-
-// UUID helper
-function uuidv4(): string {
-  if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
-      return (crypto as any).randomUUID();
-  }
-
-  const getRandomBytes = (() => {
-      if (typeof crypto !== 'undefined' && typeof (crypto as any).getRandomValues === 'function') {
-          return (n: number) => (crypto as any).getRandomValues(new Uint8Array(n));
-      }
-      return null;
-  })();
-
-  if (getRandomBytes) {
-      const rnds = getRandomBytes(16);
-      rnds[6] = (rnds[6] & 0x0f) | 0x40;
-      rnds[8] = (rnds[8] & 0x3f) | 0x80;
-      const hex = (n: number) => n.toString(16).padStart(2, '0');
-      return (
-          hex(rnds[0]) + hex(rnds[1]) + hex(rnds[2]) + hex(rnds[3]) + '-' +
-          hex(rnds[4]) + hex(rnds[5]) + '-' +
-          hex(rnds[6]) + hex(rnds[7]) + '-' +
-          hex(rnds[8]) + hex(rnds[9]) + '-' +
-          hex(rnds[10]) + hex(rnds[11]) + hex(rnds[12]) + hex(rnds[13]) + hex(rnds[14]) + hex(rnds[15])
-      );
-  }
-
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-  });
 }

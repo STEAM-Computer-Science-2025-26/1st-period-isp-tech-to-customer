@@ -1,5 +1,4 @@
-
-import { Pool, PoolClient, QueryConfig, QueryResult } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 const pool = new Pool();
 
@@ -24,17 +23,28 @@ export async function persistBatchAssignments(
       [techIds]
     );
     
+    // NOTE: Using correct column name from schema: max_concurrent_jobs (not max_jobs_per_day)
+    // And computing current_jobs_count from jobs table since it's not a column
     const capacityCheck = await client.query(`
-      SELECT id, current_job_count, max_jobs_per_day
-      FROM employees
+      SELECT 
+        e.id, 
+        COALESCE(
+          (SELECT COUNT(*)::integer
+           FROM jobs
+           WHERE assigned_tech_id = e.id
+             AND status IN ('assigned', 'in_progress')),
+          0
+        ) AS current_jobs_count,
+        e.max_concurrent_jobs
+      FROM employees e
       WHERE id = ANY($1)
     `, [techIds]);
     
     const capacityMap = new Map();
     capacityCheck.rows.forEach(row => {
       capacityMap.set(row.id, {
-        current: row.current_job_count || 0,
-        max: row.max_jobs_per_day || 10
+        current: row.current_jobs_count || 0,
+        max: row.max_concurrent_jobs || 10
       });
     });
     
@@ -48,20 +58,16 @@ export async function persistBatchAssignments(
         UPDATE jobs
         SET assigned_tech_id = $1,
             status = 'assigned',
-            assigned_at = NOW()
+            updated_at = NOW()
         WHERE id = $2
       `, [assignment.techId, assignment.jobId]);
       
-      await client.query(`
-        UPDATE employees
-        SET current_job_count = COALESCE(current_job_count, 0) + 1
-        WHERE id = $1
-      `, [assignment.techId]);
+      // Note: No need to update current_job_count since it's computed from jobs table
       
       await client.query(`
-        INSERT INTO job_assignments (job_id, tech_id, assigned_at, assignment_method)
-        VALUES ($1, $2, NOW(), 'auto')
-      `, [assignment.jobId, assignment.techId]);
+        INSERT INTO job_assignments (job_id, tech_id, company_id, assigned_at)
+        VALUES ($1, $2, $3, NOW())
+      `, [assignment.jobId, assignment.techId, companyId]);
     }
     
     await client.query('COMMIT');

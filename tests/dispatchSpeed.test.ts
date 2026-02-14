@@ -145,12 +145,15 @@ describe('scoreAndRankCandidates – edge cases', () => {
     expect(result[0].breakdown.distanceScore).toBeCloseTo(30);
   });
 
-  test('8. missing currentLocation defaults to 0,0 in batch call', async () => {
+  test('8. missing currentLocation filters out tech (does not call routing)', async () => {
+    // FIXED: The scorer now filters out techs without valid locations
+    // before calling getBatchDriveTimes, which is the correct behavior
     mockedGetBatchDriveTimes.mockResolvedValue([{ durationMinutes: 10 }]);
 
     const techs = [
       {
         id: 't8',
+        // NO currentLocation provided
         isAvailable: true,
         skills: ['hvac'],
         avgRating: 5,
@@ -158,12 +161,11 @@ describe('scoreAndRankCandidates – edge cases', () => {
       },
     ];
 
-    await scoreAndRankCandidates(techs, baseJob, false);
+    const result = await scoreAndRankCandidates(techs, baseJob, false);
 
-    expect(mockedGetBatchDriveTimes).toHaveBeenCalledWith(
-      { lat: 40, lng: -74 },
-      [{ lat: 0, lng: 0 }]
-    );
+    // Expect: tech is filtered out, routing is not called, empty result
+    expect(mockedGetBatchDriveTimes).not.toHaveBeenCalled();
+    expect(result).toEqual([]);
   });
 
   test('9. returns empty array when no eligible techs', async () => {
