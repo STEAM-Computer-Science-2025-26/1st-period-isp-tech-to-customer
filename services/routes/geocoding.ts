@@ -50,7 +50,11 @@ export async function geocodeAddress(address: string): Promise<GeocodeOutcome> {
 		const location = bestResult.location;
 		const formattedAddress = bestResult.formatted_address;
 
-		if (!location || typeof location.lat !== "number" || typeof location.lng !== "number") {
+		if (
+			!location ||
+			typeof location.lat !== "number" ||
+			typeof location.lng !== "number"
+		) {
 			return { success: false, error: "Invalid location data returned" };
 		}
 
@@ -83,7 +87,9 @@ export async function tryGeocodeJob(address: string): Promise<{
 	const outcome = await geocodeAddress(address);
 
 	if (outcome.success) {
-		console.log(`✅ Geocoded address: "${address}" -> (${outcome.result.latitude}, ${outcome.result.longitude})`);
+		console.log(
+			`✅ Geocoded address: "${address}" -> (${outcome.result.latitude}, ${outcome.result.longitude})`
+		);
 		return {
 			latitude: outcome.result.latitude,
 			longitude: outcome.result.longitude,
@@ -91,7 +97,9 @@ export async function tryGeocodeJob(address: string): Promise<{
 		};
 	}
 
-	console.error(`❌ Geocoding failed for address "${address}": ${outcome.error}`);
+	console.error(
+		`❌ Geocoding failed for address "${address}": ${outcome.error}`
+	);
 	return {
 		latitude: null,
 		longitude: null,

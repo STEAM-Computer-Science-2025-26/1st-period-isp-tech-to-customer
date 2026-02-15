@@ -95,7 +95,7 @@ function requireCompanyId(user: AuthUser): string | null {
 async function geocodeJobAsync(jobId: string, address: string): Promise<void> {
 	try {
 		const geo = await tryGeocodeJob(address);
-		
+
 		await query(
 			`UPDATE jobs 
 			 SET latitude = $1, 
@@ -109,7 +109,7 @@ async function geocodeJobAsync(jobId: string, address: string): Promise<void> {
 		console.log(`✅ Geocoded job ${jobId}: ${geo.geocodingStatus}`);
 	} catch (error) {
 		console.error(`❌ Geocoding failed for job ${jobId}:`, error);
-		
+
 		// Mark as failed so we can retry later
 		await query(
 			`UPDATE jobs 
@@ -117,7 +117,7 @@ async function geocodeJobAsync(jobId: string, address: string): Promise<void> {
 			     updated_at = NOW()
 			 WHERE id = $1`,
 			[jobId]
-		).catch(err => console.error('Failed to update geocoding status:', err));
+		).catch((err) => console.error("Failed to update geocoding status:", err));
 	}
 }
 
@@ -426,7 +426,7 @@ export function updateJob(fastify: FastifyInstance) {
 		}
 
 		if (addressChanged && newAddress) {
-			geocodeJobAsync(jobId, newAddress).catch(err => {
+			geocodeJobAsync(jobId, newAddress).catch((err) => {
 				// Error already logged in geocodeJobAsync
 			});
 		}
@@ -456,7 +456,6 @@ export function deleteJob(fastify: FastifyInstance) {
 		return { message: `Job ${jobId} deleted` };
 	});
 }
-
 
 export function retryGeocoding(fastify: FastifyInstance) {
 	fastify.post("/jobs/:jobId/retry-geocoding", async (request, reply) => {
@@ -490,22 +489,26 @@ export function retryGeocoding(fastify: FastifyInstance) {
 			return reply.code(404).send({ error: "Job not found" });
 		}
 
-		const job = result[0] as { id: string; address: string; geocodingStatus: string };
+		const job = result[0] as {
+			id: string;
+			address: string;
+			geocodingStatus: string;
+		};
 
 		if (job.geocodingStatus === "complete") {
-			return reply.code(400).send({ 
-				error: "Job already geocoded successfully" 
+			return reply.code(400).send({
+				error: "Job already geocoded successfully"
 			});
 		}
 
-		geocodeJobAsync(job.id, job.address).catch(err => {
+		geocodeJobAsync(job.id, job.address).catch((err) => {
 			// Error already logged
 		});
 
-		return { 
+		return {
 			message: "Geocoding retry initiated",
 			jobId: job.id,
-			status: "pending" 
+			status: "pending"
 		};
 	});
 }

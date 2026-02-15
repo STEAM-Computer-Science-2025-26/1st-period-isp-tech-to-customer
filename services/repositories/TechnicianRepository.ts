@@ -28,7 +28,7 @@ export type TechMetrics = {
 export class TechnicianRepository {
 	async findEligibleForDispatch(companyId: string): Promise<TechRecord[]> {
 		const sql = getSql();
-		
+
 		const result = await sql`
 			SELECT 
 				id, 

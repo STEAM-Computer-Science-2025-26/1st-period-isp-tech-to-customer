@@ -4,9 +4,11 @@ import { FastifyInstance } from "fastify";
 import { Pool } from "pg";
 import * as db from "../../db";
 
-const pool: Pool = (db as any).pool ?? new Pool({
-	connectionString: process.env.DATABASE_URL,
-});
+const pool: Pool =
+	(db as any).pool ??
+	new Pool({
+		connectionString: process.env.DATABASE_URL
+	});
 
 import { geocodeAddress } from "./geocoding";
 
@@ -35,11 +37,7 @@ export function readinessCheck(fastify: FastifyInstance) {
 		}
 
 		// Check 2: Required environment variables
-		const requiredEnvVars = [
-			"DATABASE_URL",
-			"JWT_SECRET",
-			"GEOCODIO_API_KEY"
-		];
+		const requiredEnvVars = ["DATABASE_URL", "JWT_SECRET", "GEOCODIO_API_KEY"];
 
 		const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
 		if (missingVars.length > 0) {
@@ -50,7 +48,9 @@ export function readinessCheck(fastify: FastifyInstance) {
 
 		// Check 3: Geocoding API
 		try {
-			const testResult = await geocodeAddress("1600 Amphitheatre Parkway, Mountain View, CA");
+			const testResult = await geocodeAddress(
+				"1600 Amphitheatre Parkway, Mountain View, CA"
+			);
 			if (testResult.success) {
 				checks.geocoding = "ok";
 			} else {

@@ -1,35 +1,34 @@
-import { FastifyInstance, FastifyPluginAsync } from 'fastify';
+import { FastifyInstance, FastifyPluginAsync } from "fastify";
 import * as db from "../../db";
 
 const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
+	fastify.post(
+		"/techs/me/location",
+		{
+			preHandler: [(fastify as any).authenticate],
+			schema: {
+				body: {
+					type: "object",
+					required: ["latitude", "longitude"],
+					properties: {
+						latitude: { type: "number", minimum: -90, maximum: 90 },
+						longitude: { type: "number", minimum: -180, maximum: 180 },
+						accuracy: { type: "number", nullable: true }
+					}
+				}
+			}
+		},
+		async (request, reply) => {
+			const { latitude, longitude, accuracy } = request.body as {
+				latitude: number;
+				longitude: number;
+				accuracy?: number;
+			};
 
-  fastify.post(
-    '/techs/me/location',
-    {
-      preHandler: [(fastify as any).authenticate],
-      schema: {
-        body: {
-          type: 'object',
-          required: ['latitude', 'longitude'],
-          properties: {
-            latitude: { type: 'number', minimum: -90, maximum: 90 },
-            longitude: { type: 'number', minimum: -180, maximum: 180 },
-            accuracy: { type: 'number', nullable: true }
-          }
-        }
-      }
-    },
-    async (request, reply) => {
-      const { latitude, longitude, accuracy } = request.body as {
-        latitude: number;
-        longitude: number;
-        accuracy?: number;
-      };
+			const techId = (request.user as any).id;
 
-      const techId = (request.user as any).id;
-
-      await db.query(
-        `
+			await db.query(
+				`
         INSERT INTO tech_locations (tech_id, latitude, longitude, accuracy_meters, updated_at)
         VALUES ($1, $2, $3, $4, NOW())
         ON CONFLICT (tech_id)
@@ -39,32 +38,32 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
           accuracy_meters = $4,
           updated_at = NOW()
         `,
-        [techId, latitude, longitude, accuracy ?? null]
-      );
+				[techId, latitude, longitude, accuracy ?? null]
+			);
 
-      return {
-        success: true,
-        timestamp: new Date()
-      };
-    }
-  );
+			return {
+				success: true,
+				timestamp: new Date()
+			};
+		}
+	);
 
-  // Get tech locations
-  fastify.get(
-    '/companies/:companyId/tech-locations',
-    {
-      preHandler: [(fastify as any).authenticate]
-    },
-    async (request, reply) => {
-      const { companyId } = request.params as { companyId: string };
-      const user = request.user as any;
+	// Get tech locations
+	fastify.get(
+		"/companies/:companyId/tech-locations",
+		{
+			preHandler: [(fastify as any).authenticate]
+		},
+		async (request, reply) => {
+			const { companyId } = request.params as { companyId: string };
+			const user = request.user as any;
 
-      if (user.companyId !== companyId && user.role !== 'dev') {
-        return reply.status(403).send({ error: 'Access denied' });
-      }
+			if (user.companyId !== companyId && user.role !== "dev") {
+				return reply.status(403).send({ error: "Access denied" });
+			}
 
-      const result = await db.query(
-        `
+			const result = await db.query(
+				`
         SELECT 
           e.id as tech_id,
           e.name as tech_name,
@@ -83,31 +82,31 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
           AND e.role = 'tech'
         ORDER BY tl.updated_at DESC NULLS LAST
         `,
-        [companyId]
-      );
+				[companyId]
+			);
 
-      return {
-        techs: result,
-        timestamp: new Date()
-      };
-    }
-  );
+			return {
+				techs: result,
+				timestamp: new Date()
+			};
+		}
+	);
 
-  fastify.get(
-    '/companies/:companyId/map-data',
-    {
-      preHandler: [(fastify as any).authenticate]
-    },
-    async (request, reply) => {
-      const { companyId } = request.params as { companyId: string };
-      const user = request.user as any;
+	fastify.get(
+		"/companies/:companyId/map-data",
+		{
+			preHandler: [(fastify as any).authenticate]
+		},
+		async (request, reply) => {
+			const { companyId } = request.params as { companyId: string };
+			const user = request.user as any;
 
-      if (user.companyId !== companyId && user.role !== 'dev') {
-        return reply.status(403).send({ error: 'Access denied' });
-      }
+			if (user.companyId !== companyId && user.role !== "dev") {
+				return reply.status(403).send({ error: "Access denied" });
+			}
 
-      const techs = await db.query(
-        `
+			const techs = await db.query(
+				`
         SELECT 
           e.id,
           e.name,
@@ -124,11 +123,11 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
           AND e.role = 'tech'
           AND (tl.updated_at > NOW() - INTERVAL '10 minutes' OR tl.updated_at IS NULL)
         `,
-        [companyId]
-      );
+				[companyId]
+			);
 
-      const jobs = await db.query(
-        `
+			const jobs = await db.query(
+				`
         SELECT 
           j.id,
           j.customer_name,
@@ -152,16 +151,16 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
           END,
           j.created_at ASC
         `,
-        [companyId]
-      );
+				[companyId]
+			);
 
-      return {
-        techs: techs,
-        jobs: jobs,
-        lastUpdate: new Date()
-      };
-    }
-  );
+			return {
+				techs: techs,
+				jobs: jobs,
+				lastUpdate: new Date()
+			};
+		}
+	);
 };
 
 export default locationRoutes;

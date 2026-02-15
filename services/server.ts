@@ -1,5 +1,5 @@
 // services/server.ts
-import locationRoutes from './routes/locationRoutes';
+import locationRoutes from "./routes/locationRoutes";
 import { getGeocodingWorker } from "./workers/geocodingWorker";
 
 import "dotenv/config";
@@ -43,7 +43,11 @@ const fastify = Fastify({
 		...(process.env.NODE_ENV !== "production" && {
 			transport: {
 				target: "pino-pretty",
-				options: { colorize: true, translateTime: "HH:MM:ss", ignore: "pid,hostname" }
+				options: {
+					colorize: true,
+					translateTime: "HH:MM:ss",
+					ignore: "pid,hostname"
+				}
 			}
 		})
 	}
@@ -61,7 +65,7 @@ await fastify.register(fastifyCors, {
 await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET! });
 
 // ===== Add authenticate decorator here =====
-fastify.decorate('authenticate', async (request: any, reply: any) => {
+fastify.decorate("authenticate", async (request: any, reply: any) => {
 	try {
 		await request.jwtVerify();
 	} catch (err) {

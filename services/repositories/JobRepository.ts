@@ -19,7 +19,7 @@ export type JobRecord = {
 export class JobRepository {
 	async findById(jobId: string): Promise<JobRecord | null> {
 		const sql = getSql();
-		
+
 		const result = await sql`
 			SELECT 
 				id, 
@@ -100,7 +100,7 @@ export class JobRepository {
 		status: "complete" | "failed"
 	): Promise<void> {
 		const sql = getSql();
-		
+
 		await sql`
 			UPDATE jobs 
 			SET latitude = ${latitude}, 

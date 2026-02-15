@@ -52,27 +52,27 @@ export async function query<T = any>(
 	params?: unknown[]
 ): Promise<T[]> {
 	const sql = getSql();
-	
+
 	// Neon uses tagged template literals, but we need to support parameterized queries
 	// for backward compatibility. Convert $1, $2 syntax to work with Neon.
-	
+
 	if (params && params.length > 0) {
 		// Build a query using Neon's tagged template format
 		// This is a compatibility layer - new code should use getSql() directly
 		const values = params;
 		let query = text;
-		
+
 		// Replace $1, $2, etc with actual values
 		for (let i = 0; i < values.length; i++) {
-			query = query.replace(new RegExp(`\\$${i + 1}\\b`, 'g'), `$${i + 1}`);
+			query = query.replace(new RegExp(`\\$${i + 1}\\b`, "g"), `$${i + 1}`);
 		}
-		
+
 		// Execute raw query with Neon
 		// Note: This uses Neon's array parameter syntax
 		const result = await (sql as any)(text, params);
 		return Array.isArray(result) ? result : [result];
 	}
-	
+
 	// For queries without parameters
 	const result = await (sql as any)(text, []);
 	return Array.isArray(result) ? result : [result];
@@ -165,12 +165,12 @@ export async function queryAll<T extends Record<string, unknown>>(
  * Get a client for transactions
  * Note: Neon HTTP doesn't support traditional transactions like pg Pool
  * For true ACID transactions, consider using Neon's WebSocket mode or pg Pool
- * 
+ *
  * This is a compatibility shim that executes queries immediately
  */
 export async function getClient() {
 	const sql = getSql();
-	
+
 	return {
 		query: async (text: string, params?: unknown[]) => {
 			const result = await query(text, params);
@@ -191,17 +191,17 @@ export async function transaction<T>(
 	callback: (client: Awaited<ReturnType<typeof getClient>>) => Promise<T>
 ): Promise<T> {
 	const client = await getClient();
-	
+
 	try {
 		// Begin transaction
 		await client.query("BEGIN");
-		
+
 		// Execute callback
 		const result = await callback(client);
-		
+
 		// Commit
 		await client.query("COMMIT");
-		
+
 		return result;
 	} catch (error) {
 		// Rollback on error

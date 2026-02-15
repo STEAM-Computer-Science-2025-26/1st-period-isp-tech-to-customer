@@ -122,9 +122,9 @@ export function batchDispatchRoute(fastify: FastifyInstance) {
 		} catch (error) {
 			console.error("Batch dispatch error:", error);
 			if (error instanceof Error) {
-				return reply.code(500).send({ 
-					error: "Batch dispatch failed", 
-					message: error.message 
+				return reply.code(500).send({
+					error: "Batch dispatch failed",
+					message: error.message
 				});
 			}
 			return reply.code(500).send({ error: "Batch dispatch failed" });

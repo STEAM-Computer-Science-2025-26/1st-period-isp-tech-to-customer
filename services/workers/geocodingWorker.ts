@@ -67,9 +67,9 @@ export class GeocodingWorker {
 			// Process each job
 			for (const job of pendingJobs) {
 				await this.geocodeJob(job.id, job.address, job.geocoding_retries);
-				
+
 				// Small delay between requests to avoid rate limiting
-				await new Promise(resolve => setTimeout(resolve, 100));
+				await new Promise((resolve) => setTimeout(resolve, 100));
 			}
 
 			console.log(`✅ Processed ${pendingJobs.length} geocoding jobs`);
