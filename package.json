@@ -12,8 +12,8 @@
 		"lint:auto-format": "eslint . -f ./eslint.formatter.js --fix && node -e \"const {execSync}=require('child_process');try{execSync('pnpm exec prettier . --check',{stdio:'inherit'});}catch(e){execSync('pnpm exec prettier . --write',{stdio:'inherit'});}\"",
 		"dev:backend": "tsx services/server.ts",
 		"migrate:status": "node db/migrations/scripts/migrate.js status",
-    	"migrate:up": "node db/migrations/scripts/migrate.js up",
-    	"migrate:down": "node db/migrations/scripts/migrate.js down",
+		"migrate:up": "node db/migrations/scripts/migrate.js up",
+		"migrate:down": "node db/migrations/scripts/migrate.js down",
 		"migrate:create": "node db/migrations/scripts/create-migration.js"
 	},
 	"dependencies": {
