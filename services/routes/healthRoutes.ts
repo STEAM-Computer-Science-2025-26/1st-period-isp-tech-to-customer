@@ -1,7 +1,13 @@
 // services/routes/healthRoutes.ts
 
 import { FastifyInstance } from "fastify";
-import { pool } from "../../db";
+import { Pool } from "pg";
+import * as db from "../../db";
+
+const pool: Pool = (db as any).pool ?? new Pool({
+	connectionString: process.env.DATABASE_URL,
+});
+
 import { geocodeAddress } from "./geocoding";
 
 export function healthCheck(fastify: FastifyInstance) {
