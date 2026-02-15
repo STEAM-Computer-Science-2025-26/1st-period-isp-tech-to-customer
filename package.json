@@ -10,7 +10,11 @@
 		"format": "pnpm exec prettier . --write",
 		"lint": "eslint . -f  ./eslint.formatter.js && pnpm exec prettier . --check",
 		"lint:auto-format": "eslint . -f ./eslint.formatter.js --fix && node -e \"const {execSync}=require('child_process');try{execSync('pnpm exec prettier . --check',{stdio:'inherit'});}catch(e){execSync('pnpm exec prettier . --write',{stdio:'inherit'});}\"",
-		"dev:backend": "tsx services/server.ts"
+		"dev:backend": "tsx services/server.ts",
+		"migrate:up": "node scripts/migrate.js up",
+		"migrate:down": "node scripts/migrate.js down",
+		"migrate:status": "node scripts/migrate.js status",
+		"migrate:create": "node scripts/create-migration.js"
 	},
 	"dependencies": {
 		"@fastify/cors": "^11.2.0",
@@ -21,7 +25,7 @@
 		"clsx": "^2.1.1",
 		"concurrently": "^9.2.1",
 		"date-fns": "^4.1.0",
-		"dotenv": "^17.2.4",
+		"dotenv": "^17.3.1",
 		"express": "^5.2.1",
 		"fastify": "^5.7.4",
 		"jsonwebtoken": "^9.0.3",
@@ -51,6 +55,7 @@
 		"@types/ws": "^8.18.1",
 		"eslint": "^9.39.2",
 		"eslint-config-next": "16.1.6",
+		"node-pg-migrate": "^8.0.4",
 		"tailwindcss": "^4.1.18",
 		"ts-jest": "^29.4.6",
 		"ts-node": "^10.9.2",
