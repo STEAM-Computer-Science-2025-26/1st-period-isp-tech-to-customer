@@ -1,5 +1,6 @@
 // services/server.ts
 import locationRoutes from './routes/locationRoutes';
+import { getGeocodingWorker } from "./workers/geocodingWorker";
 
 import "dotenv/config";
 import Fastify from "fastify";
@@ -25,7 +26,8 @@ function validateEnvironment() {
 		process.exit(1);
 	}
 }
-
+const geocodingWorker = getGeocodingWorker();
+geocodingWorker.start();
 validateEnvironment();
 
 const allowedOrigins: string[] = (
@@ -114,3 +116,20 @@ const start = async () => {
 };
 
 start();
+process.on("SIGTERM", () => {
+	console.log("SIGTERM received, shutting down gracefully...");
+	geocodingWorker.stop();
+	fastify.close(() => {
+		console.log("Server closed");
+		process.exit(0);
+	});
+});
+
+process.on("SIGINT", () => {
+	console.log("SIGINT received, shutting down gracefully...");
+	geocodingWorker.stop();
+	fastify.close(() => {
+		console.log("Server closed");
+		process.exit(0);
+	});
+});

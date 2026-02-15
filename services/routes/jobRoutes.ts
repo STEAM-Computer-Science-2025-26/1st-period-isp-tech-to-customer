@@ -22,6 +22,7 @@ const createJobSchema = z.object({
 	phone: z.string().min(1),
 	jobType: z.enum(["installation", "repair", "maintenance", "inspection"]),
 	priority: z.enum(["low", "medium", "high", "emergency"]),
+	requiredSkills: z.array(z.string()).optional(),
 	scheduledTime: z.string().datetime().optional(),
 	initialNotes: z.string().optional()
 });
@@ -170,8 +171,6 @@ export function createJob(fastify: FastifyInstance) {
 
 		const body = parsed.data;
 
-		// companyId always comes from the token for non-dev users.
-		// body.companyId is only respected for dev users.
 		const effectiveCompanyId = dev
 			? (body.companyId ?? requireCompanyId(user))
 			: requireCompanyId(user);
@@ -180,11 +179,14 @@ export function createJob(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 
+		// Create job with geocoding_status = 'pending'
+		// The worker will pick it up automatically
 		const result = await query(
 			`INSERT INTO jobs (
 				company_id, customer_name, address, phone,
-				job_type, priority, status, scheduled_time, initial_notes
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+				job_type, priority, status, scheduled_time, initial_notes,
+				geocoding_status, required_skills
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10)
 			RETURNING
 				id,
 				company_id AS "companyId",
@@ -200,7 +202,8 @@ export function createJob(fastify: FastifyInstance) {
 				completion_notes AS "completionNotes",
 				updated_at AS "updatedAt",
 				latitude, longitude,
-				geocoding_status AS "geocodingStatus"`,
+				geocoding_status AS "geocodingStatus",
+				required_skills AS "requiredSkills"`,
 			[
 				effectiveCompanyId,
 				body.customerName,
@@ -210,18 +213,18 @@ export function createJob(fastify: FastifyInstance) {
 				body.priority,
 				"unassigned",
 				body.scheduledTime ?? null,
-				body.initialNotes ?? null
+				body.initialNotes ?? null,
+				body.requiredSkills ?? []
 			]
 		);
 
-		// TODO: kick off geocoding here once provider is wired in:
-		// const geo = await tryGeocodeJob(body.address);
-		// await query(
-		//   `UPDATE jobs SET latitude=$1, longitude=$2, geocoding_status=$3 WHERE id=$4`,
-		//   [geo.latitude, geo.longitude, geo.geocodingStatus, result[0].id]
-		// );
+		const job = result[0];
 
-		return { job: result[0] };
+		// Fire and forget - don't wait for geocoding
+		// The background worker will handle it
+		console.log(`📍 Job ${job.id} queued for geocoding`);
+
+		return { job };
 	});
 }
 

@@ -219,33 +219,14 @@ export function createJob(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 
-		// ✅ FIX: Insert job immediately without waiting for geocoding
-		const result = await query<{
-			id: string;
-			companyId: string;
-			customerName: string;
-			address: string;
-			phone: string;
-			jobType: string;
-			status: string;
-			priority: string;
-			assignedTechId: string | null;
-			scheduledTime: string | null;
-			createdAt: string;
-			completedAt: string | null;
-			initialNotes: string | null;
-			completionNotes: string | null;
-			updatedAt: string;
-			latitude: number | null;
-			longitude: number | null;
-			geocodingStatus: string;
-			requiredSkills: string[] | null;
-		}>(
+		// Create job with geocoding_status = 'pending'
+		// The worker will pick it up automatically
+		const result = await query(
 			`INSERT INTO jobs (
 				company_id, customer_name, address, phone,
-				job_type, priority, status, scheduled_time, initial_notes, required_skills,
-				geocoding_status
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+				job_type, priority, status, scheduled_time, initial_notes,
+				geocoding_status, required_skills
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10)
 			RETURNING
 				id,
 				company_id AS "companyId",
@@ -273,25 +254,19 @@ export function createJob(fastify: FastifyInstance) {
 				"unassigned",
 				body.scheduledTime ?? null,
 				body.initialNotes ?? null,
-				body.requiredSkills ?? null,
-				"pending" // Initial geocoding status
+				body.requiredSkills ?? []
 			]
 		);
 
-		const createdJob = result[0];
+		const job = result[0];
 
-		// ✅ FIX: Fire-and-forget background geocoding
-		// Don't await - let it run asynchronously
-		geocodeJobAsync(createdJob.id, body.address).catch(err => {
-			// Error already logged in geocodeJobAsync
-			// This catch prevents unhandled promise rejection
-		});
+		// Fire and forget - don't wait for geocoding
+		// The background worker will handle it
+		console.log(`📍 Job ${job.id} queued for geocoding`);
 
-		// Return immediately - geocoding happens in background
-		return { job: createdJob };
+		return { job };
 	});
 }
-
 export function updateJobStatus(fastify: FastifyInstance) {
 	fastify.put("/jobs/:jobId/status", async (request, reply) => {
 		const user = getAuthUser(request);
