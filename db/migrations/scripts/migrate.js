@@ -58,7 +58,7 @@ async function getAppliedMigrations() {
 
 // Get list of migration files
 async function getMigrationFiles() {
-	const migrationsDir = join(__dirname, "..", "migrations");
+	const migrationsDir = join(__dirname, "..");
 	const files = await readdir(migrationsDir);
 
 	return files

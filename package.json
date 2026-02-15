@@ -11,10 +11,10 @@
 		"lint": "eslint . -f  ./eslint.formatter.js && pnpm exec prettier . --check",
 		"lint:auto-format": "eslint . -f ./eslint.formatter.js --fix && node -e \"const {execSync}=require('child_process');try{execSync('pnpm exec prettier . --check',{stdio:'inherit'});}catch(e){execSync('pnpm exec prettier . --write',{stdio:'inherit'});}\"",
 		"dev:backend": "tsx services/server.ts",
-		"migrate:up": "node scripts/migrate.js up",
-		"migrate:down": "node scripts/migrate.js down",
-		"migrate:status": "node scripts/migrate.js status",
-		"migrate:create": "node scripts/create-migration.js"
+		"migrate:status": "node db/migrations/scripts/migrate.js status",
+    	"migrate:up": "node db/migrations/scripts/migrate.js up",
+    	"migrate:down": "node db/migrations/scripts/migrate.js down",
+		"migrate:create": "node db/migrations/scripts/create-migration.js"
 	},
 	"dependencies": {
 		"@fastify/cors": "^11.2.0",
