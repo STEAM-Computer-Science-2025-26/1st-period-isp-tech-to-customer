@@ -6,7 +6,6 @@ import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
-import * from
 
 let cachedSql: NeonQueryFunction<false, false> | null = null;
 

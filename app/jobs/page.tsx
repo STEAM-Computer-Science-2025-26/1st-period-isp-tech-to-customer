@@ -1,12 +1,12 @@
 "use client";
 
-import { DevDbTools } from '@/components/dev/db/DevDbTools';
-import Header from '@/components/layout/Header';
-import MainContent from '@/components/layout/MainContent';
-import Sidebar from '@/components/layout/sidebar/Sidebar';
-import { defaultSidebarItems } from '@/components/layout/sidebar/SidebarItems';
-import React, { useState } from 'react'
-import { cn } from '@/lib/utils/index';
+import { DevDbTools } from "@/components/dev/db/DevDbTools";
+import Header from "@/components/layout/Header";
+import MainContent from "@/components/layout/MainContent";
+import Sidebar from "@/components/layout/sidebar/Sidebar";
+import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
+import React, { useState } from "react";
+import { cn } from "@/lib/utils/index";
 import {
 	Card,
 	KpiCard,
@@ -14,12 +14,12 @@ import {
 	ListCard,
 	TableCard
 } from "@/components/ui/Card";
-import { JobDTO } from '@/app/types/types';
-import ListPanel from '@/components/ui/ListPanel';
-import FadeEnd from '@/components/ui/FadeEnd';
+import { JobDTO } from "@/app/types/types";
+import ListPanel from "@/components/ui/ListPanel";
+import FadeEnd from "@/components/ui/FadeEnd";
 
 const JobsPage = () => {
-  const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
+	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
 	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 	return (
@@ -35,80 +35,94 @@ const JobsPage = () => {
 				sidebarIsStrip={sidebarIsStrip}
 				className={cn(`flex flex-col gap-4`)}
 			>
-				<FadeEnd 
-					className={cn('h-48 w-full overflow-hidden')}
+				<FadeEnd
+					className={cn("h-48 w-full overflow-hidden")}
 					orientation="horizontal"
 					prefix="both"
 					fromColorClass="from-background-main"
 					sizeClass="w-8"
 					wrapperClassName="flex px-2 flex-row h-full w-full overflow-x-auto no-scrollbar gap-3 bg-transparent"
 				>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
-					<KpiCard 
+					<KpiCard
 						title="Total Jobs Today"
 						value="27"
-						className={cn('w-xs shrink-0')}
+						className={cn("w-xs shrink-0")}
 					/>
 				</FadeEnd>
 				<ListPanel<JobDTO>
-					columns={['Customer', 'Address', 'Type', 'Status', 'Priority', 'Scheduled']}
-  					columnKeys={['customerName', 'address', 'jobType', 'status', 'priority', 'scheduledTime']}
+					columns={[
+						"Customer",
+						"Address",
+						"Type",
+						"Status",
+						"Priority",
+						"Scheduled"
+					]}
+					columnKeys={[
+						"customerName",
+						"address",
+						"jobType",
+						"status",
+						"priority",
+						"scheduledTime"
+					]}
 					data={[]}
-					className={cn('mx-2')}
+					className={cn("mx-2")}
 				/>
 			</MainContent>
 			<Sidebar
@@ -125,6 +139,6 @@ const JobsPage = () => {
 			/>
 		</>
 	);
-}
+};
 
-export default JobsPage
+export default JobsPage;
