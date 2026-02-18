@@ -124,7 +124,7 @@ function DesktopSidebar({
 					: ""
 			)}
 		>
-			<div className="shadow-md w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3 px-1.5 py-2">
+			<div className="border border-background-secondary shadow-md w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3 px-1.5 py-2">
 				<div className="flex items-center gap-1 px-2 pt-1">
 					<button
 						type="button"

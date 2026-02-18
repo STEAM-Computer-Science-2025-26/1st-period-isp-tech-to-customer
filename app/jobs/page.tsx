@@ -108,6 +108,7 @@ const JobsPage = () => {
 					columns={['Customer', 'Address', 'Type', 'Status', 'Priority', 'Scheduled']}
   					columnKeys={['customerName', 'address', 'jobType', 'status', 'priority', 'scheduledTime']}
 					data={[]}
+					className={cn('mx-2')}
 				/>
 			</MainContent>
 			<Sidebar

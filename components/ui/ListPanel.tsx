@@ -4,17 +4,19 @@ const ListPanel = <T extends Record<string, unknown>>({
   columns,
   columnKeys,
   data,
+  className
 }: {
   columns: string[]
   columnKeys: (keyof T)[]
   data: T[]
+  className?: string
 }) => {
   const columnsCount = columns.length
 
   return (
-    <div className={cn('w-full bg-background-primary rounded-xl border border-background-secondary relative pt-12')}>
+    <div className={cn('w-full bg-background-primary rounded-xl border border-background-secondary relative pt-12', className)}>
       <div
-        className={cn('border-b border-b-secondary/50 h-12 absolute top-0 inset-x-4 items-center grid')}
+        className={cn('border-b border-secondary/50 h-12 absolute top-0 inset-x-4 items-center grid')}
         style={{ gridTemplateColumns: `repeat(${columnsCount}, minmax(0, 1fr))` }}
       >
         {columns.map((title, i) => (

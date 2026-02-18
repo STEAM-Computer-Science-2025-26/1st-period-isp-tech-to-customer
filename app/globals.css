@@ -14,7 +14,7 @@
 	--sidebar-main-gap: calc(var(--spacing) * 4); /* Tailwind gap-4 */
 
 	--background-main: #f4f4f6;
-	--background-primary: #ededed;
+	--background-primary: #ebebee;
 	--background-secondary: #c0c0c5;
 	--background-tertiary: #9999a1;
 	--foreground: #1a1a1c;

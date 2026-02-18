@@ -29,10 +29,10 @@ export default function Header({
 						: "pl-6"
 			)}
 		>
-			<header className="w-full px-4 flex flex-row items-center justify-between rounded-xl h-full bg-background-secondary/50 shadow-sm backdrop-blur-md">
+			<header className="border border-background-secondary w-full px-4 flex flex-row items-center justify-between rounded-xl h-full bg-background-secondary/50 shadow-sm backdrop-blur-md">
 				<h1 className="text-lg font-semibold text-text-main">Dashboard</h1>
 				{lgUp ? (
-					<nav className="flex flex-row items-center gap-2 text-text-secondary [&>a]:cursor-pointer">
+					<nav className="flex flex-row items-center gap-6 text-text-secondary [&>a]:cursor-pointer">
 						{/* Navigation items can be added here */}
 						<a>About Us</a>
 						<a>Contact</a>

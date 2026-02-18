@@ -25,7 +25,7 @@ export function CardShell({
 	return (
 		<section
 			className={clsx(
-				"w-full max-w-full min-w-0 overflow-hidden rounded-xl bg-background-secondary/50 backdrop-blur-md border border-accent-text/30",
+				"w-full max-w-full min-w-0 overflow-hidden rounded-xl bg-background-primary backdrop-blur-md border border-accent-text/50",
 				"shadow-sm",
 				className
 			)}
