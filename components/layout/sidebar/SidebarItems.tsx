@@ -28,5 +28,6 @@ export const defaultSidebarItems: SidebarItemParams[] = [
 		onClick: () => {
 			window.location.href = "/dev";
 		}
-	}
+	},
+	{ id: 9, title: "Jobs", icon: "briefcase", onClick: () => { window.location.href = "/jobs"; } },
 ];
