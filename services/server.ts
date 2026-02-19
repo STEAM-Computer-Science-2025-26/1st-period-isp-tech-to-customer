@@ -4,7 +4,7 @@ import { getGeocodingWorker } from "./workers/geocodingWorker";
 
 import "dotenv/config";
 import Fastify from "fastify";
-import { jobRoutes } from "./routes/jobRoutesUpdated";
+import { jobRoutes } from "./routes/jobRoutes";
 import { userRoutes } from "./routes/userRoutes";
 import { companyRoutes } from "./routes/companyRoutes";
 import { registerEmployeeRoutes } from "./routes/employeeRoutes";

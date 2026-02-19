@@ -1,8 +1,12 @@
+// services/routes/jobRoutes.ts
+
 import { FastifyInstance } from "fastify";
 import { query } from "../../db";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth";
+import { tryGeocodeJob } from "./geocoding";
 
+// ============================================================
 // Schemas
 // ============================================================
 
@@ -16,15 +20,15 @@ const listJobsSchema = z.object({
 });
 
 const createJobSchema = z.object({
-	companyId: z.string().uuid().optional(), // dev only — ignored for non-dev
+	companyId: z.string().uuid().optional(),
 	customerName: z.string().min(1),
-	address: z.string().min(1),
+	address: z.string().min(5, "Address must be at least 5 characters"),
 	phone: z.string().min(1),
 	jobType: z.enum(["installation", "repair", "maintenance", "inspection"]),
 	priority: z.enum(["low", "medium", "high", "emergency"]),
-	requiredSkills: z.array(z.string()).optional(),
 	scheduledTime: z.string().datetime().optional(),
-	initialNotes: z.string().optional()
+	initialNotes: z.string().optional(),
+	requiredSkills: z.array(z.string()).optional()
 });
 
 const updateJobStatusSchema = z.object({
@@ -41,7 +45,7 @@ const updateJobStatusSchema = z.object({
 const updateJobSchema = z
 	.object({
 		customerName: z.string().min(1).optional(),
-		address: z.string().min(1).optional(),
+		address: z.string().min(5).optional(),
 		phone: z.string().min(1).optional(),
 		jobType: z
 			.enum(["installation", "repair", "maintenance", "inspection"])
@@ -52,7 +56,8 @@ const updateJobSchema = z
 		priority: z.enum(["low", "medium", "high", "emergency"]).optional(),
 		assignedTechId: z.string().uuid().optional(),
 		scheduledTime: z.string().datetime().optional(),
-		initialNotes: z.string().optional()
+		initialNotes: z.string().optional(),
+		requiredSkills: z.array(z.string()).optional()
 	})
 	.refine((data) => Object.keys(data).length > 0, {
 		message: "At least one field must be provided"
@@ -82,8 +87,51 @@ function requireCompanyId(user: AuthUser): string | null {
 	return user.companyId ?? null;
 }
 
+/**
+ * Background geocoding — doesn't block the HTTP response.
+ * Failures are logged and marked in the DB for retry.
+ */
+async function geocodeJobAsync(jobId: string, address: string): Promise<void> {
+	try {
+		const geo = await tryGeocodeJob(address);
+		await query(
+			`UPDATE jobs
+			 SET latitude = $1, longitude = $2, geocoding_status = $3, updated_at = NOW()
+			 WHERE id = $4`,
+			[geo.latitude, geo.longitude, geo.geocodingStatus, jobId]
+		);
+		console.log(`✅ Geocoded job ${jobId}: ${geo.geocodingStatus}`);
+	} catch (error) {
+		console.error(`❌ Geocoding failed for job ${jobId}:`, error);
+		await query(
+			`UPDATE jobs SET geocoding_status = 'failed', updated_at = NOW() WHERE id = $1`,
+			[jobId]
+		).catch((err) => console.error("Failed to update geocoding status:", err));
+	}
+}
+
+// Shared SELECT columns — keep queries DRY
+const JOB_SELECT = `
+	id,
+	company_id AS "companyId",
+	customer_name AS "customerName",
+	address, phone,
+	job_type AS "jobType",
+	status, priority,
+	assigned_tech_id AS "assignedTechId",
+	scheduled_time AS "scheduledTime",
+	created_at AS "createdAt",
+	completed_at AS "completedAt",
+	initial_notes AS "initialNotes",
+	completion_notes AS "completionNotes",
+	updated_at AS "updatedAt",
+	latitude, longitude,
+	geocoding_status AS "geocodingStatus",
+	required_skills AS "requiredSkills"
+`;
+
 // ============================================================
-// Route handlers
+// Route Handlers
 // ============================================================
 
 export function listJobs(fastify: FastifyInstance) {
@@ -108,27 +156,6 @@ export function listJobs(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 
-		let sql = `SELECT
-			id,
-			company_id AS "companyId",
-			customer_name AS "customerName",
-			address,
-			phone,
-			job_type AS "jobType",
-			status,
-			priority,
-			assigned_tech_id AS "assignedTechId",
-			scheduled_time AS "scheduledTime",
-			created_at AS "createdAt",
-			completed_at AS "completedAt",
-			initial_notes AS "initialNotes",
-			completion_notes AS "completionNotes",
-			updated_at AS "updatedAt",
-			latitude,
-			longitude,
-			geocoding_status AS "geocodingStatus"
-		FROM jobs`;
-
 		const conditions: string[] = [];
 		const params: string[] = [];
 
@@ -148,9 +175,7 @@ export function listJobs(fastify: FastifyInstance) {
 			conditions.push(`priority = $${params.length}`);
 		}
 
-		sql += ` WHERE ${conditions.join(" AND ")}`;
-		sql += ` ORDER BY created_at DESC`;
-
+		const sql = `SELECT ${JOB_SELECT} FROM jobs WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC`;
 		const jobs = await query(sql, params);
 		return { jobs };
 	});
@@ -170,7 +195,6 @@ export function createJob(fastify: FastifyInstance) {
 		}
 
 		const body = parsed.data;
-
 		const effectiveCompanyId = dev
 			? (body.companyId ?? requireCompanyId(user))
 			: requireCompanyId(user);
@@ -179,31 +203,13 @@ export function createJob(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 
-		// Create job with geocoding_status = 'pending'
-		// The worker will pick it up automatically
 		const result = await query(
 			`INSERT INTO jobs (
 				company_id, customer_name, address, phone,
-				job_type, priority, status, scheduled_time, initial_notes,
-				geocoding_status, required_skills
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10)
-			RETURNING
-				id,
-				company_id AS "companyId",
-				customer_name AS "customerName",
-				address, phone,
-				job_type AS "jobType",
-				status, priority,
-				assigned_tech_id AS "assignedTechId",
-				scheduled_time AS "scheduledTime",
-				created_at AS "createdAt",
-				completed_at AS "completedAt",
-				initial_notes AS "initialNotes",
-				completion_notes AS "completionNotes",
-				updated_at AS "updatedAt",
-				latitude, longitude,
-				geocoding_status AS "geocodingStatus",
-				required_skills AS "requiredSkills"`,
+				job_type, priority, status, scheduled_time,
+				initial_notes, geocoding_status, required_skills
+			) VALUES ($1, $2, $3, $4, $5, $6, 'unassigned', $7, $8, 'pending', $9)
+			RETURNING ${JOB_SELECT}`,
 			[
 				effectiveCompanyId,
 				body.customerName,
@@ -211,7 +217,6 @@ export function createJob(fastify: FastifyInstance) {
 				body.phone,
 				body.jobType,
 				body.priority,
-				"unassigned",
 				body.scheduledTime ?? null,
 				body.initialNotes ?? null,
 				body.requiredSkills ?? []
@@ -220,11 +225,10 @@ export function createJob(fastify: FastifyInstance) {
 
 		const job = result[0];
 
-		// Fire and forget - don't wait for geocoding
-		// The background worker will handle it
+		// Fire and forget — background worker handles geocoding
 		console.log(`📍 Job ${job.id} queued for geocoding`);
 
-		return { job };
+		return reply.code(201).send({ job });
 	});
 }
 
@@ -247,13 +251,10 @@ export function updateJobStatus(fastify: FastifyInstance) {
 
 		const setCompletedAt =
 			status === "completed" ? ", completed_at = NOW()" : "";
+		const values: (string | null)[] = [status, completionNotes ?? null];
 
-		const values: Array<string | null> = [
-			status,
-			completionNotes ?? null,
-			jobId
-		];
-		let where = `WHERE id = $3`;
+		values.push(jobId);
+		let where = `WHERE id = $${values.length}`;
 
 		if (!dev) {
 			if (!companyId) {
@@ -262,38 +263,26 @@ export function updateJobStatus(fastify: FastifyInstance) {
 					.send({ error: "Forbidden - Missing company in token" });
 			}
 			values.push(companyId);
-			where += ` AND company_id = $4`;
+			where += ` AND company_id = $${values.length}`;
 		}
 
 		const result = await query(
 			`UPDATE jobs
-			SET status = $1, completion_notes = $2, updated_at = NOW()${setCompletedAt}
-			${where}
-			RETURNING
-				id, company_id AS "companyId",
-				customer_name AS "customerName",
-				address, phone,
-				job_type AS "jobType",
-				status, priority,
-				assigned_tech_id AS "assignedTechId",
-				scheduled_time AS "scheduledTime",
-				created_at AS "createdAt",
-				completed_at AS "completedAt",
-				initial_notes AS "initialNotes",
-				completion_notes AS "completionNotes",
-				updated_at AS "updatedAt"`,
+			 SET status = $1, completion_notes = $2${setCompletedAt}, updated_at = NOW()
+			 ${where}
+			 RETURNING id`,
 			values
 		);
 
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Job not found" });
 		}
-		return { job: result[0] };
+		return { message: "Job status updated", jobId: result[0].id };
 	});
 }
 
 export function updateJob(fastify: FastifyInstance) {
-	fastify.put("/jobs/:jobId", async (request, reply) => {
+	fastify.patch("/jobs/:jobId", async (request, reply) => {
 		const user = getAuthUser(request);
 		const dev = isDev(user);
 		const companyId = requireCompanyId(user);
@@ -310,47 +299,44 @@ export function updateJob(fastify: FastifyInstance) {
 		const body = parsed.data;
 
 		const updates: string[] = [];
-		const values: Array<string | null> = [];
+		const values: (string | string[] | null)[] = [];
 
-		if (body.customerName !== undefined) {
-			values.push(body.customerName);
-			updates.push(`customer_name = $${values.length}`);
-		}
+		const addField = (
+			col: string,
+			val: string | string[] | null | undefined
+		) => {
+			if (val !== undefined) {
+				values.push(val ?? null);
+				updates.push(`${col} = $${values.length}`);
+			}
+		};
+
+		let addressChanged = false;
+		let newAddress: string | undefined;
+
 		if (body.address !== undefined) {
+			addressChanged = true;
+			newAddress = body.address;
+			// Reset geocoding state inline so dispatch doesn't use stale coords
 			values.push(body.address);
 			updates.push(`address = $${values.length}`);
-			// If address changes, geocoding needs to re-run
 			updates.push(`geocoding_status = 'pending'`);
 			updates.push(`latitude = NULL`);
 			updates.push(`longitude = NULL`);
 		}
-		if (body.phone !== undefined) {
-			values.push(body.phone);
-			updates.push(`phone = $${values.length}`);
-		}
-		if (body.jobType !== undefined) {
-			values.push(body.jobType);
-			updates.push(`job_type = $${values.length}`);
-		}
-		if (body.status !== undefined) {
-			values.push(body.status);
-			updates.push(`status = $${values.length}`);
-		}
-		if (body.priority !== undefined) {
-			values.push(body.priority);
-			updates.push(`priority = $${values.length}`);
-		}
-		if (body.assignedTechId !== undefined) {
-			values.push(body.assignedTechId);
-			updates.push(`assigned_tech_id = $${values.length}`);
-		}
-		if (body.scheduledTime !== undefined) {
-			values.push(body.scheduledTime);
-			updates.push(`scheduled_time = $${values.length}`);
-		}
-		if (body.initialNotes !== undefined) {
-			values.push(body.initialNotes);
-			updates.push(`initial_notes = $${values.length}`);
+
+		addField("customer_name", body.customerName);
+		addField("phone", body.phone);
+		addField("job_type", body.jobType);
+		addField("status", body.status);
+		addField("priority", body.priority);
+		addField("assigned_tech_id", body.assignedTechId);
+		addField("scheduled_time", body.scheduledTime);
+		addField("initial_notes", body.initialNotes);
+		addField("required_skills", body.requiredSkills);
+
+		if (updates.length === 0) {
+			return reply.code(400).send({ error: "No fields to update" });
 		}
 
 		values.push(jobId);
@@ -374,7 +360,13 @@ export function updateJob(fastify: FastifyInstance) {
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Job not found" });
 		}
-		return { message: "Job updated successfully", job: result[0] };
+
+		// Re-geocode in background if address changed
+		if (addressChanged && newAddress) {
+			geocodeJobAsync(jobId, newAddress).catch(() => {});
+		}
+
+		return { message: "Job updated successfully", jobId: result[0].id };
 	});
 }
 
@@ -400,6 +392,62 @@ export function deleteJob(fastify: FastifyInstance) {
 	});
 }
 
+export function retryGeocoding(fastify: FastifyInstance) {
+	fastify.post("/jobs/:jobId/retry-geocoding", async (request, reply) => {
+		const user = getAuthUser(request);
+		const dev = isDev(user);
+		const companyId = requireCompanyId(user);
+
+		const { jobId } = request.params as { jobId: string };
+
+		let whereClause = "WHERE id = $1";
+		const params: string[] = [jobId];
+
+		if (!dev) {
+			if (!companyId) {
+				return reply
+					.code(403)
+					.send({ error: "Forbidden - Missing company in token" });
+			}
+			params.push(companyId);
+			whereClause += " AND company_id = $2";
+		}
+
+		const result = await query(
+			`SELECT id, address, geocoding_status AS "geocodingStatus" FROM jobs ${whereClause}`,
+			params
+		);
+
+		if (!result[0]) {
+			return reply.code(404).send({ error: "Job not found" });
+		}
+
+		const job = result[0] as {
+			id: string;
+			address: string;
+			geocodingStatus: string;
+		};
+
+		if (job.geocodingStatus === "complete") {
+			return reply
+				.code(400)
+				.send({ error: "Job already geocoded successfully" });
+		}
+
+		geocodeJobAsync(job.id, job.address).catch(() => {});
+
+		return {
+			message: "Geocoding retry initiated",
+			jobId: job.id,
+			status: "pending"
+		};
+	});
+}
+
+// ============================================================
+// Registration
+// ============================================================
+
 export async function jobRoutes(fastify: FastifyInstance) {
 	fastify.register(async (authenticatedRoutes) => {
 		authenticatedRoutes.addHook("onRequest", authenticate);
@@ -408,5 +456,6 @@ export async function jobRoutes(fastify: FastifyInstance) {
 		updateJobStatus(authenticatedRoutes);
 		updateJob(authenticatedRoutes);
 		deleteJob(authenticatedRoutes);
+		retryGeocoding(authenticatedRoutes);
 	});
 }
