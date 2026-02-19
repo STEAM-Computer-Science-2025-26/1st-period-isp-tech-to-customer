@@ -31,13 +31,11 @@ export async function runDispatchForJob(
 	});
 
 	// Record dispatch results
-	if ((metrics as any).recordDispatchResult) {
-		(metrics as any).recordDispatchResult(
-			result.totalEligibleTechs,
-			result.requiresManualDispatch,
-			result.manualDispatchReason
-		);
-	}
+	metrics.recordDispatchResult(
+		result.totalEligibleTechs,
+		result.requiresManualDispatch,
+		result.manualDispatchReason
+	);
 }
 
 /**
@@ -66,8 +64,4 @@ export async function manualAssignJob(
 	reason: string
 ): Promise<void> {
 	return orchestrator.manualAssign(jobId, techId, assignedByUserId, reason);
-}
-
-function recordDispatchResult(totalEligibleTechs: number, arg1: any) {
-	throw new Error("Function not implemented.");
 }

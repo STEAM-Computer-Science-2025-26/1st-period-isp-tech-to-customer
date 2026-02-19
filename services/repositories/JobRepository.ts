@@ -14,6 +14,15 @@ export type JobRecord = {
 	status: string;
 	geocodingStatus: string;
 	requiredSkills: string[];
+	assignedTechId?: string | null;
+};
+
+type DatabaseClient = {
+	query: (
+		text: string,
+		params?: unknown[]
+	) => Promise<{ rows: Record<string, unknown>[]; rowCount: number }>;
+	release: () => void;
 };
 
 export class JobRepository {
@@ -36,7 +45,9 @@ export class JobRepository {
 			WHERE id = ${jobId}
 		`;
 
-		const row: any = result[0];
+		const row = result[0] as
+			| (JobRecord & { assignedTechId?: string | null })
+			| undefined;
 		if (!row) return null;
 
 		return {
@@ -55,7 +66,7 @@ export class JobRepository {
 
 	async findByIdWithLock(
 		jobId: string,
-		client: any
+		client: DatabaseClient
 	): Promise<JobRecord | null> {
 		const result = await client.query(
 			`SELECT 
@@ -78,7 +89,7 @@ export class JobRepository {
 
 		if (result.rows.length === 0) return null;
 
-		const row = result.rows[0];
+		const row = result.rows[0] as JobRecord & { assignedTechId?: string | null };
 		return {
 			id: row.id,
 			companyId: row.companyId,
@@ -89,7 +100,8 @@ export class JobRepository {
 			longitude: row.longitude,
 			status: row.status,
 			geocodingStatus: row.geocodingStatus,
-			requiredSkills: row.requiredSkills || []
+			requiredSkills: row.requiredSkills || [],
+			assignedTechId: row.assignedTechId ?? null
 		};
 	}
 
@@ -114,7 +126,7 @@ export class JobRepository {
 	async assignToTech(
 		jobId: string,
 		techId: string,
-		client: any
+		client: DatabaseClient
 	): Promise<void> {
 		await client.query(
 			`UPDATE jobs 
@@ -131,10 +143,10 @@ export class JobRepository {
 		assignedByUserId: string,
 		isManualOverride: boolean,
 		overrideReason: string | null,
-		scoringDetails: any,
+		scoringDetails: Record<string, unknown> | null,
 		jobPriority: string,
 		jobType: string,
-		client: any
+		client: DatabaseClient
 	): Promise<void> {
 		await client.query(
 			`INSERT INTO job_assignments 
@@ -159,7 +171,7 @@ export class JobRepository {
 	async updateEmployeeWorkload(
 		techId: string,
 		jobId: string,
-		client: any
+		client: DatabaseClient
 	): Promise<void> {
 		await client.query(
 			`UPDATE employees

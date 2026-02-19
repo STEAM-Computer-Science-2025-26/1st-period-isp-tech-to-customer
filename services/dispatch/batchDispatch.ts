@@ -1,5 +1,5 @@
 import * as db from "../../db";
-import { scoreAndRankCandidates } from "./scorer";
+import { type JobDataType, scoreAndRankCandidates } from "./scorer";
 
 export interface BatchDispatchResult {
 	assignments: Array<{
@@ -202,7 +202,7 @@ export async function batchDispatch(
 		}
 
 		const isEmergency = job.priority === "emergency";
-		const jobForScoring = {
+		const jobForScoring: JobDataType = {
 			id: job.id,
 			latitude:
 				job.latitude == null
@@ -221,7 +221,7 @@ export async function batchDispatch(
 
 		const ranked = await scoreAndRankCandidates(
 			availableTechs,
-			jobForScoring as any,
+			jobForScoring,
 			isEmergency
 		);
 

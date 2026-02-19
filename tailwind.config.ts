@@ -5,7 +5,7 @@ const colorPattern = new RegExp(
 	`^(bg|text|border)-(${colorNames})(-\\d{2,3})?(\\/(0|[1-9]\\d|100))?$`
 );
 
-export default {
+const config = {
 	content: [
 		"./app/**/*.{js,ts,jsx,tsx,mdx}",
 		"./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -28,3 +28,5 @@ export default {
 		}
 	]
 };
+
+export default config;

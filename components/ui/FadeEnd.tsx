@@ -61,14 +61,10 @@ const FadeEnd = ({
 			)}
 			<div className={cn(wrapperClassName)}>
 				{React.Children.map(children, (child) => {
-					if (React.isValidElement(child)) {
+					if (React.isValidElement<{ className?: string }>(child)) {
 						return React.cloneElement(child, {
-							...(child.props as Record<string, any>),
-							className: cn(
-								(child.props as Record<string, any>).className,
-								"z-10"
-							)
-						} as any);
+							className: cn(child.props.className, "z-10")
+						});
 					}
 					return child;
 				})}

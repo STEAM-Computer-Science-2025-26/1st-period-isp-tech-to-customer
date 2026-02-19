@@ -1,7 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { query } from "../../db";
 import { z } from "zod";
-import { authenticate } from "../middleware/auth";
 import { areValidCoordinates } from "../../algo/distance";
 
 const updateLocationSchema = z.object({
@@ -117,7 +116,7 @@ export function getEmployeeLocation(fastify: FastifyInstance) {
 }
 
 export function getAllTechs(fastify: FastifyInstance) {
-	fastify.get("/techs", async (request, reply) => {
+	fastify.get("/techs", async (request, _reply) => {
 		const authUser = request.user as AuthUser;
 		const isDev = authUser?.role === "dev";
 
@@ -137,9 +136,15 @@ export function getAllTechs(fastify: FastifyInstance) {
 			params.push(authUser.companyId ?? "");
 		}
 
-		const result = await query(sql, params);
+		const result = await query<{
+			tech_id: string;
+			tech_name: string;
+			latitude: number | null;
+			longitude: number | null;
+			last_update: string | null;
+		}>(sql, params);
 
-		const techs = result.map((t: any) => ({
+		const techs = result.map((t) => ({
 			tech_id: t.tech_id,
 			tech_name: t.tech_name,
 			latitude: t.latitude,

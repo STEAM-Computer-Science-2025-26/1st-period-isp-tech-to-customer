@@ -17,6 +17,59 @@ export type TechMetrics = {
 	averageRating: number;
 };
 
+export const contentType = "text/plain; version=0.0.4; charset=utf-8";
+
+type ProcessWithHandles = NodeJS.Process & {
+	_getActiveHandles?: () => unknown[];
+};
+
+/**
+ * Return a small set of Prometheus-style metrics about the Node process.
+ * The function is async to match the usage site, but it generates metrics synchronously.
+ */
+export async function metrics(): Promise<string> {
+	const m = process.memoryUsage();
+	const uptime = process.uptime();
+	const processWithHandles = process as ProcessWithHandles;
+
+	// best-effort active handles count (non-standard API may not exist in some runtimes)
+	const activeHandlesCount =
+		typeof processWithHandles._getActiveHandles === "function"
+			? processWithHandles._getActiveHandles().length
+			: 0;
+
+	const lines: string[] = [
+		"# HELP node_process_uptime_seconds Process uptime in seconds.",
+		"# TYPE node_process_uptime_seconds gauge",
+		`node_process_uptime_seconds ${uptime}`,
+		"# HELP node_process_memory_rss_bytes Resident set size in bytes.",
+		"# TYPE node_process_memory_rss_bytes gauge",
+		`node_process_memory_rss_bytes ${m.rss}`,
+		"# HELP node_process_heap_total_bytes V8 heap total in bytes.",
+		"# TYPE node_process_heap_total_bytes gauge",
+		`node_process_heap_total_bytes ${m.heapTotal}`,
+		"# HELP node_process_heap_used_bytes V8 heap used in bytes.",
+		"# TYPE node_process_heap_used_bytes gauge",
+		`node_process_heap_used_bytes ${m.heapUsed}`,
+		"# HELP node_process_external_memory_bytes V8 external memory in bytes.",
+		"# TYPE node_process_external_memory_bytes gauge",
+		`node_process_external_memory_bytes ${m.external ?? 0}`,
+		"# HELP node_process_active_handles Number of active libuv handles.",
+		"# TYPE node_process_active_handles gauge",
+		`node_process_active_handles ${activeHandlesCount}`
+	];
+
+	return lines.join("\n") + "\n";
+}
+
+export function recordDispatchResult(
+	_totalEligibleTechs: number,
+	_requiresManualDispatch: boolean,
+	_manualDispatchReason?: string
+): void {
+	// Placeholder hook for future metrics collection.
+}
+
 /**
  * Calculates performance metrics for a single technician.
  * @param techId
@@ -109,9 +162,3 @@ export async function enrichMultipleTechnicians(
 	return Promise.all(technicians.map((tech) => enrichTechWithMetrics(tech)));
 }
 
-export function contentType(arg0: string, contentType: any) {
-	throw new Error("Function not implemented.");
-}
-export function metrics(): unknown {
-	throw new Error("Function not implemented.");
-}

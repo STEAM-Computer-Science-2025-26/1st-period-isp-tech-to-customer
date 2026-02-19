@@ -47,7 +47,7 @@ export function getSql(): NeonQueryFunction<false, false> {
  * Execute a query and return all rows
  * @deprecated Use getSql() directly for better type safety
  */
-export async function query<T = any>(
+export async function query<T = Record<string, unknown>>(
 	text: string,
 	params?: unknown[]
 ): Promise<T[]> {
@@ -55,12 +55,12 @@ export async function query<T = any>(
 
 	if (params && params.length > 0) {
 		const result = await sql.query(text, params);
-		return Array.isArray(result) ? result : [result];
+		return (Array.isArray(result) ? result : [result]) as T[];
 	}
 
 	// For queries without parameters
 	const result = await sql.query(text);
-	return Array.isArray(result) ? result : [result];
+	return (Array.isArray(result) ? result : [result]) as T[];
 }
 
 /**
@@ -154,8 +154,6 @@ export async function queryAll<T extends Record<string, unknown>>(
  * This is a compatibility shim that executes queries immediately
  */
 export async function getClient() {
-	const sql = getSql();
-
 	return {
 		query: async (text: string, params?: unknown[]) => {
 			const result = await query(text, params);

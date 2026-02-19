@@ -68,7 +68,6 @@ type TailwindSizes =
 	| "7xl";
 
 export default function Button({
-	variant = "default",
 	label,
 	bg = "primary",
 	bgHover = "secondary/50",
@@ -80,7 +79,6 @@ export default function Button({
 	className,
 	...props
 }: {
-	variant?: "default";
 	label: string;
 	bg?: TailwindColor;
 	bgHover?: TailwindColor;

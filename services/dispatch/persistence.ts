@@ -1,7 +1,7 @@
 // services/dispatch/persistence.ts
 // FIXED VERSION - Uses Neon, proper transaction handling
 
-import { getSql, transaction } from "../../db";
+import { transaction } from "../../db";
 
 /**
  * Assign a job to a technician with proper locking
@@ -20,8 +20,6 @@ export async function assignJobToTech(
 	overrideReason?: string,
 	scoringDetails?: Record<string, unknown>
 ): Promise<void> {
-	const sql = getSql();
-
 	await transaction(async (client) => {
 		// ✅ FIX: Lock the job FIRST before reading
 		await client.query(`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`, [jobId]);
@@ -122,8 +120,6 @@ export async function completeJob(
 	firstTimeFix?: boolean,
 	customerRating?: number
 ): Promise<void> {
-	const sql = getSql();
-
 	await transaction(async (client) => {
 		const jobResult = await client.query(
 			`SELECT id, company_id, assigned_tech_id, status
@@ -188,8 +184,6 @@ export async function completeJob(
  * @param jobId
  */
 export async function unassignJob(jobId: string): Promise<void> {
-	const sql = getSql();
-
 	await transaction(async (client) => {
 		const jobResult = await client.query(
 			`SELECT id, assigned_tech_id, status

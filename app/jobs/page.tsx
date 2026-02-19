@@ -1,27 +1,20 @@
 "use client";
 
-import { DevDbTools } from "@/components/dev/db/DevDbTools";
 import Header from "@/components/layout/Header";
 import MainContent from "@/components/layout/MainContent";
 import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
-import {
-	Card,
-	KpiCard,
-	LineGraphCard,
-	ListCard,
-	TableCard
-} from "@/components/ui/Card";
+import { KpiCard } from "@/components/ui/Card";
 import { JobDTO } from "@/app/types/types";
 import ListPanel from "@/components/ui/ListPanel";
 import FadeEnd from "@/components/ui/FadeEnd";
 import Fab from "@/components/ui/Fab";
+import { useBreakpoints } from "../hooks/useBreakpoints";
 const FASTIFY_BASE_URL =
 	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
 const FASTIFY_JOBS_URL = `${FASTIFY_BASE_URL}/jobs`;
-import { useBreakpoints } from "../hooks/useBreakpoints";
 
 const JobsPage = () => {
 	const [jobs, setJobs] = useState<JobDTO[]>([]);
@@ -31,7 +24,6 @@ const JobsPage = () => {
 	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 	const { lgUp } = useBreakpoints();
-
 
 	useEffect(() => {
 		let isMounted = true;
@@ -132,20 +124,31 @@ const JobsPage = () => {
 					]}
 					data={jobs}
 					className={cn("mx-2")}
-					children={jobsLoading ? (
-						<p className={cn("grid-cols-full text-xs text-text-tertiary")}>
-							Loading jobs...
-						</p>
-					) : jobs.length === 0 && !jobsLoading ? (
-						<p className={cn("grid-cols-full text-xs text-text-tertiary")}>
-							No jobs found. Create one using the plus button below!
-						</p>
-					) : undefined}
-				/>
+						>
+							{jobsLoading ? (
+								<p
+									className={cn("grid-cols-full text-xs text-text-tertiary")}
+								>
+									Loading jobs...
+								</p>
+							) : jobs.length === 0 && !jobsLoading ? (
+								<p
+									className={cn("grid-cols-full text-xs text-text-tertiary")}
+								>
+									No jobs found. Create one using the plus button below!
+								</p>
+							) : null}
+						</ListPanel>
 				{jobsError && (
 					<p className={cn("mx-2 text-sm text-red-600")}>{jobsError}</p>
 				)}
-				<Fab size={ lgUp ? "md" : "sm" } icon="plus" className={cn(`bottom-4 right-4`)} title="Add New Job" onClick={() => console.log("Fab clicked!")} />
+						<Fab
+							size={lgUp ? "md" : "sm"}
+							icon="plus"
+							className={cn("bottom-4 right-4")}
+							title="Add New Job"
+							onClick={() => console.log("Fab clicked!")}
+						/>
 			</MainContent>
 			<Sidebar
 				title="Tech to Customer"

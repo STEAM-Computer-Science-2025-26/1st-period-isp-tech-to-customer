@@ -1,11 +1,28 @@
-import { FastifyInstance, FastifyPluginAsync } from "fastify";
+import {
+	FastifyInstance,
+	FastifyPluginAsync,
+	FastifyReply,
+	FastifyRequest
+} from "fastify";
 import * as db from "../../db";
 
+type AuthUser = {
+	id?: string;
+	companyId?: string;
+	role?: string;
+};
+
+type AuthenticatedFastify = FastifyInstance & {
+	authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+};
+
 const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
+	const authFastify = fastify as AuthenticatedFastify;
+
 	fastify.post(
 		"/techs/me/location",
 		{
-			preHandler: [(fastify as any).authenticate],
+			preHandler: [authFastify.authenticate],
 			schema: {
 				body: {
 					type: "object",
@@ -18,14 +35,14 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 				}
 			}
 		},
-		async (request, reply) => {
+		async (request, _reply) => {
 			const { latitude, longitude, accuracy } = request.body as {
 				latitude: number;
 				longitude: number;
 				accuracy?: number;
 			};
 
-			const techId = (request.user as any).id;
+			const techId = (request.user as AuthUser).id;
 
 			await db.query(
 				`
@@ -52,11 +69,11 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 	fastify.get(
 		"/companies/:companyId/tech-locations",
 		{
-			preHandler: [(fastify as any).authenticate]
+			preHandler: [authFastify.authenticate]
 		},
 		async (request, reply) => {
 			const { companyId } = request.params as { companyId: string };
-			const user = request.user as any;
+			const user = request.user as AuthUser;
 
 			if (user.companyId !== companyId && user.role !== "dev") {
 				return reply.status(403).send({ error: "Access denied" });
@@ -95,11 +112,11 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 	fastify.get(
 		"/companies/:companyId/map-data",
 		{
-			preHandler: [(fastify as any).authenticate]
+			preHandler: [authFastify.authenticate]
 		},
 		async (request, reply) => {
 			const { companyId } = request.params as { companyId: string };
-			const user = request.user as any;
+			const user = request.user as AuthUser;
 
 			if (user.companyId !== companyId && user.role !== "dev") {
 				return reply.status(403).send({ error: "Access denied" });

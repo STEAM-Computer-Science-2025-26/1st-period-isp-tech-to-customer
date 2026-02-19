@@ -4,23 +4,14 @@ import { TechnicianRepository } from "../repositories/TechnicianRepository";
 import { JobRepository } from "../repositories/JobRepository";
 import { dispatch } from "../../algo/main-dispatch";
 import { filterEligibleTechnicians } from "../../algo/stage1-eligibility";
-import { TechnicianInput } from "../types/technicianInput";
+import { type JobRecord } from "../repositories/JobRepository";
 
 export type DispatchOptions = {
 	autoAssign?: boolean;
 	assignedByUserId?: string;
 };
 
-export type DispatchResult = {
-	jobId: string;
-	recommendations: any[];
-	assignedTech: any | null;
-	totalEligibleTechs: number;
-	requiresManualDispatch: boolean;
-	isEmergency: boolean;
-	timestamp: string;
-	manualDispatchReason?: string;
-};
+export type DispatchResult = ReturnType<typeof dispatch>;
 
 export class DispatchOrchestrator {
 	constructor(
@@ -163,8 +154,8 @@ export class DispatchOrchestrator {
 		assignedByUserId: string,
 		isManualOverride: boolean,
 		overrideReason: string | undefined,
-		recommendation: any,
-		job: any
+		recommendation: ReturnType<typeof dispatch> | null,
+		job: JobRecord
 	): Promise<void> {
 		const client = await this.jobRepo.getClient();
 
@@ -178,9 +169,9 @@ export class DispatchOrchestrator {
 			}
 
 			// Check if already assigned (race condition check)
-			if ((lockedJob as any).assignedTechId) {
+			if (lockedJob.assignedTechId) {
 				throw new Error(
-					`Job ${jobId} is already assigned to tech ${(lockedJob as any).assignedTechId}`
+					`Job ${jobId} is already assigned to tech ${lockedJob.assignedTechId}`
 				);
 			}
 
@@ -195,7 +186,10 @@ export class DispatchOrchestrator {
 				throw new Error("Tech not found");
 			}
 
-			const tech = techResult.rows[0];
+			const tech = techResult.rows[0] as {
+				current_jobs_count: number;
+				max_concurrent_jobs: number;
+			};
 			if (tech.current_jobs_count >= tech.max_concurrent_jobs) {
 				throw new Error(`Tech ${techId} has reached max concurrent jobs limit`);
 			}

@@ -1,14 +1,7 @@
 // services/routes/healthRoutes.ts
 
 import { FastifyInstance } from "fastify";
-import { Pool } from "pg";
-import * as db from "../../db";
-
-const pool: Pool =
-	(db as any).pool ??
-	new Pool({
-		connectionString: process.env.DATABASE_URL
-	});
+import { getSql } from "../../db";
 
 import { geocodeAddress } from "./geocoding";
 
@@ -28,9 +21,8 @@ export function readinessCheck(fastify: FastifyInstance) {
 
 		// Check 1: Database connection
 		try {
-			const client = await pool.connect();
-			await client.query("SELECT 1");
-			client.release();
+			const sql = getSql();
+			await sql`SELECT 1`;
 			checks.database = "ok";
 		} catch (error) {
 			checks.database = `failed - ${error instanceof Error ? error.message : "unknown error"}`;

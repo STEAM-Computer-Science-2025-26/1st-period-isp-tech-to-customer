@@ -3,7 +3,7 @@ import locationRoutes from "./routes/locationRoutes";
 import { getGeocodingWorker } from "./workers/geocodingWorker";
 
 import "dotenv/config";
-import Fastify from "fastify";
+import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import { jobRoutes } from "./routes/jobRoutes";
 import { userRoutes } from "./routes/userRoutes";
 import { companyRoutes } from "./routes/companyRoutes";
@@ -65,13 +65,16 @@ await fastify.register(fastifyCors, {
 await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET! });
 
 // ===== Add authenticate decorator here =====
-fastify.decorate("authenticate", async (request: any, reply: any) => {
+fastify.decorate(
+	"authenticate",
+	async (request: FastifyRequest, reply: FastifyReply) => {
 	try {
 		await request.jwtVerify();
 	} catch (err) {
 		reply.send(err);
 	}
-});
+	}
+);
 
 fastify.setErrorHandler(errorHandler);
 fastify.setNotFoundHandler(notFoundHandler);

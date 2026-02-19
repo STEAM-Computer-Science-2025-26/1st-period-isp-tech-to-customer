@@ -4,7 +4,6 @@ import {
 	overrideAssignment,
 	getDispatchStats
 } from "../algo/main-dispatch";
-import { formatRecommendation } from "../algo/ranker";
 import { TechnicianInput } from "../services/types/technicianInput";
 
 describe("Main Dispatch Integration Tests", () => {

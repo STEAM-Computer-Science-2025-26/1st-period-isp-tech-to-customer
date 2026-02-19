@@ -1,3 +1,5 @@
+import { calculateDistance } from "../../algo/distance";
+
 export interface RouteInfo {
 	durationSeconds: number;
 	durationMinutes: number;
@@ -34,7 +36,6 @@ export async function getDriveTime(
 		console.error("OSRM routing error:", error);
 
 		// Fallback to Haversine
-		const { calculateDistance } = await import("../../algo/distance");
 		const straightLineKm = calculateDistance(
 			{ latitude: fromLat, longitude: fromLng },
 			{ latitude: toLat, longitude: toLng }
@@ -88,12 +89,12 @@ export async function getBatchDriveTimes(
 		return durations.map((durationSeconds: number | null, index: number) => {
 			if (durationSeconds === null) {
 				// No route found, use Haversine fallback
-				const { haversineDistance } = require("./distance");
-				const straightLineKm = haversineDistance(
-					origin.lat,
-					origin.lng,
-					destinations[index].lat,
-					destinations[index].lng
+				const straightLineKm = calculateDistance(
+					{ latitude: origin.lat, longitude: origin.lng },
+					{
+						latitude: destinations[index].lat,
+						longitude: destinations[index].lng
+					}
 				);
 
 				return {

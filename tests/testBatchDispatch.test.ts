@@ -1,11 +1,6 @@
 import { batchDispatch } from "../services/dispatch/batchDispatch";
-import { pool } from "../db";
 import { randomUUID } from "crypto";
 
-// Use proper UUIDs
-const JOB_1 = randomUUID();
-const JOB_2 = randomUUID();
-const JOB_3 = randomUUID();
 const COMPANY_ID = randomUUID();
 
 describe("Batch Dispatch", () => {

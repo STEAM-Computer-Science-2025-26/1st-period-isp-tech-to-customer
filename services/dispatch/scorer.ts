@@ -1,5 +1,5 @@
 // services/dispatch/scorer.ts
-import { getBatchDriveTimes, RouteInfo } from "./routing";
+import { getBatchDriveTimes } from "./routing";
 
 interface GeoLocation {
 	latitude?: number;

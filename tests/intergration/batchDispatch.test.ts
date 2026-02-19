@@ -1,11 +1,10 @@
 import { batchDispatch } from "../../services/dispatch/batchDispatch";
-import { persistBatchAssignments } from "../../services/dispatch/dispatchPersistence";
 import * as db from "../../db";
 
 describe("Batch Dispatch Integration", () => {
 	let companyId: string;
-	let techIds: string[] = [];
-	let jobIds: string[] = [];
+		const techIds: string[] = [];
+		const jobIds: string[] = [];
 
 	beforeAll(async () => {
 		// Create test company
@@ -122,7 +121,7 @@ describe("Batch Dispatch Integration", () => {
 				await db.query("DELETE FROM job_assignments WHERE job_id = ANY($1)", [
 					jobIds
 				]);
-			} catch (e) {
+			} catch {
 				/* ignore */
 			}
 
@@ -130,7 +129,7 @@ describe("Batch Dispatch Integration", () => {
 				await db.query("DELETE FROM job_completions WHERE job_id = ANY($1)", [
 					jobIds
 				]);
-			} catch (e) {
+			} catch {
 				/* ignore */
 			}
 

@@ -6,15 +6,17 @@ import { getPublicError } from "@/services/publicErrors";
 import bcrypt from "bcryptjs";
 
 // Helper to convert DB row into UserDTO + passwordHash
-function mapUser(row: Record<string, any>): UserDTO & { passwordHash: string } {
+function mapUser(
+	row: Record<string, unknown>
+): UserDTO & { passwordHash: string } {
 	return {
-		id: row.id,
-		email: row.email,
+		id: String(row.id),
+		email: String(row.email),
 		role: row.role as UserDTO["role"],
-		companyId: row.companyId ?? "",
-		passwordHash: row.passwordHash,
-		createdAt: row.createdAt,
-		updatedAt: row.updatedAt
+		companyId: (row.companyId ?? "") as UserDTO["companyId"],
+		passwordHash: String(row.passwordHash),
+		createdAt: row.createdAt as UserDTO["createdAt"],
+		updatedAt: row.updatedAt as UserDTO["updatedAt"]
 	};
 }
 

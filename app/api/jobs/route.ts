@@ -13,24 +13,26 @@ import { getPublicError } from "@/services/publicErrors";
 export async function GET(request: NextRequest) {
 	try {
 		const sql = getSql();
+		type SqlFragment = ReturnType<typeof sql>;
 		const { searchParams } = new URL(request.url);
 		const companyId = searchParams.get("companyId");
 		const status = searchParams.get("status") as JobStatus | null;
 		const assignedTechId = searchParams.get("assignedTechId");
 
 		// Build dynamic WHERE conditions using parameterized fragments
-		const conditions: any[] = [];
+		const conditions: SqlFragment[] = [];
 		if (companyId) conditions.push(sql`company_id = ${Number(companyId)}`);
 		if (status) conditions.push(sql`status = ${status}`);
 		if (assignedTechId)
 			conditions.push(sql`assigned_tech_id = ${Number(assignedTechId)}`);
 
 		// Combine the parameterized fragments into a single fragment without using sql.join
-		let whereFragment: any = sql``;
+		let whereFragment: SqlFragment = sql``;
 		if (conditions.length) {
-			const combined = conditions.reduce(
-				(acc, cur) => (acc ? sql`${acc} AND ${cur}` : cur),
-				null
+			const [first, ...rest] = conditions;
+			const combined = rest.reduce<SqlFragment>(
+				(acc, cur) => sql`${acc} AND ${cur}`,
+				first
 			);
 			whereFragment = sql`WHERE ${combined}`;
 		}

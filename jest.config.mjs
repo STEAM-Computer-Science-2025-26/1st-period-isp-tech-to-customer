@@ -1,7 +1,5 @@
 // jest.config.mjs
-import { defaults } from "jest-config";
-
-export default {
+const config = {
 	testEnvironment: "node",
 	moduleFileExtensions: ["js", "ts"],
 	transform: {
@@ -9,3 +7,5 @@ export default {
 	},
 	testMatch: ["**/tests/**/*.ts"]
 };
+
+export default config;
