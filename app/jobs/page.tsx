@@ -18,7 +18,9 @@ const FASTIFY_JOBS_URL = `${FASTIFY_BASE_URL}/jobs`;
 
 const JobsPage = () => {
 	const [jobs, setJobs] = useState<JobDTO[]>([]);
+
 	const [jobsLoading, setJobsLoading] = useState(false);
+
 	const [jobsError, setJobsError] = useState<string | null>(null);
 	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
 	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);

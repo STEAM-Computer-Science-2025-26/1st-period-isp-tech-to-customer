@@ -4,6 +4,7 @@ import {
 	badRequest,
 	execRawSql,
 	isSafeIdentifier,
+	normalizeDbParam,
 	quoteIdent,
 	requireDevDbEnabled
 } from "../_utils";
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
 		const tableIdent = quoteIdent(tableName);
 		const colIdents = keys.map((k) => quoteIdent(k));
 		const placeholders = keys.map((_, i) => `$${i + 1}`);
-		const params = keys.map((k) => (values as any)[k]);
+		const params = keys.map((k) => normalizeDbParam((values as any)[k]));
 
 		const text = `INSERT INTO ${tableIdent} (${colIdents.join(", ")}) VALUES (${placeholders.join(", ")}) RETURNING *`;
 		const rows = await execRawSql<any>(sql, text, params);

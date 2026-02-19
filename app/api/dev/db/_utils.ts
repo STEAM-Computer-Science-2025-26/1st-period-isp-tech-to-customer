@@ -29,6 +29,21 @@ export function badRequest(message: string) {
 	return NextResponse.json({ error: message }, { status: 400 });
 }
 
+export function normalizeDbParam(value: unknown): unknown {
+	if (typeof value !== "string") return value;
+	const trimmed = value.trim();
+	if (!trimmed) return value;
+	const looksJsonArray = trimmed.startsWith("[") && trimmed.endsWith("]");
+	const looksJsonObject = trimmed.startsWith("{") && trimmed.endsWith("}");
+	if (!looksJsonArray && !looksJsonObject) return value;
+
+	try {
+		return JSON.parse(trimmed);
+	} catch {
+		return value;
+	}
+}
+
 export function methodNotAllowed() {
 	return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }

@@ -4,6 +4,7 @@ import {
 	badRequest,
 	execRawSql,
 	isSafeIdentifier,
+	normalizeDbParam,
 	quoteIdent,
 	requireDevDbEnabled
 } from "../_utils";
@@ -58,8 +59,8 @@ export async function POST(request: NextRequest) {
 		);
 
 		const params = [
-			...valueKeys.map((k) => (values as any)[k]),
-			...pkKeys.map((k) => (pk as any)[k])
+			...valueKeys.map((k) => normalizeDbParam((values as any)[k])),
+			...pkKeys.map((k) => normalizeDbParam((pk as any)[k]))
 		];
 
 		const text = `UPDATE ${tableIdent} SET ${setPairs.join(", ")} WHERE ${wherePairs.join(
