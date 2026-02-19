@@ -71,7 +71,9 @@ export default async function VerifyPage({
 	}
 
 	if (row.verified && !row.use_code) {
-		redirect(`/login?register=1&stage=3&email=${encodeURIComponent(row.email)}`);
+		redirect(
+			`/login?register=1&stage=3&email=${encodeURIComponent(row.email)}`
+		);
 	}
 
 	const expired = new Date(row.expires_at) <= new Date();

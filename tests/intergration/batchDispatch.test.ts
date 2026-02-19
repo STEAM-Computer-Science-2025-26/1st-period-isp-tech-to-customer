@@ -3,8 +3,8 @@ import * as db from "../../db";
 
 describe("Batch Dispatch Integration", () => {
 	let companyId: string;
-		const techIds: string[] = [];
-		const jobIds: string[] = [];
+	const techIds: string[] = [];
+	const jobIds: string[] = [];
 
 	beforeAll(async () => {
 		// Create test company

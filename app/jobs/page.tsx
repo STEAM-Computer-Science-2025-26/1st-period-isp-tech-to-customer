@@ -124,31 +124,27 @@ const JobsPage = () => {
 					]}
 					data={jobs}
 					className={cn("mx-2")}
-						>
-							{jobsLoading ? (
-								<p
-									className={cn("grid-cols-full text-xs text-text-tertiary")}
-								>
-									Loading jobs...
-								</p>
-							) : jobs.length === 0 && !jobsLoading ? (
-								<p
-									className={cn("grid-cols-full text-xs text-text-tertiary")}
-								>
-									No jobs found. Create one using the plus button below!
-								</p>
-							) : null}
-						</ListPanel>
+				>
+					{jobsLoading ? (
+						<p className={cn("grid-cols-full text-xs text-text-tertiary")}>
+							Loading jobs...
+						</p>
+					) : jobs.length === 0 && !jobsLoading ? (
+						<p className={cn("grid-cols-full text-xs text-text-tertiary")}>
+							No jobs found. Create one using the plus button below!
+						</p>
+					) : null}
+				</ListPanel>
 				{jobsError && (
 					<p className={cn("mx-2 text-sm text-red-600")}>{jobsError}</p>
 				)}
-						<Fab
-							size={lgUp ? "md" : "sm"}
-							icon="plus"
-							className={cn("bottom-4 right-4")}
-							title="Add New Job"
-							onClick={() => console.log("Fab clicked!")}
-						/>
+				<Fab
+					size={lgUp ? "md" : "sm"}
+					icon="plus"
+					className={cn("bottom-4 right-4")}
+					title="Add New Job"
+					onClick={() => console.log("Fab clicked!")}
+				/>
 			</MainContent>
 			<Sidebar
 				title="Tech to Customer"

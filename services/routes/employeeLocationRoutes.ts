@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { query } from "../../db";
 import { z } from "zod";
 import { areValidCoordinates } from "../../algo/distance";
+import { authenticate } from "../middleware/auth";
 
 const updateLocationSchema = z.object({
 	latitude: z.number().min(-90).max(90),

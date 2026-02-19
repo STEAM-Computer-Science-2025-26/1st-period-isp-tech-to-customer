@@ -161,4 +161,3 @@ export async function enrichMultipleTechnicians(
 ): Promise<Record<string, unknown>[]> {
 	return Promise.all(technicians.map((tech) => enrichTechWithMetrics(tech)));
 }
-

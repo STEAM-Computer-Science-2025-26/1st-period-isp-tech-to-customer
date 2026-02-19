@@ -37,8 +37,12 @@ const ListPanel = <T extends Record<string, unknown>>({
 				))}
 			</div>
 
-			<ul className={cn("w-full divide-y divide-background-secondary/50 px-4 py-3")}>
-			{children}
+			<ul
+				className={cn(
+					"w-full divide-y divide-background-secondary/50 px-4 py-3"
+				)}
+			>
+				{children}
 				{data.map((row, rowIndex) => (
 					<li
 						key={rowIndex}

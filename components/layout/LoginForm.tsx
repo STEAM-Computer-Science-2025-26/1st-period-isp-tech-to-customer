@@ -483,9 +483,9 @@ export default function LoginForm({
 				});
 
 				if (!response.ok) {
-					const payload = (await response.json().catch(() => null)) as
-						| { error?: string }
-						| null;
+					const payload = (await response.json().catch(() => null)) as {
+						error?: string;
+					} | null;
 					setRegisterError(
 						payload?.error ?? "Registration failed. Please try again."
 					);
@@ -540,10 +540,12 @@ export default function LoginForm({
 				});
 
 				if (!response.ok) {
-					const payload = (await response.json().catch(() => null)) as
-						| { error?: string }
-						| null;
-					setLoginError(payload?.error ?? "Login failed. Check your credentials.");
+					const payload = (await response.json().catch(() => null)) as {
+						error?: string;
+					} | null;
+					setLoginError(
+						payload?.error ?? "Login failed. Check your credentials."
+					);
 					return;
 				}
 

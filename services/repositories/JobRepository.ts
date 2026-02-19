@@ -89,7 +89,9 @@ export class JobRepository {
 
 		if (result.rows.length === 0) return null;
 
-		const row = result.rows[0] as JobRecord & { assignedTechId?: string | null };
+		const row = result.rows[0] as JobRecord & {
+			assignedTechId?: string | null;
+		};
 		return {
 			id: row.id,
 			companyId: row.companyId,

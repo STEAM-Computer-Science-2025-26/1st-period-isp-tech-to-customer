@@ -1,7 +1,7 @@
 // services/dispatch/persistence.ts
 // FIXED VERSION - Uses Neon, proper transaction handling
 
-import { transaction } from "../../db";
+import { getSql, transaction } from "../../db";
 
 /**
  * Assign a job to a technician with proper locking
@@ -59,7 +59,10 @@ export async function assignJobToTech(
 			throw new Error("Tech not found");
 		}
 
-		const tech = techResult.rows[0];
+		const tech = techResult.rows[0] as {
+			current_jobs_count: number;
+			max_concurrent_jobs: number;
+		};
 
 		if (tech.current_jobs_count >= tech.max_concurrent_jobs) {
 			throw new Error(`Tech ${techId} has reached max concurrent jobs limit`);
