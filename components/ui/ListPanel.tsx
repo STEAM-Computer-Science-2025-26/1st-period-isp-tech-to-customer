@@ -4,12 +4,14 @@ const ListPanel = <T extends Record<string, unknown>>({
 	columns,
 	columnKeys,
 	data,
-	className
+	className,
+	children
 }: {
 	columns: string[];
 	columnKeys: (keyof T)[];
 	data: T[];
 	className?: string;
+	children?: React.ReactNode;
 }) => {
 	const columnsCount = columns.length;
 
@@ -35,7 +37,8 @@ const ListPanel = <T extends Record<string, unknown>>({
 				))}
 			</div>
 
-			<ul className={cn("w-full divide-y divide-background-secondary/50")}>
+			<ul className={cn("w-full divide-y divide-background-secondary/50 px-4 py-3")}>
+			{children}
 				{data.map((row, rowIndex) => (
 					<li
 						key={rowIndex}

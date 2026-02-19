@@ -10,18 +10,23 @@ import {
 	validatePasswordConfirmation
 } from "./loginForm/validation";
 
+const FASTIFY_BASE_URL =
+	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
+
 export default function LoginForm({
 	registering = false,
-	email
+	email,
+	initialStage
 }: {
 	registering?: boolean;
 	email?: Email;
+	initialStage?: 1 | 2 | 3;
 }) {
 	const panelA11yProps = (inactive: boolean): PanelProps =>
 		inactive ? { "aria-hidden": true, inert: true } : { "aria-hidden": false };
 
 	const [isRegister, setIsRegister] = useState<boolean>(registering);
-	const [stage, setStage] = useState<1 | 2 | 3>(1);
+	const [stage, setStage] = useState<1 | 2 | 3>(initialStage ?? 1);
 	const [verificationMode, setVerificationMode] = useState<"link" | "code">(
 		"link"
 	);
@@ -51,6 +56,12 @@ export default function LoginForm({
 	const [verificationId, setVerificationId] = useState<string>("");
 	const [devMagicLink, setDevMagicLink] = useState<string>("");
 	const [isSendingVerification, setIsSendingVerification] = useState(false);
+	const [isLoggingIn, setIsLoggingIn] = useState(false);
+	const [loginError, setLoginError] = useState<string | undefined>(undefined);
+	const [isRegistering, setIsRegistering] = useState(false);
+	const [registerError, setRegisterError] = useState<string | undefined>(
+		undefined
+	);
 	const verificationTimeoutRef = useRef<number | null>(null);
 	const verificationPollRef = useRef<number | null>(null);
 
@@ -455,6 +466,48 @@ export default function LoginForm({
 		const typedPassword: Password = passwordCheck.value;
 		void typedEmail;
 		void typedPassword;
+
+		setRegisterError(undefined);
+		if (isRegistering) return;
+		setIsRegistering(true);
+
+		void (async () => {
+			try {
+				const response = await fetch(`${FASTIFY_BASE_URL}/register`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						email: typedEmail,
+						password: typedPassword
+					})
+				});
+
+				if (!response.ok) {
+					const payload = (await response.json().catch(() => null)) as
+						| { error?: string }
+						| null;
+					setRegisterError(
+						payload?.error ?? "Registration failed. Please try again."
+					);
+					return;
+				}
+
+				const payload = (await response.json()) as { token?: string };
+				if (!payload.token) {
+					setRegisterError("Registration succeeded but no token was returned.");
+					return;
+				}
+
+				localStorage.setItem("authToken", payload.token);
+				window.location.href = "/jobs";
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : "Registration failed.";
+				setRegisterError(message);
+			} finally {
+				setIsRegistering(false);
+			}
+		})();
 	};
 
 	const submitLogin = () => {
@@ -470,6 +523,46 @@ export default function LoginForm({
 		const typedPassword: Password = passwordCheck.value;
 		void typedEmail;
 		void typedPassword;
+
+		setLoginError(undefined);
+		if (isLoggingIn) return;
+		setIsLoggingIn(true);
+
+		void (async () => {
+			try {
+				const response = await fetch(`${FASTIFY_BASE_URL}/login`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						email: typedEmail,
+						password: typedPassword
+					})
+				});
+
+				if (!response.ok) {
+					const payload = (await response.json().catch(() => null)) as
+						| { error?: string }
+						| null;
+					setLoginError(payload?.error ?? "Login failed. Check your credentials.");
+					return;
+				}
+
+				const payload = (await response.json()) as { token?: string };
+				if (!payload.token) {
+					setLoginError("Login succeeded but no token was returned.");
+					return;
+				}
+
+				localStorage.setItem("authToken", payload.token);
+				window.location.href = "/jobs";
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : "Login failed.";
+				setLoginError(message);
+			} finally {
+				setIsLoggingIn(false);
+			}
+		})();
 	};
 
 	const switchToLogin = () => {
@@ -672,6 +765,11 @@ export default function LoginForm({
 								error={confirmPasswordError}
 							/>
 							<FormButton text="Register" type="submit" />
+							{registerError ? (
+								<p className="text-center text-destructive-text text-sm">
+									{registerError}
+								</p>
+							) : null}
 						</div>
 					</div>
 				</form>
@@ -707,6 +805,11 @@ export default function LoginForm({
 						error={passwordError}
 					/>
 					<FormButton text="Login" type="submit" />
+					{loginError ? (
+						<p className="text-center text-destructive-text text-sm">
+							{loginError}
+						</p>
+					) : null}
 					<p className="mt-2 text-sm text-center text-text-secondary">
 						Don&apos;t have an account?{" "}
 						<button

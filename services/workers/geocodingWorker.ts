@@ -11,6 +11,7 @@ const MAX_RETRIES = 3;
 export class GeocodingWorker {
 	private isRunning = false;
 	private intervalId: NodeJS.Timeout | null = null;
+	private hasRetriesColumn: boolean | null = null;
 
 	async start() {
 		if (this.isRunning) {
@@ -20,6 +21,9 @@ export class GeocodingWorker {
 
 		this.isRunning = true;
 		console.log("✅ Geocoding worker started");
+
+		await this.ensureRetriesColumn();
+		await this.logJobsSchemaInfo();
 
 		// Process immediately on start
 		await this.processJobs();
@@ -41,22 +45,7 @@ export class GeocodingWorker {
 
 	private async processJobs() {
 		try {
-			// Get pending jobs (never attempted or failed with retries left)
-			const pendingJobs = await query<{
-				id: string;
-				address: string;
-				geocoding_retries: number;
-			}>(
-				`SELECT id, address, 
-					COALESCE(geocoding_retries, 0) AS geocoding_retries
-				FROM jobs
-				WHERE geocoding_status = 'pending' 
-					OR (geocoding_status = 'failed' 
-						AND COALESCE(geocoding_retries, 0) < $1)
-				ORDER BY created_at ASC
-				LIMIT $2`,
-				[MAX_RETRIES, BATCH_SIZE]
-			);
+			const pendingJobs = await this.fetchPendingJobs();
 
 			if (pendingJobs.length === 0) {
 				return;
@@ -78,6 +67,84 @@ export class GeocodingWorker {
 		}
 	}
 
+	private async ensureRetriesColumn() {
+		try {
+			const result = await query<{ exists: boolean }>(
+				"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'jobs' AND column_name = 'geocoding_retries') AS exists"
+			);
+			this.hasRetriesColumn = result[0]?.exists ?? false;
+
+			if (!this.hasRetriesColumn) {
+				await query(
+					"ALTER TABLE jobs ADD COLUMN IF NOT EXISTS geocoding_retries integer DEFAULT 0"
+				);
+				this.hasRetriesColumn = true;
+			}
+		} catch (error) {
+			this.hasRetriesColumn = false;
+			console.error("❌ Failed to ensure geocoding_retries column:", error);
+		}
+	}
+
+	private async fetchPendingJobs() {
+		const baseSelect = "SELECT id, address";
+		const baseFrom = "FROM jobs";
+		const baseOrder = "ORDER BY created_at ASC";
+
+		if (this.hasRetriesColumn) {
+			return query<{
+				id: string;
+				address: string;
+				geocoding_retries: number;
+			}>(
+				`${baseSelect}, COALESCE(geocoding_retries, 0) AS geocoding_retries
+				${baseFrom}
+				WHERE geocoding_status = 'pending'
+					OR (geocoding_status = 'failed'
+						AND COALESCE(geocoding_retries, 0) < $1)
+				${baseOrder}
+				LIMIT $2`,
+				[MAX_RETRIES, BATCH_SIZE]
+			);
+		}
+
+		return query<{
+			id: string;
+			address: string;
+			geocoding_retries: number;
+		}>(
+			`${baseSelect}, 0 AS geocoding_retries
+			${baseFrom}
+			WHERE geocoding_status = 'pending'
+				OR geocoding_status = 'failed'
+			${baseOrder}
+			LIMIT $1`,
+			[BATCH_SIZE]
+		);
+	}
+
+	private async logJobsSchemaInfo() {
+		try {
+			const dbInfo = await query<{
+				database: string;
+				schema: string;
+			}>("SELECT current_database() AS database, current_schema() AS schema");
+			const columns = await query<{ column_name: string }>(
+				"SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'jobs' ORDER BY ordinal_position"
+			);
+
+			const database = dbInfo[0]?.database ?? "unknown";
+			const schema = dbInfo[0]?.schema ?? "unknown";
+			const columnList = columns.map((col) => col.column_name).join(", ");
+
+			console.log(
+				`🧭 DB context: database=${database}, schema=${schema}, jobs columns=[${columnList}]`
+			);
+		} catch (error) {
+			console.error("❌ Failed to log jobs schema info:", error);
+		}
+	}
+
 	private async geocodeJob(
 		jobId: string,
 		address: string,
@@ -86,22 +153,34 @@ export class GeocodingWorker {
 		try {
 			const geo = await tryGeocodeJob(address);
 
-			await query(
-				`UPDATE jobs 
-				SET latitude = $1, 
-					longitude = $2, 
-					geocoding_status = $3,
-					geocoding_retries = $4,
-					updated_at = NOW()
-				WHERE id = $5`,
-				[
-					geo.latitude,
-					geo.longitude,
-					geo.geocodingStatus,
-					currentRetries + 1,
-					jobId
-				]
-			);
+			if (this.hasRetriesColumn) {
+				await query(
+					`UPDATE jobs 
+					SET latitude = $1, 
+						longitude = $2, 
+						geocoding_status = $3,
+						geocoding_retries = $4,
+						updated_at = NOW()
+					WHERE id = $5`,
+					[
+						geo.latitude,
+						geo.longitude,
+						geo.geocodingStatus,
+						currentRetries + 1,
+						jobId
+					]
+				);
+			} else {
+				await query(
+					`UPDATE jobs 
+					SET latitude = $1, 
+						longitude = $2, 
+						geocoding_status = $3,
+						updated_at = NOW()
+					WHERE id = $4`,
+					[geo.latitude, geo.longitude, geo.geocodingStatus, jobId]
+				);
+			}
 
 			if (geo.geocodingStatus === "complete") {
 				console.log(`✅ Geocoded job ${jobId}: ${address}`);
@@ -112,16 +191,28 @@ export class GeocodingWorker {
 			console.error(`❌ Error geocoding job ${jobId}:`, error);
 
 			// Mark as failed with retry count
-			await query(
-				`UPDATE jobs 
-				SET geocoding_status = 'failed',
-					geocoding_retries = $1,
-					updated_at = NOW()
-				WHERE id = $2`,
-				[currentRetries + 1, jobId]
-			).catch((err) =>
-				console.error("Failed to update geocoding status:", err)
-			);
+			if (this.hasRetriesColumn) {
+				await query(
+					`UPDATE jobs 
+					SET geocoding_status = 'failed',
+						geocoding_retries = $1,
+						updated_at = NOW()
+					WHERE id = $2`,
+					[currentRetries + 1, jobId]
+				).catch((err) =>
+					console.error("Failed to update geocoding status:", err)
+				);
+			} else {
+				await query(
+					`UPDATE jobs 
+					SET geocoding_status = 'failed',
+						updated_at = NOW()
+					WHERE id = $1`,
+					[jobId]
+				).catch((err) =>
+					console.error("Failed to update geocoding status:", err)
+				);
+			}
 		}
 	}
 }

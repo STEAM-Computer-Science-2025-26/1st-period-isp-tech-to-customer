@@ -39,6 +39,12 @@ const loginSchema = z.object({
 	password: z.string().min(1)
 });
 
+const registerSchema = z.object({
+	email: z.string().email(),
+	password: z.string().min(8, "Password must be at least 8 characters"),
+	companyName: z.string().min(1).max(120).optional()
+});
+
 type AuthUser = {
 	userId?: string;
 	id?: string;
@@ -324,7 +330,102 @@ export function loginUser(fastify: FastifyInstance) {
 	});
 }
 
+function buildCompanyName(email: string, provided?: string): string {
+	if (provided) return provided;
+	const domain = email.split("@")[1] ?? "";
+	const root = domain.split(".")[0];
+	return root ? `${root} Company` : "New Company";
+}
+
+export function registerUser(fastify: FastifyInstance) {
+	fastify.post("/register", async (request, reply) => {
+		const ip = request.ip ?? "unknown";
+		const sql = getSql();
+		const rateLimitResult = await enforceRateLimit(
+			sql,
+			`register:${ip}`,
+			5,
+			900
+		);
+		if (!rateLimitResult.allowed) {
+			return reply.code(429).send({
+				error: "Too many registration attempts. Please try again later.",
+				retryAfterSeconds: rateLimitResult.retryAfterSeconds
+			});
+		}
+
+		const parsed = registerSchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid request body",
+				details: parsed.error.flatten().fieldErrors
+			});
+		}
+
+		const { email, password, companyName } = parsed.data;
+
+		const existing = await query<{ id: string }>(
+			"SELECT id FROM users WHERE email = $1",
+			[email]
+		);
+		if (existing[0]) {
+			return reply.code(409).send({ error: "Email is already registered" });
+		}
+
+		const verified = await query<{ id: string }>(
+			`SELECT id
+			FROM email_verifications
+			WHERE email = $1 AND verified = TRUE
+			ORDER BY used_at DESC NULLS LAST, verified_at DESC NULLS LAST
+			LIMIT 1`,
+			[email]
+		);
+		if (!verified[0]) {
+			return reply.code(403).send({
+				error: "Email verification required before registration"
+			});
+		}
+
+		const finalCompanyName = buildCompanyName(email, companyName);
+		const hashedPassword = await bcrypt.hash(password, 10);
+
+		const createdCompany = await query<{ id: string }>(
+			"INSERT INTO companies (name) VALUES ($1) RETURNING id",
+			[finalCompanyName]
+		);
+		const companyId = createdCompany[0].id;
+
+		const createdUser = await query<{ id: string }>(
+			`INSERT INTO users (email, password_hash, role, company_id)
+			VALUES ($1, $2, $3, $4)
+			RETURNING id`,
+			[email, hashedPassword, "admin", companyId]
+		);
+
+		const token = fastify.jwt.sign(
+			{
+				userId: createdUser[0].id,
+				email,
+				role: "admin",
+				companyId
+			},
+			{ expiresIn: "8h" }
+		);
+
+		return {
+			token,
+			user: {
+				userId: createdUser[0].id,
+				email,
+				role: "admin",
+				companyId
+			}
+		};
+	});
+}
+
 export async function userRoutes(fastify: FastifyInstance) {
+	registerUser(fastify);
 	loginUser(fastify);
 
 	fastify.register(async (authenticatedRoutes) => {

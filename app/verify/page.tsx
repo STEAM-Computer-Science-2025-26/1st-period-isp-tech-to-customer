@@ -1,5 +1,6 @@
 import { getSql } from "@/db/connection";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CopyCode } from "./CopyCode";
 import {
 	decryptVerificationCode,
@@ -69,27 +70,8 @@ export default async function VerifyPage({
 		);
 	}
 
-	// If the token has already been used to verify, show success even if we've
-	// consumed it by expiring the row.
-	if (row.verified) {
-		return (
-			<div className="min-h-screen flex items-center justify-center p-6">
-				<div className="w-full max-w-lg bg-background-primary rounded-2xl shadow-lg p-8 text-center">
-					<h1 className="text-2xl font-semibold text-accent-text">
-						Email verified
-					</h1>
-					<p className="mt-2 text-text-secondary">
-						You can return to your computer to continue setting your password.
-					</p>
-					<Link
-						href="/login"
-						className="inline-block mt-6 text-accent-text hover:text-info-text"
-					>
-						Back to login
-					</Link>
-				</div>
-			</div>
-		);
+	if (row.verified && !row.use_code) {
+		redirect(`/login?register=1&stage=3&email=${encodeURIComponent(row.email)}`);
 	}
 
 	const expired = new Date(row.expires_at) <= new Date();
@@ -164,7 +146,6 @@ export default async function VerifyPage({
 		SET verified = TRUE,
 			verified_at = NOW(),
 			used_at = NOW(),
-			code = NULL,
 			code_encrypted = NULL,
 			code_expires_at = NULL,
 			use_code = FALSE,
@@ -172,22 +153,5 @@ export default async function VerifyPage({
 		WHERE token_hash = ${tokenHash}
 	`;
 
-	return (
-		<div className="min-h-screen flex items-center justify-center p-6">
-			<div className="w-full max-w-lg bg-background-primary rounded-2xl shadow-lg p-8 text-center">
-				<h1 className="text-2xl font-semibold text-accent-text">
-					Email verified
-				</h1>
-				<p className="mt-2 text-text-secondary">
-					You can return to your computer to continue setting your password.
-				</p>
-				<Link
-					href="/login"
-					className="inline-block mt-6 text-accent-text hover:text-info-text"
-				>
-					Back to login
-				</Link>
-			</div>
-		</div>
-	);
+	redirect(`/login?register=1&stage=3&email=${encodeURIComponent(row.email)}`);
 }

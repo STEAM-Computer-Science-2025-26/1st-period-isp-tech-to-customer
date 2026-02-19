@@ -67,19 +67,36 @@ async function runTests() {
 	// Test 3: Insert/select/delete against email_verifications
 	try {
 		const sql = getSql();
-		const token = randomBytes(32).toString("hex");
+		const tokenHash = randomBytes(32).toString("hex");
+		const sessionHash = randomBytes(32).toString("hex");
 		const email = "test@example.com";
 		const expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
 
 		await sql`
-			INSERT INTO email_verifications (email, token, expires_at, verified, use_code)
-			VALUES (${email}, ${token}, ${expiresAt}, FALSE, FALSE)
+			INSERT INTO email_verifications (
+				email,
+				token_hash,
+				session_hash,
+				expires_at,
+				verified,
+				use_code,
+				code_attempts
+			)
+			VALUES (
+				${email},
+				${tokenHash},
+				${sessionHash},
+				${expiresAt},
+				FALSE,
+				FALSE,
+				0
+			)
 		`;
 
 		const rows = await sql`
-			SELECT email, token, verified, use_code
+			SELECT email, token_hash, session_hash, verified, use_code
 			FROM email_verifications
-			WHERE token = ${token}
+			WHERE token_hash = ${tokenHash}
 			LIMIT 1
 		`;
 
@@ -90,14 +107,15 @@ async function runTests() {
 		console.log("✅ email_verifications insert/select OK:");
 		console.log({
 			email: rows[0].email,
-			token: rows[0].token,
+			tokenHash: rows[0].token_hash,
+			sessionHash: rows[0].session_hash,
 			verified: rows[0].verified,
 			useCode: rows[0].use_code
 		});
 
 		await sql`
 			DELETE FROM email_verifications
-			WHERE token = ${token}
+			WHERE token_hash = ${tokenHash}
 		`;
 
 		console.log("✅ email_verifications cleanup OK");

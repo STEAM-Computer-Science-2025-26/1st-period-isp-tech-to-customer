@@ -53,28 +53,13 @@ export async function query<T = any>(
 ): Promise<T[]> {
 	const sql = getSql();
 
-	// Neon uses tagged template literals, but we need to support parameterized queries
-	// for backward compatibility. Convert $1, $2 syntax to work with Neon.
-
 	if (params && params.length > 0) {
-		// Build a query using Neon's tagged template format
-		// This is a compatibility layer - new code should use getSql() directly
-		const values = params;
-		let query = text;
-
-		// Replace $1, $2, etc with actual values
-		for (let i = 0; i < values.length; i++) {
-			query = query.replace(new RegExp(`\\$${i + 1}\\b`, "g"), `$${i + 1}`);
-		}
-
-		// Execute raw query with Neon
-		// Note: This uses Neon's array parameter syntax
-		const result = await (sql as any)(text, params);
+		const result = await sql.query(text, params);
 		return Array.isArray(result) ? result : [result];
 	}
 
 	// For queries without parameters
-	const result = await (sql as any)(text, []);
+	const result = await sql.query(text);
 	return Array.isArray(result) ? result : [result];
 }
 
