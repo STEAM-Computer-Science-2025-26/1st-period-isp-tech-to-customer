@@ -1,23 +1,27 @@
 import * as db from "../../db";
 const locationRoutes = async (fastify) => {
-    const authFastify = fastify;
-    fastify.post("/techs/me/location", {
-        preHandler: [authFastify.authenticate],
-        schema: {
-            body: {
-                type: "object",
-                required: ["latitude", "longitude"],
-                properties: {
-                    latitude: { type: "number", minimum: -90, maximum: 90 },
-                    longitude: { type: "number", minimum: -180, maximum: 180 },
-                    accuracy: { type: "number", nullable: true }
-                }
-            }
-        }
-    }, async (request, _reply) => {
-        const { latitude, longitude, accuracy } = request.body;
-        const techId = request.user.id;
-        await db.query(`
+	const authFastify = fastify;
+	fastify.post(
+		"/techs/me/location",
+		{
+			preHandler: [authFastify.authenticate],
+			schema: {
+				body: {
+					type: "object",
+					required: ["latitude", "longitude"],
+					properties: {
+						latitude: { type: "number", minimum: -90, maximum: 90 },
+						longitude: { type: "number", minimum: -180, maximum: 180 },
+						accuracy: { type: "number", nullable: true }
+					}
+				}
+			}
+		},
+		async (request, _reply) => {
+			const { latitude, longitude, accuracy } = request.body;
+			const techId = request.user.id;
+			await db.query(
+				`
         INSERT INTO tech_locations (tech_id, latitude, longitude, accuracy_meters, updated_at)
         VALUES ($1, $2, $3, $4, NOW())
         ON CONFLICT (tech_id)
@@ -26,22 +30,29 @@ const locationRoutes = async (fastify) => {
           longitude = $3,
           accuracy_meters = $4,
           updated_at = NOW()
-        `, [techId, latitude, longitude, accuracy ?? null]);
-        return {
-            success: true,
-            timestamp: new Date()
-        };
-    });
-    // Get tech locations
-    fastify.get("/companies/:companyId/tech-locations", {
-        preHandler: [authFastify.authenticate]
-    }, async (request, reply) => {
-        const { companyId } = request.params;
-        const user = request.user;
-        if (user.companyId !== companyId && user.role !== "dev") {
-            return reply.status(403).send({ error: "Access denied" });
-        }
-        const result = await db.query(`
+        `,
+				[techId, latitude, longitude, accuracy ?? null]
+			);
+			return {
+				success: true,
+				timestamp: new Date()
+			};
+		}
+	);
+	// Get tech locations
+	fastify.get(
+		"/companies/:companyId/tech-locations",
+		{
+			preHandler: [authFastify.authenticate]
+		},
+		async (request, reply) => {
+			const { companyId } = request.params;
+			const user = request.user;
+			if (user.companyId !== companyId && user.role !== "dev") {
+				return reply.status(403).send({ error: "Access denied" });
+			}
+			const result = await db.query(
+				`
         SELECT 
           e.id as tech_id,
           e.name as tech_name,
@@ -59,22 +70,29 @@ const locationRoutes = async (fastify) => {
         WHERE e.company_id = $1 
           AND e.role = 'tech'
         ORDER BY tl.updated_at DESC NULLS LAST
-        `, [companyId]);
-        return {
-            techs: result,
-            timestamp: new Date()
-        };
-    });
-    fastify.get("/companies/:companyId/map-data", {
-        preHandler: [authFastify.authenticate]
-    }, async (request, reply) => {
-        const { companyId } = request.params;
-        const user = request.user;
-        if (user.companyId !== companyId && user.role !== "dev") {
-            return reply.status(403).send({ error: "Access denied" });
-        }
-        // use the shared db helper instead of creating a new Pool here
-        const techs = await db.query(`
+        `,
+				[companyId]
+			);
+			return {
+				techs: result,
+				timestamp: new Date()
+			};
+		}
+	);
+	fastify.get(
+		"/companies/:companyId/map-data",
+		{
+			preHandler: [authFastify.authenticate]
+		},
+		async (request, reply) => {
+			const { companyId } = request.params;
+			const user = request.user;
+			if (user.companyId !== companyId && user.role !== "dev") {
+				return reply.status(403).send({ error: "Access denied" });
+			}
+			// use the shared db helper instead of creating a new Pool here
+			const techs = await db.query(
+				`
 			SELECT 
 			  e.id as tech_id,
 			  e.name as tech_name,
@@ -92,8 +110,11 @@ const locationRoutes = async (fastify) => {
 			WHERE e.company_id = $1 
 			  AND e.role = 'tech'
 			ORDER BY tl.updated_at DESC NULLS LAST
-			`, [companyId]);
-        const jobs = await db.query(`
+			`,
+				[companyId]
+			);
+			const jobs = await db.query(
+				`
         SELECT 
           j.id,
           j.customer_name,
@@ -116,12 +137,15 @@ const locationRoutes = async (fastify) => {
             ELSE 3
           END,
           j.created_at ASC
-        `, [companyId]);
-        return {
-            techs: techs,
-            jobs: jobs,
-            lastUpdate: new Date()
-        };
-    });
+        `,
+				[companyId]
+			);
+			return {
+				techs: techs,
+				jobs: jobs,
+				lastUpdate: new Date()
+			};
+		}
+	);
 };
 export default locationRoutes;

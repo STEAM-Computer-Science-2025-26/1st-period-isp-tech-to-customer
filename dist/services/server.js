@@ -1,8 +1,10 @@
 // services/server.ts
-import locationRoutes from "./routes/locationRoutes";
-import { getGeocodingWorker } from "./workers/geocodingWorker";
 import "dotenv/config";
 import Fastify from "fastify";
+import fastifyCors from "@fastify/cors";
+import fastifyJwt from "@fastify/jwt";
+// Existing routes
+import locationRoutes from "./routes/locationRoutes";
 import { jobRoutes } from "./routes/jobRoutes";
 import { userRoutes } from "./routes/userRoutes";
 import { companyRoutes } from "./routes/companyRoutes";
@@ -10,9 +12,21 @@ import { registerEmployeeRoutes } from "./routes/employeeRoutes";
 import { dispatchRoutes } from "./routes/dispatchRoutes";
 import { employeeLocationRoutes } from "./routes/employeeLocationRoutes";
 import { healthRoutes } from "./routes/healthRoutes";
-import fastifyCors from "@fastify/cors";
-import fastifyJwt from "@fastify/jwt";
+// Week 1 routes
+import { customerRoutes } from "./routes/customerRoutes";
+import { branchRoutes } from "./routes/branchRoutes";
+import { onboardingRoutes } from "./routes/onboardingRoutes";
+import { certificationRoutes } from "./routes/certificationRoutes";
+import { durationRoutes } from "./routes/durationRoutes";
+// Existing workers
+import { getGeocodingWorker } from "./workers/geocodingWorker";
+// Week 1 worker
+import { runCustomerGeocodingWorker, retryFailedGeocoding } from "./workers/customerGeocodingWorker";
+// Middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
+// ============================================================
+// Environment validation
+// ============================================================
 function validateEnvironment() {
     const required = ["DATABASE_URL", "JWT_SECRET", "GEOCODIO_API_KEY"];
     const missing = required.filter((key) => !process.env[key]);
@@ -20,13 +34,27 @@ function validateEnvironment() {
         console.error("\n❌ CRITICAL: Missing required environment variables:\n");
         missing.forEach((key) => console.error(`   - ${key}`));
         console.error("\nAdd these to your .env file and restart the server.\n");
-        console.error("Get GEOCODIO_API_KEY from: https://www.geocod.io\n");
         process.exit(1);
     }
 }
+validateEnvironment();
+// ============================================================
+// Workers
+// ============================================================
+// Existing job geocoding worker
 const geocodingWorker = getGeocodingWorker();
 geocodingWorker.start();
-validateEnvironment();
+// Customer + location geocoding — runs every 30 seconds
+const customerGeocodingInterval = setInterval(async () => {
+    await runCustomerGeocodingWorker();
+}, 30000);
+// Retry failed geocoding once per hour
+const retryGeocodingInterval = setInterval(async () => {
+    await retryFailedGeocoding();
+}, 60 * 60000);
+// ============================================================
+// Server setup
+// ============================================================
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000")
     .split(",")
     .map((o) => o.trim())
@@ -46,6 +74,9 @@ const fastify = Fastify({
         })
     }
 });
+// ============================================================
+// Plugins
+// ============================================================
 await fastify.register(fastifyCors, {
     origin: (origin, cb) => {
         if (!origin)
@@ -57,7 +88,6 @@ await fastify.register(fastifyCors, {
     credentials: true
 });
 await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET });
-// ===== Add authenticate decorator here =====
 fastify.decorate("authenticate", async (request, reply) => {
     try {
         await request.jwtVerify();
@@ -68,7 +98,9 @@ fastify.decorate("authenticate", async (request, reply) => {
 });
 fastify.setErrorHandler(errorHandler);
 fastify.setNotFoundHandler(notFoundHandler);
-// ===== Register all routes =====
+// ============================================================
+// Routes — existing
+// ============================================================
 await healthRoutes(fastify);
 await jobRoutes(fastify);
 await userRoutes(fastify);
@@ -76,30 +108,87 @@ await companyRoutes(fastify);
 await registerEmployeeRoutes(fastify);
 await dispatchRoutes(fastify);
 await employeeLocationRoutes(fastify);
-await fastify.register(locationRoutes); // Proper registration of FastifyPluginAsync
+await fastify.register(locationRoutes);
+// ============================================================
+// Routes — Week 1
+// ============================================================
+await fastify.register(customerRoutes);
+await fastify.register(branchRoutes);
+await fastify.register(onboardingRoutes);
+await fastify.register(certificationRoutes);
+await fastify.register(durationRoutes);
+// ============================================================
+// Root
+// ============================================================
 fastify.get("/", async () => ({
     status: "running",
     version: process.env.npm_package_version || "unknown",
     environment: process.env.NODE_ENV || "development"
 }));
+// ============================================================
+// Start
+// ============================================================
 const port = Number(process.env.PORT ?? 3001);
 const host = process.env.HOST ?? "0.0.0.0";
 const start = async () => {
     try {
         await fastify.listen({ port, host });
         console.log("\n✅ Backend server started successfully!\n");
-        console.log(`   URL: http://localhost:${port}`);
+        console.log(`   URL:         http://localhost:${port}`);
         console.log(`   Environment: ${process.env.NODE_ENV || "development"}`);
-        console.log(`   Log level: ${process.env.LOG_LEVEL || "info"}`);
-        console.log("\n📍 API Endpoints:");
-        console.log(`   Health:     GET  /health`);
-        console.log(`   Ready:      GET  /health/ready`);
-        console.log(`   Jobs:       GET  /jobs`);
-        console.log(`   Create Job: POST /jobs`);
-        console.log(`   Dispatch:   POST /jobs/:id/dispatch`);
-        console.log(`   Assign:     POST /jobs/:id/assign`);
-        console.log(`   Complete:   POST /jobs/:id/complete`);
-        console.log(`   Login:      POST /login`);
+        console.log(`   Log level:   ${process.env.LOG_LEVEL || "info"}`);
+        console.log("\n📍 Existing Endpoints:");
+        console.log("   GET  /health");
+        console.log("   GET  /health/ready");
+        console.log("   POST /login");
+        console.log("   GET  /jobs");
+        console.log("   POST /jobs");
+        console.log("   POST /jobs/:id/dispatch");
+        console.log("   POST /jobs/:id/assign");
+        console.log("   POST /jobs/:id/complete");
+        console.log("\n👤 Week 1 — Customer Endpoints:");
+        console.log("   POST   /customers");
+        console.log("   GET    /customers");
+        console.log("   GET    /customers/:customerId");
+        console.log("   PATCH  /customers/:customerId");
+        console.log("   DELETE /customers/:customerId");
+        console.log("   POST   /customers/:customerId/locations");
+        console.log("   GET    /customers/:customerId/locations");
+        console.log("   PATCH  /customers/:customerId/locations/:locationId");
+        console.log("   DELETE /customers/:customerId/locations/:locationId");
+        console.log("   POST   /customers/:customerId/equipment");
+        console.log("   GET    /customers/:customerId/equipment");
+        console.log("   PATCH  /customers/:customerId/equipment/:equipmentId");
+        console.log("   DELETE /customers/:customerId/equipment/:equipmentId");
+        console.log("   POST   /customers/:customerId/communications");
+        console.log("   GET    /customers/:customerId/communications");
+        console.log("   POST   /customers/:customerId/no-shows");
+        console.log("   GET    /customers/:customerId/no-shows");
+        console.log("\n🏢 Week 1 — Branch Endpoints:");
+        console.log("   POST   /branches");
+        console.log("   GET    /branches");
+        console.log("   GET    /branches/:branchId");
+        console.log("   PATCH  /branches/:branchId");
+        console.log("   DELETE /branches/:branchId");
+        console.log("\n🚀 Week 1 — Onboarding Endpoints:");
+        console.log("   POST   /onboard");
+        console.log("   GET    /onboard/check-email");
+        console.log("   GET    /onboard/status/:companyId");
+        console.log("\n📜 Week 1 — Certification Endpoints:");
+        console.log("   POST   /certifications");
+        console.log("   GET    /certifications/tech/:techId");
+        console.log("   GET    /certifications/expiring");
+        console.log("   PATCH  /certifications/:certId");
+        console.log("   DELETE /certifications/:certId");
+        console.log("   POST   /certifications/check-alerts");
+        console.log("\n⏱️  Week 1 — Duration Endpoints:");
+        console.log("   PATCH  /jobs/:jobId/estimated-duration");
+        console.log("   PATCH  /jobs/:jobId/actual-duration");
+        console.log("   GET    /analytics/duration");
+        console.log("\n📍 Workers running:");
+        console.log("   Job geocoding        — existing");
+        console.log("   Customer geocoding   — every 30s");
+        console.log("   Geocoding retry      — every 1h");
         console.log("\n");
     }
     catch (err) {
@@ -108,19 +197,18 @@ const start = async () => {
     }
 };
 start();
-process.on("SIGTERM", () => {
-    console.log("SIGTERM received, shutting down gracefully...");
+// ============================================================
+// Graceful shutdown
+// ============================================================
+function shutdown(signal) {
+    console.log(`\n${signal} received, shutting down gracefully...`);
     geocodingWorker.stop();
+    clearInterval(customerGeocodingInterval);
+    clearInterval(retryGeocodingInterval);
     fastify.close(() => {
         console.log("Server closed");
         process.exit(0);
     });
-});
-process.on("SIGINT", () => {
-    console.log("SIGINT received, shutting down gracefully...");
-    geocodingWorker.stop();
-    fastify.close(() => {
-        console.log("Server closed");
-        process.exit(0);
-    });
-});
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
