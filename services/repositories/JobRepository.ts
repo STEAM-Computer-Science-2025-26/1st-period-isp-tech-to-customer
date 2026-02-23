@@ -1,7 +1,7 @@
 // services/repositories/JobRepository.ts
 // UPDATED - Uses Neon instead of pg Pool
 
-import { getSql, getClient } from "../../db";
+import { getSql } from "../../db";
 
 export type JobRecord = {
 	id: string;
@@ -183,9 +183,5 @@ export class JobRepository {
 			 WHERE id = $2`,
 			[jobId, techId]
 		);
-	}
-
-	async getClient() {
-		return getClient();
 	}
 }

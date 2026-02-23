@@ -1,5 +1,6 @@
 import { batchDispatch } from "../../services/dispatch/batchDispatch";
 import * as db from "../../db";
+import { describe, test, expect, beforeAll, afterAll } from "@jest/globals";
 
 describe("Batch Dispatch Integration", () => {
 	let companyId: string;
@@ -8,11 +9,14 @@ describe("Batch Dispatch Integration", () => {
 
 	beforeAll(async () => {
 		// Create test company
-		const companyResult = await db.query(`
+		const companyResult = (await db.query(
+			`
       INSERT INTO companies (id, name, created_at)
       VALUES (gen_random_uuid(), 'Test Batch Co', NOW())
       RETURNING id
-    `);
+    `,
+			[]
+		)) as unknown as { id: string }[];
 		companyId = companyResult[0].id;
 
 		// Create 4 techs with ONLY essential columns
@@ -26,8 +30,7 @@ describe("Batch Dispatch Integration", () => {
 		for (let i = 0; i < techData.length; i++) {
 			const tech = techData[i];
 
-			// Minimal INSERT with only core columns that should exist in ANY schema
-			const techResult = await db.query(
+			const techResult = (await db.query(
 				`
         INSERT INTO employees (
           id, 
@@ -48,7 +51,7 @@ describe("Batch Dispatch Integration", () => {
         ) RETURNING id
       `,
 				[tech.name, `tech${i}@batchtest.com`, `214-555-${1000 + i}`, companyId]
-			);
+			)) as unknown as { id: string }[];
 
 			const techId = techResult[0].id;
 			techIds.push(techId);
@@ -73,7 +76,7 @@ describe("Batch Dispatch Integration", () => {
 		];
 
 		for (const job of jobData) {
-			const jobResult = await db.query(
+			const jobResult = (await db.query(
 				`
         INSERT INTO jobs (
           id, 
@@ -107,7 +110,7 @@ describe("Batch Dispatch Integration", () => {
 					job.lng,
 					job.priority
 				]
-			);
+			)) as unknown as { id: string }[];
 
 			jobIds.push(jobResult[0].id);
 		}
@@ -116,28 +119,34 @@ describe("Batch Dispatch Integration", () => {
 	afterAll(async () => {
 		// Cleanup safely in reverse order
 		try {
-			// These tables might not exist, so wrap in try-catch
 			try {
-				await db.query("DELETE FROM job_assignments WHERE job_id = ANY($1)", [
-					jobIds
-				]);
+				await db.query(
+					"DELETE FROM job_assignments WHERE job_id = ANY($1::uuid[])",
+					[jobIds.join(",")]
+				);
 			} catch {
 				/* ignore */
 			}
 
 			try {
-				await db.query("DELETE FROM job_completions WHERE job_id = ANY($1)", [
-					jobIds
-				]);
+				await db.query(
+					"DELETE FROM job_completions WHERE job_id = ANY($1::uuid[])",
+					[jobIds.join(",")]
+				);
 			} catch {
 				/* ignore */
 			}
 
-			await db.query("DELETE FROM jobs WHERE id = ANY($1)", [jobIds]);
-			await db.query("DELETE FROM tech_locations WHERE tech_id = ANY($1)", [
-				techIds
+			await db.query("DELETE FROM jobs WHERE id = ANY($1::uuid[])", [
+				jobIds.join(",")
 			]);
-			await db.query("DELETE FROM employees WHERE id = ANY($1)", [techIds]);
+			await db.query(
+				"DELETE FROM tech_locations WHERE tech_id = ANY($1::uuid[])",
+				[techIds.join(",")]
+			);
+			await db.query("DELETE FROM employees WHERE id = ANY($1::uuid[])", [
+				techIds.join(",")
+			]);
 			await db.query("DELETE FROM companies WHERE id = $1", [companyId]);
 		} catch (err) {
 			console.error("Cleanup failed", err);

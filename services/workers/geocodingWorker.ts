@@ -8,12 +8,37 @@ const BATCH_SIZE = 10;
 const POLL_INTERVAL_MS = 30000; // 30 seconds
 const MAX_RETRIES = 3;
 
+interface PendingJob {
+	id: string;
+	address: string;
+	geocoding_retries: number;
+}
+
+interface ExistsRow {
+	exists: boolean;
+}
+
+interface DBInfoRow {
+	database: string;
+	schema: string;
+}
+
+interface ColumnRow {
+	column_name: string;
+}
+
+interface GeocodeResult {
+	latitude: number | null;
+	longitude: number | null;
+	geocodingStatus: "complete" | "failed" | string;
+}
+
 export class GeocodingWorker {
-	private isRunning = false;
+	private isRunning: boolean = false;
 	private intervalId: NodeJS.Timeout | null = null;
 	private hasRetriesColumn: boolean | null = null;
 
-	async start() {
+	async start(): Promise<void> {
 		if (this.isRunning) {
 			console.log("⚠️  Geocoding worker already running");
 			return;
@@ -34,7 +59,7 @@ export class GeocodingWorker {
 		}, POLL_INTERVAL_MS);
 	}
 
-	stop() {
+	stop(): void {
 		if (this.intervalId) {
 			clearInterval(this.intervalId);
 			this.intervalId = null;
@@ -43,9 +68,9 @@ export class GeocodingWorker {
 		console.log("🛑 Geocoding worker stopped");
 	}
 
-	private async processJobs() {
+	private async processJobs(): Promise<void> {
 		try {
-			const pendingJobs = await this.fetchPendingJobs();
+			const pendingJobs: PendingJob[] = (await this.fetchPendingJobs()) || [];
 
 			if (pendingJobs.length === 0) {
 				return;
@@ -53,7 +78,6 @@ export class GeocodingWorker {
 
 			console.log(`🔄 Processing ${pendingJobs.length} geocoding jobs...`);
 
-			// Process each job
 			for (const job of pendingJobs) {
 				await this.geocodeJob(job.id, job.address, job.geocoding_retries);
 
@@ -67,16 +91,18 @@ export class GeocodingWorker {
 		}
 	}
 
-	private async ensureRetriesColumn() {
+	private async ensureRetriesColumn(): Promise<void> {
 		try {
-			const result = await query<{ exists: boolean }>(
-				"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'jobs' AND column_name = 'geocoding_retries') AS exists"
-			);
+			const result = (await query(
+				"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'jobs' AND column_name = 'geocoding_retries') AS exists",
+				[]
+			)) as unknown as ExistsRow[];
 			this.hasRetriesColumn = result[0]?.exists ?? false;
 
 			if (!this.hasRetriesColumn) {
 				await query(
-					"ALTER TABLE jobs ADD COLUMN IF NOT EXISTS geocoding_retries integer DEFAULT 0"
+					"ALTER TABLE jobs ADD COLUMN IF NOT EXISTS geocoding_retries integer DEFAULT 0",
+					[]
 				);
 				this.hasRetriesColumn = true;
 			}
@@ -86,52 +112,45 @@ export class GeocodingWorker {
 		}
 	}
 
-	private async fetchPendingJobs() {
+	private async fetchPendingJobs(): Promise<PendingJob[]> {
 		const baseSelect = "SELECT id, address";
 		const baseFrom = "FROM jobs";
 		const baseOrder = "ORDER BY created_at ASC";
 
 		if (this.hasRetriesColumn) {
-			return query<{
-				id: string;
-				address: string;
-				geocoding_retries: number;
-			}>(
+			return (await query(
 				`${baseSelect}, COALESCE(geocoding_retries, 0) AS geocoding_retries
-				${baseFrom}
-				WHERE geocoding_status = 'pending'
-					OR (geocoding_status = 'failed'
-						AND COALESCE(geocoding_retries, 0) < $1)
-				${baseOrder}
-				LIMIT $2`,
+${baseFrom}
+WHERE geocoding_status = 'pending'
+	OR (geocoding_status = 'failed'
+		AND COALESCE(geocoding_retries, 0) < $1)
+${baseOrder}
+LIMIT $2`,
 				[MAX_RETRIES, BATCH_SIZE]
-			);
+			)) as unknown as PendingJob[];
 		}
 
-		return query<{
-			id: string;
-			address: string;
-			geocoding_retries: number;
-		}>(
+		return (await query(
 			`${baseSelect}, 0 AS geocoding_retries
-			${baseFrom}
-			WHERE geocoding_status = 'pending'
-				OR geocoding_status = 'failed'
-			${baseOrder}
-			LIMIT $1`,
+${baseFrom}
+WHERE geocoding_status = 'pending'
+	OR geocoding_status = 'failed'
+${baseOrder}
+LIMIT $1`,
 			[BATCH_SIZE]
-		);
+		)) as unknown as PendingJob[];
 	}
 
-	private async logJobsSchemaInfo() {
+	private async logJobsSchemaInfo(): Promise<void> {
 		try {
-			const dbInfo = await query<{
-				database: string;
-				schema: string;
-			}>("SELECT current_database() AS database, current_schema() AS schema");
-			const columns = await query<{ column_name: string }>(
-				"SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'jobs' ORDER BY ordinal_position"
-			);
+			const dbInfo = (await query(
+				"SELECT current_database() AS database, current_schema() AS schema",
+				[]
+			)) as unknown as DBInfoRow[];
+			const columns = (await query(
+				"SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'jobs' ORDER BY ordinal_position",
+				[]
+			)) as unknown as ColumnRow[];
 
 			const database = dbInfo[0]?.database ?? "unknown";
 			const schema = dbInfo[0]?.schema ?? "unknown";
@@ -149,19 +168,19 @@ export class GeocodingWorker {
 		jobId: string,
 		address: string,
 		currentRetries: number
-	) {
+	): Promise<void> {
 		try {
-			const geo = await tryGeocodeJob(address);
+			const geo: GeocodeResult = await tryGeocodeJob(address);
 
 			if (this.hasRetriesColumn) {
 				await query(
-					`UPDATE jobs 
-					SET latitude = $1, 
-						longitude = $2, 
-						geocoding_status = $3,
-						geocoding_retries = $4,
-						updated_at = NOW()
-					WHERE id = $5`,
+					`UPDATE jobs
+SET latitude = $1,
+	longitude = $2,
+	geocoding_status = $3,
+	geocoding_retries = $4,
+	updated_at = NOW()
+WHERE id = $5`,
 					[
 						geo.latitude,
 						geo.longitude,
@@ -172,12 +191,12 @@ export class GeocodingWorker {
 				);
 			} else {
 				await query(
-					`UPDATE jobs 
-					SET latitude = $1, 
-						longitude = $2, 
-						geocoding_status = $3,
-						updated_at = NOW()
-					WHERE id = $4`,
+					`UPDATE jobs
+SET latitude = $1,
+	longitude = $2,
+	geocoding_status = $3,
+	updated_at = NOW()
+WHERE id = $4`,
 					[geo.latitude, geo.longitude, geo.geocodingStatus, jobId]
 				);
 			}
@@ -192,26 +211,30 @@ export class GeocodingWorker {
 
 			// Mark as failed with retry count
 			if (this.hasRetriesColumn) {
-				await query(
-					`UPDATE jobs 
-					SET geocoding_status = 'failed',
-						geocoding_retries = $1,
-						updated_at = NOW()
-					WHERE id = $2`,
-					[currentRetries + 1, jobId]
-				).catch((err) =>
-					console.error("Failed to update geocoding status:", err)
-				);
+				try {
+					await query(
+						`UPDATE jobs
+SET geocoding_status = 'failed',
+	geocoding_retries = $1,
+	updated_at = NOW()
+WHERE id = $2`,
+						[currentRetries + 1, jobId]
+					);
+				} catch (err: unknown) {
+					console.error("Failed to update geocoding status:", err);
+				}
 			} else {
-				await query(
-					`UPDATE jobs 
-					SET geocoding_status = 'failed',
-						updated_at = NOW()
-					WHERE id = $1`,
-					[jobId]
-				).catch((err) =>
-					console.error("Failed to update geocoding status:", err)
-				);
+				try {
+					await query(
+						`UPDATE jobs
+SET geocoding_status = 'failed',
+	updated_at = NOW()
+WHERE id = $1`,
+						[jobId]
+					);
+				} catch (err: unknown) {
+					console.error("Failed to update geocoding status:", err);
+				}
 			}
 		}
 	}

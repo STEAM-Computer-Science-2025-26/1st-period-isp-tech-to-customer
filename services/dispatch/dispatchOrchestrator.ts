@@ -157,7 +157,7 @@ export class DispatchOrchestrator {
 		recommendation: ReturnType<typeof dispatch> | null,
 		job: JobRecord
 	): Promise<void> {
-		const client = await this.jobRepo.getClient();
+		const client = await (this.jobRepo as any).getClient();
 
 		try {
 			await client.query("BEGIN");

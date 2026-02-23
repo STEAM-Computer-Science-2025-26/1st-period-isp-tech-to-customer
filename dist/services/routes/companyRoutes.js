@@ -36,13 +36,13 @@ export function getCompany(fastify) {
                 .code(403)
                 .send({ error: "Forbidden - Cannot access other company's data" });
         }
-        const result = await query(`SELECT
+        const result = (await query(`SELECT
 				id, name,
 				dispatch_settings AS "dispatchSettings",
 				created_at AS "createdAt",
 				updated_at AS "updatedAt"
 			FROM companies
-			WHERE id = $1`, [companyId]);
+			WHERE id = $1`, [companyId]));
         if (!result[0]) {
             return reply.code(404).send({ error: "Company not found" });
         }
@@ -62,7 +62,7 @@ export function createCompany(fastify) {
                 details: parsed.error.flatten().fieldErrors
             });
         }
-        const result = await query(`INSERT INTO companies (name) VALUES ($1) RETURNING id`, [parsed.data.name]);
+        const result = (await query(`INSERT INTO companies (name) VALUES ($1) RETURNING id`, [parsed.data.name]));
         return { companyId: result[0].id };
     });
 }

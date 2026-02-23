@@ -53,7 +53,7 @@ export function getCompany(fastify: FastifyInstance) {
 				.send({ error: "Forbidden - Cannot access other company's data" });
 		}
 
-		const result = await query(
+		const result = (await query(
 			`SELECT
 				id, name,
 				dispatch_settings AS "dispatchSettings",
@@ -62,7 +62,13 @@ export function getCompany(fastify: FastifyInstance) {
 			FROM companies
 			WHERE id = $1`,
 			[companyId]
-		);
+		)) as unknown as {
+			id: string;
+			name: string;
+			dispatchSettings: any;
+			createdAt: string;
+			updatedAt: string;
+		}[];
 
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Company not found" });
@@ -86,10 +92,10 @@ export function createCompany(fastify: FastifyInstance) {
 			});
 		}
 
-		const result = await query<{ id: string }>(
+		const result = (await query(
 			`INSERT INTO companies (name) VALUES ($1) RETURNING id`,
 			[parsed.data.name]
-		);
+		)) as unknown as { id: string }[];
 		return { companyId: result[0].id };
 	});
 }

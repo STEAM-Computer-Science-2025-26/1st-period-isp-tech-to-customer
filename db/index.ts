@@ -1,9 +1,8 @@
 // db/index.ts
-// STANDARDIZED - Uses Neon HTTP driver only
-// Works in serverless (Next.js) and traditional Node.js (Fastify)
+// Neon HTTP driver only — clean, minimal, typed.
 
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import dotenv from "dotenv";
+import * as dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -31,9 +30,7 @@ export function getSql(): NeonQueryFunction<false, false> {
 
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
-		throw new Error(
-			"DATABASE_URL environment variable is not set. Cannot create SQL client."
-		);
+		throw new Error("DATABASE_URL environment variable is not set.");
 	}
 
 	if (!cachedSql) {
@@ -41,26 +38,6 @@ export function getSql(): NeonQueryFunction<false, false> {
 	}
 
 	return cachedSql;
-}
-
-/**
- * Execute a query and return all rows
- * @deprecated Use getSql() directly for better type safety
- */
-export async function query<T = Record<string, unknown>>(
-	text: string,
-	params?: unknown[]
-): Promise<T[]> {
-	const sql = getSql();
-
-	if (params && params.length > 0) {
-		const result = await sql.query(text, params);
-		return (Array.isArray(result) ? result : [result]) as T[];
-	}
-
-	// For queries without parameters
-	const result = await sql.query(text);
-	return (Array.isArray(result) ? result : [result]) as T[];
 }
 
 /**
@@ -74,11 +51,12 @@ export async function testConnection(): Promise<{
 	try {
 		const sql = getSql();
 		const result = await sql`SELECT NOW() as current_time`;
-		console.log("✅ Database connected successfully!");
-		console.log("Current database time:", result[0].current_time);
-		return { success: true, currentTime: result[0].current_time };
+
+		return {
+			success: true,
+			currentTime: result[0]?.current_time
+		};
 	} catch (error) {
-		console.error("❌ Database connection failed:", error);
 		return { success: false, error };
 	}
 }
@@ -90,12 +68,14 @@ export function toCamelCase<T extends Record<string, unknown>>(
 	obj: Record<string, unknown>
 ): T {
 	const result: Record<string, unknown> = {};
+
 	for (const key in obj) {
 		const camelKey = key.replace(/_([a-z])/g, (_, letter) =>
 			letter.toUpperCase()
 		);
 		result[camelKey] = obj[key];
 	}
+
 	return result as T;
 }
 
@@ -106,6 +86,7 @@ export function toSnakeCase<T extends Record<string, unknown>>(
 	obj: T
 ): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
+
 	for (const key in obj) {
 		const snakeKey = key.replace(
 			/[A-Z]/g,
@@ -113,6 +94,7 @@ export function toSnakeCase<T extends Record<string, unknown>>(
 		);
 		result[snakeKey] = obj[key];
 	}
+
 	return result;
 }
 
@@ -126,9 +108,9 @@ export function rowsToCamelCase<T extends Record<string, unknown>>(
 }
 
 /**
- * Query one row (returns null if not found)
+ * Query one row
  */
-export async function queryOne<T extends Record<string, unknown>>(
+export async function queryOne<T>(
 	queryFn: (sql: NeonQueryFunction<false, false>) => Promise<T[]>
 ): Promise<T | null> {
 	const sql = getSql();
@@ -139,60 +121,16 @@ export async function queryOne<T extends Record<string, unknown>>(
 /**
  * Query all rows
  */
-export async function queryAll<T extends Record<string, unknown>>(
+export async function queryAll<T>(
 	queryFn: (sql: NeonQueryFunction<false, false>) => Promise<T[]>
 ): Promise<T[]> {
 	const sql = getSql();
 	return queryFn(sql);
 }
 
-/**
- * Get a client for transactions
- * Note: Neon HTTP doesn't support traditional transactions like pg Pool
- * For true ACID transactions, consider using Neon's WebSocket mode or pg Pool
- *
- * This is a compatibility shim that executes queries immediately
- */
-export async function getClient() {
-	return {
-		query: async (text: string, params?: unknown[]) => {
-			const result = await query(text, params);
-			return { rows: result, rowCount: result.length };
-		},
-		release: () => {
-			// No-op for Neon HTTP (connectionless)
-		}
-	};
-}
-
-/**
- * Execute a function within a transaction
- * Note: This is a best-effort implementation for Neon HTTP
- * For critical transactions, use Neon WebSocket mode or pg Pool
- */
-export async function transaction<T>(
-	callback: (client: Awaited<ReturnType<typeof getClient>>) => Promise<T>
-): Promise<T> {
-	const client = await getClient();
-
-	try {
-		// Begin transaction
-		await client.query("BEGIN");
-
-		// Execute callback
-		const result = await callback(client);
-
-		// Commit
-		await client.query("COMMIT");
-
-		return result;
-	} catch (error) {
-		// Rollback on error
-		await client.query("ROLLBACK").catch(() => {
-			// Ignore rollback errors
-		});
-		throw error;
-	} finally {
-		client.release();
-	}
+export function query(
+	arg0: string,
+	arg1: (string | number | boolean | null | undefined)[]
+) {
+	throw new Error("Function not implemented.");
 }

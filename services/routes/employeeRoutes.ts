@@ -109,12 +109,12 @@ export function listEmployees(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 
-		const result = await query(
+		const result = (await query(
 			`SELECT ${EMPLOYEE_SELECT} FROM employees
 			WHERE company_id = $1
 			ORDER BY name ASC`,
 			[effectiveCompanyId]
-		);
+		)) as unknown as any[];
 		return { employees: result };
 	});
 }
@@ -131,11 +131,11 @@ export function getEmployee(fastify: FastifyInstance) {
 				.send({ error: "Forbidden - Missing company in token" });
 		}
 
-		const result = await query(
+		const result = (await query(
 			`SELECT ${EMPLOYEE_SELECT} FROM employees
 			WHERE id = $1${isDev ? "" : " AND company_id = $2"}`,
 			isDev ? [employeeId] : [employeeId, authUser.companyId]
-		);
+		)) as unknown as any[];
 
 		if (result.length === 0) {
 			return reply.code(404).send({ error: "Employee not found" });
@@ -175,19 +175,19 @@ export function createEmployee(fastify: FastifyInstance) {
 		const effectiveCreatedByUserId =
 			body.createdByUserId ?? authUser.userId ?? authUser.id ?? null;
 
-		const result = await query(
+		const result = (await query(
 			`INSERT INTO employees (
-				user_id, company_id, name, email, role, skills, skill_level,
-				home_address, phone, max_concurrent_jobs, internal_notes, created_by_user_id
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-			RETURNING ${EMPLOYEE_SELECT}`,
+						user_id, company_id, name, email, role, skills, skill_level,
+						home_address, phone, max_concurrent_jobs, internal_notes, created_by_user_id
+					) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+					RETURNING ${EMPLOYEE_SELECT}`,
 			[
 				body.userId,
 				effectiveCompanyId,
 				body.name,
 				body.email ?? null,
 				body.role ?? null,
-				body.skills,
+				JSON.stringify(body.skills),
 				JSON.stringify(body.skillLevel ?? {}),
 				body.homeAddress,
 				body.phone ?? null,
@@ -195,7 +195,7 @@ export function createEmployee(fastify: FastifyInstance) {
 				body.internalNotes ?? null,
 				effectiveCreatedByUserId
 			]
-		);
+		)) as unknown as any[];
 		return { employee: result[0] };
 	});
 }
@@ -222,7 +222,7 @@ export function updateEmployee(fastify: FastifyInstance) {
 
 		const body = parsed.data;
 		const updates: string[] = [];
-		const values: Array<string | number | boolean | string[] | null> = [];
+		const values: Array<string | number | boolean | null | undefined> = [];
 
 		if (body.name !== undefined) {
 			values.push(body.name);
@@ -237,7 +237,7 @@ export function updateEmployee(fastify: FastifyInstance) {
 			updates.push(`role = $${values.length}`);
 		}
 		if (body.skills !== undefined) {
-			values.push(body.skills);
+			values.push(JSON.stringify(body.skills));
 			updates.push(`skills = $${values.length}`);
 		}
 		if (body.skillLevel !== undefined) {
@@ -284,13 +284,13 @@ export function updateEmployee(fastify: FastifyInstance) {
 			values.push(authUser.companyId ?? null);
 		}
 
-		const result = await query(
+		const result = (await query(
 			`UPDATE employees
 			SET ${updates.join(", ")}, updated_at = NOW()
 			WHERE id = $${values.length}${isDev ? "" : ` AND company_id = $${values.length + 1}`}
 			RETURNING ${EMPLOYEE_SELECT}`,
 			values
-		);
+		)) as unknown as any[];
 
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Employee not found" });
@@ -311,14 +311,14 @@ export function deleteEmployee(fastify: FastifyInstance) {
 				.send({ error: "Forbidden - Missing company in token" });
 		}
 
-		const result = isDev
+		const result = (isDev
 			? await query("DELETE FROM employees WHERE id = $1 RETURNING id", [
 					employeeId
 				])
 			: await query(
 					"DELETE FROM employees WHERE id = $1 AND company_id = $2 RETURNING id",
 					[employeeId, authUser.companyId]
-				);
+				)) as unknown as any[];
 
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Employee not found" });

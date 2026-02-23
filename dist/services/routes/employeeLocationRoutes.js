@@ -1,7 +1,6 @@
 import { query } from "../../db";
 import { z } from "zod";
 import { areValidCoordinates } from "../../algo/distance";
-import { authenticate } from "../middleware/auth";
 const updateLocationSchema = z.object({
     latitude: z.number().min(-90).max(90),
     longitude: z.number().min(-180).max(180)
@@ -27,7 +26,7 @@ export function updateEmployeeLocation(fastify) {
             });
         }
         if (!isDev) {
-            const employeeCheck = await query(`SELECT id, user_id, company_id FROM employees WHERE id = $1`, [employeeId]);
+            const employeeCheck = (await query(`SELECT id, user_id, company_id FROM employees WHERE id = $1`, [employeeId]));
             if (employeeCheck.length === 0) {
                 return reply.code(404).send({ error: "Employee not found" });
             }
@@ -48,10 +47,10 @@ export function updateEmployeeLocation(fastify) {
                 }
             }
         }
-        const result = await query(`UPDATE employees 
-        SET latitude = $1, longitude = $2, location_updated_at = NOW(), updated_at = NOW()
-        WHERE id = $3
-        RETURNING id, latitude, longitude, location_updated_at AS "locationUpdatedAt"`, [latitude, longitude, employeeId]);
+        const result = (await query(`UPDATE employees 
+		SET latitude = $1, longitude = $2, location_updated_at = NOW(), updated_at = NOW()
+		WHERE id = $3
+		RETURNING id, latitude, longitude, location_updated_at AS "locationUpdatedAt"`, [latitude, longitude, employeeId]));
         if (result.length === 0) {
             return reply.code(404).send({ error: "Employee not found" });
         }
@@ -66,17 +65,13 @@ export function getEmployeeLocation(fastify) {
         const { employeeId } = request.params;
         const authUser = request.user;
         const isDev = authUser?.role === "dev";
-        let sql = `SELECT 
-      id, latitude, longitude, 
-      location_updated_at AS "locationUpdatedAt"
-      FROM employees 
-      WHERE id = $1`;
+        const sql = `SELECT 
+	  id, latitude, longitude, 
+	  location_updated_at AS "locationUpdatedAt"
+	  FROM employees 
+	  WHERE id = $1`;
         const params = [employeeId];
-        if (!isDev) {
-            sql += ` AND company_id = $2`;
-            params.push(authUser.companyId ?? "");
-        }
-        const result = await query(sql, params);
+        const result = (await query(sql, params));
         if (result.length === 0) {
             return reply.code(404).send({ error: "Employee not found" });
         }
@@ -88,20 +83,21 @@ export function getAllTechs(fastify) {
         const authUser = request.user;
         const isDev = authUser?.role === "dev";
         let sql = `
-      SELECT 
-        id AS tech_id,
-        name AS tech_name,
-        latitude,
-        longitude,
-        location_updated_at AS last_update
-      FROM employees
-    `;
+	  SELECT 
+		id AS tech_id,
+		name AS tech_name,
+		latitude,
+		longitude,
+		location_updated_at AS last_update
+	  FROM employees
+	  WHERE role = 'tech'
+	`;
         const params = [];
         if (!isDev) {
-            sql += ` WHERE company_id = $1`;
+            sql += ` AND company_id = $1`;
             params.push(authUser.companyId ?? "");
         }
-        const result = await query(sql, params);
+        const result = (await query(sql, params));
         const techs = result.map((t) => ({
             tech_id: t.tech_id,
             tech_name: t.tech_name,
@@ -118,11 +114,8 @@ export function getAllTechs(fastify) {
         };
     });
 }
-export async function employeeLocationRoutes(fastify) {
-    fastify.register(async (authenticatedRoutes) => {
-        authenticatedRoutes.addHook("onRequest", authenticate);
-        updateEmployeeLocation(authenticatedRoutes);
-        getEmployeeLocation(authenticatedRoutes);
-        getAllTechs(authenticatedRoutes);
-    });
+export function employeeLocationRoutes(fastify) {
+    updateEmployeeLocation(fastify);
+    getEmployeeLocation(fastify);
+    getAllTechs(fastify);
 }

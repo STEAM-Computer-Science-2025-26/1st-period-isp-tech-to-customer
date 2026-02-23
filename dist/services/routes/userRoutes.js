@@ -77,10 +77,10 @@ export function getUser(fastify) {
         const { userId } = request.params;
         const authUser = request.user;
         const isDev = authUser?.role === "dev";
-        const result = await query(`SELECT id, email, role, company_id AS "companyId",
+        const result = (await query(`SELECT id, email, role, company_id AS "companyId",
 				created_at AS "createdAt", updated_at AS "updatedAt"
 			FROM users
-			WHERE id = $1${isDev ? "" : " AND company_id = $2"}`, isDev ? [userId] : [userId, authUser.companyId]);
+			WHERE id = $1${isDev ? "" : " AND company_id = $2"}`, isDev ? [userId] : [userId, authUser.companyId]));
         if (!result[0]) {
             return reply.code(404).send({ error: "User not found" });
         }
@@ -118,9 +118,9 @@ export function createUser(fastify) {
                 .send({ error: "Forbidden - Cannot create users for other companies" });
         }
         const hashedPassword = await bcrypt.hash(body.password, 10);
-        const result = await query(`INSERT INTO users (email, password_hash, role, company_id)
+        const result = (await query(`INSERT INTO users (email, password_hash, role, company_id)
 				VALUES ($1, $2, $3, $4)
-				RETURNING id`, [body.email, hashedPassword, body.role, effectiveCompanyId]);
+				RETURNING id`, [body.email, hashedPassword, body.role, effectiveCompanyId]));
         return { userId: result[0].id };
     });
 }
@@ -144,7 +144,7 @@ export function updateUser(fastify) {
         const body = parsed.data;
         const { userId } = request.params;
         if (!isDev) {
-            const rows = await query("SELECT id FROM users WHERE id = $1 AND company_id = $2", [userId, authUser.companyId]);
+            const rows = (await query("SELECT id FROM users WHERE id = $1 AND company_id = $2", [userId, authUser.companyId]));
             if (!rows[0]) {
                 return reply.code(404).send({ error: "User not found" });
             }
@@ -174,8 +174,8 @@ export function updateUser(fastify) {
             return reply.code(400).send({ error: "No fields to update" });
         }
         values.push(userId);
-        const result = await query(`UPDATE users SET ${updates.join(", ")}, updated_at = NOW()
-			WHERE id = $${values.length} RETURNING id`, values);
+        const result = (await query(`UPDATE users SET ${updates.join(", ")}, updated_at = NOW()
+			WHERE id = $${values.length} RETURNING id`, values));
         return { message: "User updated successfully", userId: result[0].id };
     });
 }
@@ -190,9 +190,9 @@ export function deleteUser(fastify) {
                 .send({ error: "Forbidden - Admin access required" });
         }
         const { userId } = request.params;
-        const result = isDev
+        const result = (isDev
             ? await query("DELETE FROM users WHERE id = $1 RETURNING id", [userId])
-            : await query("DELETE FROM users WHERE id = $1 AND company_id = $2 RETURNING id", [userId, authUser.companyId]);
+            : await query("DELETE FROM users WHERE id = $1 AND company_id = $2 RETURNING id", [userId, authUser.companyId]));
         if (!result[0]) {
             return reply.code(404).send({ error: "User not found" });
         }
@@ -219,12 +219,12 @@ export function loginUser(fastify) {
             });
         }
         const { email, password } = parsed.data;
-        const result = await query(`SELECT id, email, password_hash, role, company_id
-			FROM users WHERE email = $1`, [email]);
-        if (!result[0]) {
+        const rows = (await query(`SELECT id, email, password_hash, role, company_id
+			FROM users WHERE email = $1`, [email]));
+        if (!rows[0]) {
             return reply.code(401).send({ error: "Invalid email or password" });
         }
-        const user = result[0];
+        const user = rows[0];
         const isPasswordValid = await bcrypt.compare(password, user.password_hash);
         if (!isPasswordValid) {
             return reply.code(401).send({ error: "Invalid email or password" });
@@ -272,15 +272,17 @@ export function registerUser(fastify) {
             });
         }
         const { email, password, companyName } = parsed.data;
-        const existing = await query("SELECT id FROM users WHERE email = $1", [email]);
+        const existing = (await query("SELECT id FROM users WHERE email = $1", [
+            email
+        ]));
         if (existing[0]) {
             return reply.code(409).send({ error: "Email is already registered" });
         }
-        const verified = await query(`SELECT id
+        const verified = (await query(`SELECT id
 			FROM email_verifications
 			WHERE email = $1 AND verified = TRUE
 			ORDER BY used_at DESC NULLS LAST, verified_at DESC NULLS LAST
-			LIMIT 1`, [email]);
+			LIMIT 1`, [email]));
         if (!verified[0]) {
             return reply.code(403).send({
                 error: "Email verification required before registration"
@@ -288,11 +290,11 @@ export function registerUser(fastify) {
         }
         const finalCompanyName = buildCompanyName(email, companyName);
         const hashedPassword = await bcrypt.hash(password, 10);
-        const createdCompany = await query("INSERT INTO companies (name) VALUES ($1) RETURNING id", [finalCompanyName]);
+        const createdCompany = (await query("INSERT INTO companies (name) VALUES ($1) RETURNING id", [finalCompanyName]));
         const companyId = createdCompany[0].id;
-        const createdUser = await query(`INSERT INTO users (email, password_hash, role, company_id)
+        const createdUser = (await query(`INSERT INTO users (email, password_hash, role, company_id)
 			VALUES ($1, $2, $3, $4)
-			RETURNING id`, [email, hashedPassword, "admin", companyId]);
+			RETURNING id`, [email, hashedPassword, "admin", companyId]));
         const token = fastify.jwt.sign({
             userId: createdUser[0].id,
             email,

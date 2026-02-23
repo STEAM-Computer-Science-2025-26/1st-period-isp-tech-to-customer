@@ -85,9 +85,9 @@ export function listEmployees(fastify) {
         if (!effectiveCompanyId) {
             return reply.code(400).send({ error: "Missing companyId" });
         }
-        const result = await query(`SELECT ${EMPLOYEE_SELECT} FROM employees
+        const result = (await query(`SELECT ${EMPLOYEE_SELECT} FROM employees
 			WHERE company_id = $1
-			ORDER BY name ASC`, [effectiveCompanyId]);
+			ORDER BY name ASC`, [effectiveCompanyId]));
         return { employees: result };
     });
 }
@@ -101,8 +101,8 @@ export function getEmployee(fastify) {
                 .code(403)
                 .send({ error: "Forbidden - Missing company in token" });
         }
-        const result = await query(`SELECT ${EMPLOYEE_SELECT} FROM employees
-			WHERE id = $1${isDev ? "" : " AND company_id = $2"}`, isDev ? [employeeId] : [employeeId, authUser.companyId]);
+        const result = (await query(`SELECT ${EMPLOYEE_SELECT} FROM employees
+			WHERE id = $1${isDev ? "" : " AND company_id = $2"}`, isDev ? [employeeId] : [employeeId, authUser.companyId]));
         if (result.length === 0) {
             return reply.code(404).send({ error: "Employee not found" });
         }
@@ -133,24 +133,24 @@ export function createEmployee(fastify) {
             return reply.code(400).send({ error: "Missing companyId" });
         }
         const effectiveCreatedByUserId = body.createdByUserId ?? authUser.userId ?? authUser.id ?? null;
-        const result = await query(`INSERT INTO employees (
-				user_id, company_id, name, email, role, skills, skill_level,
-				home_address, phone, max_concurrent_jobs, internal_notes, created_by_user_id
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-			RETURNING ${EMPLOYEE_SELECT}`, [
+        const result = (await query(`INSERT INTO employees (
+						user_id, company_id, name, email, role, skills, skill_level,
+						home_address, phone, max_concurrent_jobs, internal_notes, created_by_user_id
+					) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+					RETURNING ${EMPLOYEE_SELECT}`, [
             body.userId,
             effectiveCompanyId,
             body.name,
             body.email ?? null,
             body.role ?? null,
-            body.skills,
+            JSON.stringify(body.skills),
             JSON.stringify(body.skillLevel ?? {}),
             body.homeAddress,
             body.phone ?? null,
             body.maxConcurrentJobs ?? 1,
             body.internalNotes ?? null,
             effectiveCreatedByUserId
-        ]);
+        ]));
         return { employee: result[0] };
     });
 }
@@ -187,7 +187,7 @@ export function updateEmployee(fastify) {
             updates.push(`role = $${values.length}`);
         }
         if (body.skills !== undefined) {
-            values.push(body.skills);
+            values.push(JSON.stringify(body.skills));
             updates.push(`skills = $${values.length}`);
         }
         if (body.skillLevel !== undefined) {
@@ -232,10 +232,10 @@ export function updateEmployee(fastify) {
         if (!isDev) {
             values.push(authUser.companyId ?? null);
         }
-        const result = await query(`UPDATE employees
+        const result = (await query(`UPDATE employees
 			SET ${updates.join(", ")}, updated_at = NOW()
 			WHERE id = $${values.length}${isDev ? "" : ` AND company_id = $${values.length + 1}`}
-			RETURNING ${EMPLOYEE_SELECT}`, values);
+			RETURNING ${EMPLOYEE_SELECT}`, values));
         if (!result[0]) {
             return reply.code(404).send({ error: "Employee not found" });
         }
@@ -252,11 +252,11 @@ export function deleteEmployee(fastify) {
                 .code(403)
                 .send({ error: "Forbidden - Missing company in token" });
         }
-        const result = isDev
+        const result = (isDev
             ? await query("DELETE FROM employees WHERE id = $1 RETURNING id", [
                 employeeId
             ])
-            : await query("DELETE FROM employees WHERE id = $1 AND company_id = $2 RETURNING id", [employeeId, authUser.companyId]);
+            : await query("DELETE FROM employees WHERE id = $1 AND company_id = $2 RETURNING id", [employeeId, authUser.companyId]));
         if (!result[0]) {
             return reply.code(404).send({ error: "Employee not found" });
         }

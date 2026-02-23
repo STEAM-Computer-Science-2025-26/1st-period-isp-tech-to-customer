@@ -83,45 +83,47 @@ export async function calculateTechMetrics(
 	// into the query string (avoids SQL injection if the caller passes user input).
 	const safeLookback = Math.max(1, Math.floor(Math.abs(lookbackDays)));
 
-	const [completionData, assignmentData, ratingData] = await Promise.all([
+	const results = (await Promise.all([
 		// BUG 3 FIX: was 'jobs_completions' — correct table is 'job_completions'
-		query<{ count: string; daily_job_count: string }>(
+		query(
 			`SELECT
-                COUNT(*) FILTER (
-                    WHERE completed_at > NOW() - INTERVAL '${safeLookback} days'
-                ) AS count,
-                COUNT(*) FILTER (
-                    WHERE completed_at >= CURRENT_DATE
-                ) AS daily_job_count
-            FROM job_completions
-            WHERE tech_id = $1`,
+				COUNT(*) FILTER (
+					WHERE completed_at > NOW() - INTERVAL '${safeLookback} days'
+				) AS count,
+				COUNT(*) FILTER (
+					WHERE completed_at >= CURRENT_DATE
+				) AS daily_job_count
+			FROM job_completions
+			WHERE tech_id = $1`,
 			[techId]
 		),
 
 		// BUG 3 FIX: 'job_assignments' table doesn't exist in the schema.
 		// The schema tracks assignments via jobs.assigned_tech_id.
 		// We count total assigned jobs vs completed jobs from the jobs table directly.
-		query<{ assigned: string; completed: string }>(
+		query(
 			`SELECT
-                COUNT(*) AS assigned,
-                COUNT(*) FILTER (WHERE status = 'completed') AS completed
-            FROM jobs
-            WHERE assigned_tech_id = $1
-                AND created_at > NOW() - INTERVAL '${safeLookback} days'`,
+				COUNT(*) AS assigned,
+				COUNT(*) FILTER (WHERE status = 'completed') AS completed
+			FROM jobs
+			WHERE assigned_tech_id = $1
+				AND created_at > NOW() - INTERVAL '${safeLookback} days'`,
 			[techId]
 		),
 
 		// BUG 3 FIX: was 'jobs_completions' — correct table is 'job_completions'
-		query<{ avg_rating: string }>(
+		query(
 			`SELECT
-                COALESCE(AVG(customer_rating), 3.0) AS avg_rating
-            FROM job_completions
-            WHERE tech_id = $1
-                AND customer_rating IS NOT NULL
-                AND completed_at > NOW() - INTERVAL '${safeLookback} days'`,
+				COALESCE(AVG(customer_rating), 3.0) AS avg_rating
+			FROM job_completions
+			WHERE tech_id = $1
+				AND customer_rating IS NOT NULL
+				AND completed_at > NOW() - INTERVAL '${safeLookback} days'`,
 			[techId]
 		)
-	]);
+	])) as unknown as any[];
+
+	const [completionData, assignmentData, ratingData] = results;
 
 	const recentJobCount = parseInt(completionData[0]?.count ?? "0");
 	const dailyJobCount = parseInt(completionData[0]?.daily_job_count ?? "0");

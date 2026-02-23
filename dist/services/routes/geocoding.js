@@ -1,8 +1,7 @@
 // services/routes/geocoding.ts
 // WORKING GEOCODING IMPLEMENTATION using Geocod.io
 /**
- * Geocodes address using Geocod.io
- * Get your API key from https://www.geocod.io
+ * Geocodes address using Geocod.io-
  */
 export async function geocodeAddress(address) {
     const apiKey = process.env.GEOCODIO_API_KEY;

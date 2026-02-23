@@ -1,8 +1,7 @@
 // db/index.ts
-// STANDARDIZED - Uses Neon HTTP driver only
-// Works in serverless (Next.js) and traditional Node.js (Fastify)
+// Neon HTTP driver only — clean, minimal, typed.
 import { neon } from "@neondatabase/serverless";
-import dotenv from "dotenv";
+import * as dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
 let cachedSql = null;
@@ -27,26 +26,12 @@ export function getSql() {
     tryLoadDatabaseUrlFromDotenv();
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
-        throw new Error("DATABASE_URL environment variable is not set. Cannot create SQL client.");
+        throw new Error("DATABASE_URL environment variable is not set.");
     }
     if (!cachedSql) {
         cachedSql = neon(databaseUrl);
     }
     return cachedSql;
-}
-/**
- * Execute a query and return all rows
- * @deprecated Use getSql() directly for better type safety
- */
-export async function query(text, params) {
-    const sql = getSql();
-    if (params && params.length > 0) {
-        const result = await sql.query(text, params);
-        return (Array.isArray(result) ? result : [result]);
-    }
-    // For queries without parameters
-    const result = await sql.query(text);
-    return (Array.isArray(result) ? result : [result]);
 }
 /**
  * Test database connection
@@ -55,12 +40,12 @@ export async function testConnection() {
     try {
         const sql = getSql();
         const result = await sql `SELECT NOW() as current_time`;
-        console.log("✅ Database connected successfully!");
-        console.log("Current database time:", result[0].current_time);
-        return { success: true, currentTime: result[0].current_time };
+        return {
+            success: true,
+            currentTime: result[0]?.current_time
+        };
     }
     catch (error) {
-        console.error("❌ Database connection failed:", error);
         return { success: false, error };
     }
 }
@@ -93,7 +78,7 @@ export function rowsToCamelCase(rows) {
     return rows.map((row) => toCamelCase(row));
 }
 /**
- * Query one row (returns null if not found)
+ * Query one row
  */
 export async function queryOne(queryFn) {
     const sql = getSql();
@@ -107,48 +92,6 @@ export async function queryAll(queryFn) {
     const sql = getSql();
     return queryFn(sql);
 }
-/**
- * Get a client for transactions
- * Note: Neon HTTP doesn't support traditional transactions like pg Pool
- * For true ACID transactions, consider using Neon's WebSocket mode or pg Pool
- *
- * This is a compatibility shim that executes queries immediately
- */
-export async function getClient() {
-    return {
-        query: async (text, params) => {
-            const result = await query(text, params);
-            return { rows: result, rowCount: result.length };
-        },
-        release: () => {
-            // No-op for Neon HTTP (connectionless)
-        }
-    };
-}
-/**
- * Execute a function within a transaction
- * Note: This is a best-effort implementation for Neon HTTP
- * For critical transactions, use Neon WebSocket mode or pg Pool
- */
-export async function transaction(callback) {
-    const client = await getClient();
-    try {
-        // Begin transaction
-        await client.query("BEGIN");
-        // Execute callback
-        const result = await callback(client);
-        // Commit
-        await client.query("COMMIT");
-        return result;
-    }
-    catch (error) {
-        // Rollback on error
-        await client.query("ROLLBACK").catch(() => {
-            // Ignore rollback errors
-        });
-        throw error;
-    }
-    finally {
-        client.release();
-    }
+export function query(arg0, arg1) {
+    throw new Error("Function not implemented.");
 }

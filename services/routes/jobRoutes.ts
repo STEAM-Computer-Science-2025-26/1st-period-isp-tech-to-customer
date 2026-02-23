@@ -1,7 +1,7 @@
 // services/routes/jobRoutes.ts
 
 import { FastifyInstance } from "fastify";
-import { query } from "../../db";
+import { getSql } from "../../db";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 import { tryGeocodeJob } from "./geocoding";
@@ -87,6 +87,8 @@ function requireCompanyId(user: AuthUser): string | null {
 	return user.companyId ?? null;
 }
 
+const query = getSql();
+
 /**
  * Background geocoding — doesn't block the HTTP response.
  * Failures are logged and marked in the DB for retry.
@@ -97,14 +99,14 @@ async function geocodeJobAsync(jobId: string, address: string): Promise<void> {
 		await query(
 			`UPDATE jobs
 			 SET latitude = $1, longitude = $2, geocoding_status = $3, updated_at = NOW()
-			 WHERE id = $4`,
+			 WHERE id = $4` as unknown as TemplateStringsArray,
 			[geo.latitude, geo.longitude, geo.geocodingStatus, jobId]
 		);
 		console.log(`✅ Geocoded job ${jobId}: ${geo.geocodingStatus}`);
 	} catch (error) {
 		console.error(`❌ Geocoding failed for job ${jobId}:`, error);
 		await query(
-			`UPDATE jobs SET geocoding_status = 'failed', updated_at = NOW() WHERE id = $1`,
+			`UPDATE jobs SET geocoding_status = 'failed', updated_at = NOW() WHERE id = $1` as unknown as TemplateStringsArray,
 			[jobId]
 		).catch((err) => console.error("Failed to update geocoding status:", err));
 	}
@@ -176,7 +178,7 @@ export function listJobs(fastify: FastifyInstance) {
 		}
 
 		const sql = `SELECT ${JOB_SELECT} FROM jobs WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC`;
-		const jobs = await query(sql, params);
+		const jobs = await query(sql as unknown as TemplateStringsArray, params);
 		return { jobs };
 	});
 }
@@ -209,7 +211,7 @@ export function createJob(fastify: FastifyInstance) {
 				job_type, priority, status, scheduled_time,
 				initial_notes, geocoding_status, required_skills
 			) VALUES ($1, $2, $3, $4, $5, $6, 'unassigned', $7, $8, 'pending', $9)
-			RETURNING ${JOB_SELECT}`,
+			RETURNING ${JOB_SELECT}` as unknown as TemplateStringsArray,
 			[
 				effectiveCompanyId,
 				body.customerName,
@@ -270,7 +272,7 @@ export function updateJobStatus(fastify: FastifyInstance) {
 			`UPDATE jobs
 			 SET status = $1, completion_notes = $2${setCompletedAt}, updated_at = NOW()
 			 ${where}
-			 RETURNING id`,
+			 RETURNING id` as unknown as TemplateStringsArray,
 			values
 		);
 
@@ -353,7 +355,7 @@ export function updateJob(fastify: FastifyInstance) {
 		}
 
 		const result = await query(
-			`UPDATE jobs SET ${updates.join(", ")}, updated_at = NOW() ${where} RETURNING id`,
+			`UPDATE jobs SET ${updates.join(", ")}, updated_at = NOW() ${where} RETURNING id` as unknown as TemplateStringsArray,
 			values
 		);
 
@@ -379,9 +381,12 @@ export function deleteJob(fastify: FastifyInstance) {
 		const { jobId } = request.params as { jobId: string };
 
 		const result = dev
-			? await query("DELETE FROM jobs WHERE id = $1 RETURNING id", [jobId])
+			? await query(
+					"DELETE FROM jobs WHERE id = $1 RETURNING id" as unknown as TemplateStringsArray,
+					[jobId]
+				)
 			: await query(
-					"DELETE FROM jobs WHERE id = $1 AND company_id = $2 RETURNING id",
+					"DELETE FROM jobs WHERE id = $1 AND company_id = $2 RETURNING id" as unknown as TemplateStringsArray,
 					[jobId, companyId]
 				);
 
@@ -414,7 +419,7 @@ export function retryGeocoding(fastify: FastifyInstance) {
 		}
 
 		const result = await query(
-			`SELECT id, address, geocoding_status AS "geocodingStatus" FROM jobs ${whereClause}`,
+			`SELECT id, address, geocoding_status AS "geocodingStatus" FROM jobs ${whereClause}` as unknown as TemplateStringsArray,
 			params
 		);
 

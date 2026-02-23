@@ -1,6 +1,6 @@
 // services/repositories/JobRepository.ts
 // UPDATED - Uses Neon instead of pg Pool
-import { getSql, getClient } from "../../db";
+import { getSql } from "../../db";
 export class JobRepository {
     async findById(jobId) {
         const sql = getSql();
@@ -107,8 +107,5 @@ export class JobRepository {
 			     current_jobs_count = current_jobs_count + 1,
 			     updated_at = NOW()
 			 WHERE id = $2`, [jobId, techId]);
-    }
-    async getClient() {
-        return getClient();
     }
 }

@@ -1,17 +1,21 @@
 // services/dispatch/persistence.ts
 // FIXED VERSION - Uses Neon, proper transaction handling
 
-import { getSql, transaction } from "../../db";
+import { getSql } from "../../db";
 
-/**
- * Assign a job to a technician with proper locking
- * @param jobId
- * @param techId
- * @param assignedByUserId
- * @param isManualOverride
- * @param overrideReason
- * @param scoringDetails
- */
+declare function transaction<T>(
+	fn: (client: DBClient) => Promise<T>
+): Promise<T>;
+
+interface QueryResult<T> {
+	rowCount: number;
+	rows: T[];
+}
+
+interface DBClient {
+	query<T = any>(text: string, params?: any[]): Promise<QueryResult<T>>;
+}
+
 export async function assignJobToTech(
 	jobId: string,
 	techId: string,
@@ -20,12 +24,30 @@ export async function assignJobToTech(
 	overrideReason?: string,
 	scoringDetails?: Record<string, unknown>
 ): Promise<void> {
-	await transaction(async (client) => {
-		// ✅ FIX: Lock the job FIRST before reading
-		await client.query(`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`, [jobId]);
+	await transaction(async (client: DBClient) => {
+		interface JobRow {
+			id: string;
+			company_id: string;
+			status: string;
+			assigned_tech_id?: string | null;
+			priority: string;
+			job_type: string;
+		}
 
-		// ✅ Now safely read the job
-		const jobResult = await client.query(
+		interface TechRow {
+			id: string;
+			current_jobs_count: number;
+			max_concurrent_jobs: number;
+		}
+
+		// Lock the job FIRST before reading
+		await client.query<{ id: string }>(
+			`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`,
+			[jobId]
+		);
+
+		// Now safely read the job
+		const jobResult = await client.query<JobRow>(
 			`SELECT id, company_id, status, assigned_tech_id, priority, job_type
 			 FROM jobs WHERE id = $1`,
 			[jobId]
@@ -45,11 +67,12 @@ export async function assignJobToTech(
 		}
 
 		// Lock the technician row
-		await client.query(`SELECT id FROM employees WHERE id = $1 FOR UPDATE`, [
-			techId
-		]);
+		await client.query<{ id: string }>(
+			`SELECT id FROM employees WHERE id = $1 FOR UPDATE`,
+			[techId]
+		);
 
-		const techResult = await client.query(
+		const techResult = await client.query<TechRow>(
 			`SELECT id, current_jobs_count, max_concurrent_jobs
 			 FROM employees WHERE id = $1`,
 			[techId]
@@ -59,10 +82,7 @@ export async function assignJobToTech(
 			throw new Error("Tech not found");
 		}
 
-		const tech = techResult.rows[0] as {
-			current_jobs_count: number;
-			max_concurrent_jobs: number;
-		};
+		const tech = techResult.rows[0] as TechRow;
 
 		if (tech.current_jobs_count >= tech.max_concurrent_jobs) {
 			throw new Error(`Tech ${techId} has reached max concurrent jobs limit`);
@@ -79,8 +99,8 @@ export async function assignJobToTech(
 		await client.query(
 			`UPDATE employees
 			 SET current_job_id = $1,
-			     current_jobs_count = current_jobs_count + 1,
-			     updated_at = NOW()
+				 current_jobs_count = current_jobs_count + 1,
+				 updated_at = NOW()
 			 WHERE id = $2`,
 			[jobId, techId]
 		);
@@ -123,8 +143,31 @@ export async function completeJob(
 	firstTimeFix?: boolean,
 	customerRating?: number
 ): Promise<void> {
-	await transaction(async (client) => {
-		const jobResult = await client.query(
+	await transaction(async (client: DBClient) => {
+		interface JobRow {
+			id: string;
+			company_id: string;
+			assigned_tech_id?: string | null;
+			status: string;
+		}
+
+		interface EmployeeRow {
+			id: string;
+			current_job_id?: string | null;
+			current_jobs_count: number;
+		}
+
+		interface JobCompletionInsert {
+			job_id: string;
+			tech_id?: string | null;
+			company_id: string;
+			completion_notes?: string | null;
+			duration_minutes?: number | null;
+			first_time_fix: boolean;
+			customer_rating?: number | null;
+		}
+
+		const jobResult = await client.query<JobRow>(
 			`SELECT id, company_id, assigned_tech_id, status
 			 FROM jobs WHERE id = $1`,
 			[jobId]
@@ -147,9 +190,9 @@ export async function completeJob(
 		await client.query(
 			`UPDATE jobs 
 			 SET status = 'completed', 
-			     completed_at = NOW(), 
-			     completion_notes = $1,
-			     updated_at = NOW()
+				 completed_at = NOW(), 
+				 completion_notes = $1,
+				 updated_at = NOW()
 			 WHERE id = $2`,
 			[completionNotes || null, jobId]
 		);
@@ -157,12 +200,22 @@ export async function completeJob(
 		await client.query(
 			`UPDATE employees 
 			 SET current_job_id = NULL,
-			     current_jobs_count = GREATEST(0, current_jobs_count - 1),
-			     last_job_completed_at = NOW(),
-			     updated_at = NOW()
+				 current_jobs_count = GREATEST(0, current_jobs_count - 1),
+				 last_job_completed_at = NOW(),
+				 updated_at = NOW()
 			 WHERE id = $1`,
 			[job.assigned_tech_id]
 		);
+
+		const completionParams: JobCompletionInsert = {
+			job_id: jobId,
+			tech_id: job.assigned_tech_id,
+			company_id: job.company_id,
+			completion_notes: completionNotes || null,
+			duration_minutes: durationMinutes || null,
+			first_time_fix: firstTimeFix ?? true,
+			customer_rating: customerRating || null
+		};
 
 		await client.query(
 			`INSERT INTO job_completions 
@@ -170,13 +223,13 @@ export async function completeJob(
 			 first_time_fix, customer_rating)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			[
-				jobId,
-				job.assigned_tech_id,
-				job.company_id,
-				completionNotes || null,
-				durationMinutes || null,
-				firstTimeFix ?? true,
-				customerRating || null
+				completionParams.job_id,
+				completionParams.tech_id,
+				completionParams.company_id,
+				completionParams.completion_notes,
+				completionParams.duration_minutes,
+				completionParams.first_time_fix,
+				completionParams.customer_rating
 			]
 		);
 	});
@@ -187,8 +240,18 @@ export async function completeJob(
  * @param jobId
  */
 export async function unassignJob(jobId: string): Promise<void> {
-	await transaction(async (client) => {
-		const jobResult = await client.query(
+	await transaction(async (client: DBClient) => {
+		interface JobRow {
+			id: string;
+			assigned_tech_id?: string | null;
+			status: string;
+		}
+
+		interface IdRow {
+			id: string;
+		}
+
+		const jobResult = await client.query<JobRow>(
 			`SELECT id, assigned_tech_id, status
 			 FROM jobs WHERE id = $1`,
 			[jobId]
@@ -206,18 +269,18 @@ export async function unassignJob(jobId: string): Promise<void> {
 			);
 		}
 
-		await client.query(
+		await client.query<IdRow>(
 			`UPDATE jobs 
 			 SET assigned_tech_id = NULL, status = 'unassigned', updated_at = NOW()
 			 WHERE id = $1`,
 			[jobId]
 		);
 
-		await client.query(
+		await client.query<IdRow>(
 			`UPDATE employees 
 			 SET current_job_id = NULL,
-			     current_jobs_count = GREATEST(0, current_jobs_count - 1),
-			     updated_at = NOW()
+				 current_jobs_count = GREATEST(0, current_jobs_count - 1),
+				 updated_at = NOW()
 			 WHERE id = $1`,
 			[job.assigned_tech_id]
 		);

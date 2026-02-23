@@ -122,24 +122,27 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 				return reply.status(403).send({ error: "Access denied" });
 			}
 
+			// use the shared db helper instead of creating a new Pool here
 			const techs = await db.query(
 				`
-        SELECT 
-          e.id,
-          e.name,
-          e.phone,
-          e.is_available,
-          e.current_job_id,
-          e.skills,
-          tl.latitude,
-          tl.longitude,
-          tl.updated_at
-        FROM employees e
-        LEFT JOIN tech_locations tl ON tl.tech_id = e.id
-        WHERE e.company_id = $1 
-          AND e.role = 'tech'
-          AND (tl.updated_at > NOW() - INTERVAL '10 minutes' OR tl.updated_at IS NULL)
-        `,
+			SELECT 
+			  e.id as tech_id,
+			  e.name as tech_name,
+			  e.phone,
+			  e.is_available,
+			  e.current_job_id,
+			  e.skills,
+			  tl.latitude,
+			  tl.longitude,
+			  tl.accuracy_meters,
+			  tl.updated_at as last_update,
+			  EXTRACT(EPOCH FROM (NOW() - tl.updated_at)) as seconds_since_update
+			FROM employees e
+			LEFT JOIN tech_locations tl ON tl.tech_id = e.id
+			WHERE e.company_id = $1 
+			  AND e.role = 'tech'
+			ORDER BY tl.updated_at DESC NULLS LAST
+			`,
 				[companyId]
 			);
 

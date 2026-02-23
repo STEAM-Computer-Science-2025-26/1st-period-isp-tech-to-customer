@@ -103,13 +103,20 @@ export function getUser(fastify: FastifyInstance) {
 		const authUser = request.user as AuthUser;
 		const isDev = authUser?.role === "dev";
 
-		const result = await query(
+		const result = (await query(
 			`SELECT id, email, role, company_id AS "companyId",
 				created_at AS "createdAt", updated_at AS "updatedAt"
 			FROM users
 			WHERE id = $1${isDev ? "" : " AND company_id = $2"}`,
 			isDev ? [userId] : [userId, authUser.companyId]
-		);
+		)) as unknown as Array<{
+			id: string;
+			email: string;
+			role: string;
+			companyId: string;
+			createdAt: string;
+			updatedAt: string;
+		}>;
 
 		if (!result[0]) {
 			return reply.code(404).send({ error: "User not found" });
@@ -155,12 +162,12 @@ export function createUser(fastify: FastifyInstance) {
 		}
 
 		const hashedPassword = await bcrypt.hash(body.password, 10);
-		const result = await query<{ id: string }>(
+		const result = (await query(
 			`INSERT INTO users (email, password_hash, role, company_id)
 				VALUES ($1, $2, $3, $4)
 				RETURNING id`,
 			[body.email, hashedPassword, body.role, effectiveCompanyId]
-		);
+		)) as unknown as Array<{ id: string }>;
 		return { userId: result[0].id };
 	});
 }
@@ -189,10 +196,10 @@ export function updateUser(fastify: FastifyInstance) {
 		const { userId } = request.params as { userId: string };
 
 		if (!isDev) {
-			const rows = await query<{ id: string }>(
+			const rows = (await query(
 				"SELECT id FROM users WHERE id = $1 AND company_id = $2",
 				[userId, authUser.companyId]
-			);
+			)) as unknown as Array<{ id: string }>;
 			if (!rows[0]) {
 				return reply.code(404).send({ error: "User not found" });
 			}
@@ -226,11 +233,11 @@ export function updateUser(fastify: FastifyInstance) {
 		}
 
 		values.push(userId);
-		const result = await query<{ id: string }>(
+		const result = (await query(
 			`UPDATE users SET ${updates.join(", ")}, updated_at = NOW()
 			WHERE id = $${values.length} RETURNING id`,
 			values
-		);
+		)) as unknown as Array<{ id: string }>;
 		return { message: "User updated successfully", userId: result[0].id };
 	});
 }
@@ -249,12 +256,12 @@ export function deleteUser(fastify: FastifyInstance) {
 
 		const { userId } = request.params as { userId: string };
 
-		const result = isDev
+		const result = (isDev
 			? await query("DELETE FROM users WHERE id = $1 RETURNING id", [userId])
 			: await query(
 					"DELETE FROM users WHERE id = $1 AND company_id = $2 RETURNING id",
 					[userId, authUser.companyId]
-				);
+				)) as unknown as Array<{ id: string }>;
 
 		if (!result[0]) {
 			return reply.code(404).send({ error: "User not found" });
@@ -286,23 +293,29 @@ export function loginUser(fastify: FastifyInstance) {
 
 		const { email, password } = parsed.data;
 
-		const result = await query<{
+		const rows: Array<{
 			id: string;
 			email: string;
 			password_hash: string;
 			role: string;
 			company_id: string;
-		}>(
+		}> = (await query(
 			`SELECT id, email, password_hash, role, company_id
 			FROM users WHERE email = $1`,
 			[email]
-		);
+		)) as unknown as Array<{
+			id: string;
+			email: string;
+			password_hash: string;
+			role: string;
+			company_id: string;
+		}>;
 
-		if (!result[0]) {
+		if (!rows[0]) {
 			return reply.code(401).send({ error: "Invalid email or password" });
 		}
 
-		const user = result[0];
+		const user = rows[0];
 		const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 		if (!isPasswordValid) {
 			return reply.code(401).send({ error: "Invalid email or password" });
@@ -364,22 +377,21 @@ export function registerUser(fastify: FastifyInstance) {
 
 		const { email, password, companyName } = parsed.data;
 
-		const existing = await query<{ id: string }>(
-			"SELECT id FROM users WHERE email = $1",
-			[email]
-		);
+		const existing = (await query("SELECT id FROM users WHERE email = $1", [
+			email
+		])) as unknown as Array<{ id: string }>;
 		if (existing[0]) {
 			return reply.code(409).send({ error: "Email is already registered" });
 		}
 
-		const verified = await query<{ id: string }>(
+		const verified = (await query(
 			`SELECT id
 			FROM email_verifications
 			WHERE email = $1 AND verified = TRUE
 			ORDER BY used_at DESC NULLS LAST, verified_at DESC NULLS LAST
 			LIMIT 1`,
 			[email]
-		);
+		)) as unknown as Array<{ id: string }>;
 		if (!verified[0]) {
 			return reply.code(403).send({
 				error: "Email verification required before registration"
@@ -389,18 +401,18 @@ export function registerUser(fastify: FastifyInstance) {
 		const finalCompanyName = buildCompanyName(email, companyName);
 		const hashedPassword = await bcrypt.hash(password, 10);
 
-		const createdCompany = await query<{ id: string }>(
+		const createdCompany = (await query(
 			"INSERT INTO companies (name) VALUES ($1) RETURNING id",
 			[finalCompanyName]
-		);
+		)) as unknown as Array<{ id: string }>;
 		const companyId = createdCompany[0].id;
 
-		const createdUser = await query<{ id: string }>(
+		const createdUser = (await query(
 			`INSERT INTO users (email, password_hash, role, company_id)
 			VALUES ($1, $2, $3, $4)
 			RETURNING id`,
 			[email, hashedPassword, "admin", companyId]
-		);
+		)) as unknown as Array<{ id: string }>;
 
 		const token = fastify.jwt.sign(
 			{

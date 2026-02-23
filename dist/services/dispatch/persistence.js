@@ -1,20 +1,11 @@
 // services/dispatch/persistence.ts
 // FIXED VERSION - Uses Neon, proper transaction handling
-import { getSql, transaction } from "../../db";
-/**
- * Assign a job to a technician with proper locking
- * @param jobId
- * @param techId
- * @param assignedByUserId
- * @param isManualOverride
- * @param overrideReason
- * @param scoringDetails
- */
+import { getSql } from "../../db";
 export async function assignJobToTech(jobId, techId, assignedByUserId, isManualOverride, overrideReason, scoringDetails) {
     await transaction(async (client) => {
-        // ✅ FIX: Lock the job FIRST before reading
+        // Lock the job FIRST before reading
         await client.query(`SELECT id FROM jobs WHERE id = $1 FOR UPDATE`, [jobId]);
-        // ✅ Now safely read the job
+        // Now safely read the job
         const jobResult = await client.query(`SELECT id, company_id, status, assigned_tech_id, priority, job_type
 			 FROM jobs WHERE id = $1`, [jobId]);
         if (jobResult.rowCount === 0) {
@@ -26,9 +17,7 @@ export async function assignJobToTech(jobId, techId, assignedByUserId, isManualO
             throw new Error(`Job ${jobId} is already assigned to tech ${job.assigned_tech_id}`);
         }
         // Lock the technician row
-        await client.query(`SELECT id FROM employees WHERE id = $1 FOR UPDATE`, [
-            techId
-        ]);
+        await client.query(`SELECT id FROM employees WHERE id = $1 FOR UPDATE`, [techId]);
         const techResult = await client.query(`SELECT id, current_jobs_count, max_concurrent_jobs
 			 FROM employees WHERE id = $1`, [techId]);
         if (techResult.rowCount === 0) {
@@ -44,8 +33,8 @@ export async function assignJobToTech(jobId, techId, assignedByUserId, isManualO
 			 WHERE id = $2`, [techId, jobId]);
         await client.query(`UPDATE employees
 			 SET current_job_id = $1,
-			     current_jobs_count = current_jobs_count + 1,
-			     updated_at = NOW()
+				 current_jobs_count = current_jobs_count + 1,
+				 updated_at = NOW()
 			 WHERE id = $2`, [jobId, techId]);
         // Log the assignment
         await client.query(`INSERT INTO job_assignments 
@@ -90,27 +79,36 @@ export async function completeJob(jobId, completionNotes, durationMinutes, first
         }
         await client.query(`UPDATE jobs 
 			 SET status = 'completed', 
-			     completed_at = NOW(), 
-			     completion_notes = $1,
-			     updated_at = NOW()
+				 completed_at = NOW(), 
+				 completion_notes = $1,
+				 updated_at = NOW()
 			 WHERE id = $2`, [completionNotes || null, jobId]);
         await client.query(`UPDATE employees 
 			 SET current_job_id = NULL,
-			     current_jobs_count = GREATEST(0, current_jobs_count - 1),
-			     last_job_completed_at = NOW(),
-			     updated_at = NOW()
+				 current_jobs_count = GREATEST(0, current_jobs_count - 1),
+				 last_job_completed_at = NOW(),
+				 updated_at = NOW()
 			 WHERE id = $1`, [job.assigned_tech_id]);
+        const completionParams = {
+            job_id: jobId,
+            tech_id: job.assigned_tech_id,
+            company_id: job.company_id,
+            completion_notes: completionNotes || null,
+            duration_minutes: durationMinutes || null,
+            first_time_fix: firstTimeFix ?? true,
+            customer_rating: customerRating || null
+        };
         await client.query(`INSERT INTO job_completions 
 			(job_id, tech_id, company_id, completion_notes, duration_minutes, 
 			 first_time_fix, customer_rating)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)`, [
-            jobId,
-            job.assigned_tech_id,
-            job.company_id,
-            completionNotes || null,
-            durationMinutes || null,
-            firstTimeFix ?? true,
-            customerRating || null
+            completionParams.job_id,
+            completionParams.tech_id,
+            completionParams.company_id,
+            completionParams.completion_notes,
+            completionParams.duration_minutes,
+            completionParams.first_time_fix,
+            completionParams.customer_rating
         ]);
     });
 }
@@ -134,8 +132,8 @@ export async function unassignJob(jobId) {
 			 WHERE id = $1`, [jobId]);
         await client.query(`UPDATE employees 
 			 SET current_job_id = NULL,
-			     current_jobs_count = GREATEST(0, current_jobs_count - 1),
-			     updated_at = NOW()
+				 current_jobs_count = GREATEST(0, current_jobs_count - 1),
+				 updated_at = NOW()
 			 WHERE id = $1`, [job.assigned_tech_id]);
     });
 }

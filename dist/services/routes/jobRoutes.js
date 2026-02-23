@@ -1,5 +1,5 @@
 // services/routes/jobRoutes.ts
-import { query } from "../../db";
+import { getSql } from "../../db";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 import { tryGeocodeJob } from "./geocoding";
@@ -64,6 +64,7 @@ function isDev(user) {
 function requireCompanyId(user) {
     return user.companyId ?? null;
 }
+const query = getSql();
 /**
  * Background geocoding — doesn't block the HTTP response.
  * Failures are logged and marked in the DB for retry.

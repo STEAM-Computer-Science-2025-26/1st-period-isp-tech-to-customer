@@ -12,8 +12,7 @@ export type GeocodeOutcome =
 	| { success: false; error: string };
 
 /**
- * Geocodes address using Geocod.io
- * Get your API key from https://www.geocod.io
+ * Geocodes address using Geocod.io-
  */
 export async function geocodeAddress(address: string): Promise<GeocodeOutcome> {
 	const apiKey = process.env.GEOCODIO_API_KEY;

@@ -28,7 +28,25 @@ export async function batchDispatch(
 	const startTime = Date.now();
 
 	// Fetch jobs
-	const jobs = await db.query<{
+	const jobs = (await db.query(
+		`
+	SELECT 
+	  id,
+	  customer_name,
+	  address,
+	  latitude,
+	  longitude,
+	  status,
+	  priority,
+	  required_skills,
+	  created_at
+	FROM jobs
+	WHERE id = ANY($1::uuid[])
+	  AND company_id = $2::uuid
+	  AND status = 'unassigned'
+  `,
+		[jobIds as any, companyId]
+	)) as unknown as Array<{
 		id: string;
 		customer_name: string;
 		address: string;
@@ -38,25 +56,7 @@ export async function batchDispatch(
 		priority: string;
 		required_skills: string[];
 		created_at: string;
-	}>(
-		`
-    SELECT 
-      id,
-      customer_name,
-      address,
-      latitude,
-      longitude,
-      status,
-      priority,
-      required_skills,
-      created_at
-    FROM jobs
-    WHERE id = ANY($1::uuid[])
-      AND company_id = $2::uuid
-      AND status = 'unassigned'
-  `,
-		[jobIds, companyId]
-	);
+	}>;
 
 	if (jobs.length === 0) {
 		return {
@@ -75,7 +75,45 @@ export async function batchDispatch(
 	}
 
 	// Fetch technicians with correct column names
-	const techRows = await db.query<{
+	const techRows = (await db.query(
+		`
+	SELECT 
+	  e.id,
+	  e.name,
+	  e.email,
+	  e.phone,
+	  e.skills,
+	  e.is_available,
+	  COALESCE(
+		(SELECT COUNT(*)::integer
+		 FROM jobs
+		 WHERE assigned_tech_id = e.id
+		   AND status IN ('assigned', 'in_progress')),
+		0
+	  ) AS current_jobs_count,
+	  e.max_concurrent_jobs,
+	  tl.latitude AS current_latitude,
+	  tl.longitude AS current_longitude,
+	  tl.updated_at AS location_updated_at,
+	  COALESCE(
+		(SELECT AVG(rating)
+		 FROM job_completions
+		 WHERE tech_id = e.id),
+		3.0
+	  ) AS avg_rating
+	FROM employees e
+	LEFT JOIN tech_locations tl
+	  ON tl.tech_id = e.id
+	WHERE e.company_id = $1::uuid
+	  AND e.role = 'tech'
+	  AND e.is_available = true
+	  AND (
+		tl.updated_at > NOW() - INTERVAL '10 minutes'
+		OR tl.updated_at IS NULL
+	  )
+  `,
+		[companyId]
+	)) as unknown as Array<{
 		id: string;
 		name: string;
 		email: string;
@@ -88,45 +126,7 @@ export async function batchDispatch(
 		current_longitude: string | null;
 		location_updated_at: string | null;
 		avg_rating: string;
-	}>(
-		`
-    SELECT 
-      e.id,
-      e.name,
-      e.email,
-      e.phone,
-      e.skills,
-      e.is_available,
-      COALESCE(
-        (SELECT COUNT(*)::integer
-         FROM jobs
-         WHERE assigned_tech_id = e.id
-           AND status IN ('assigned', 'in_progress')),
-        0
-      ) AS current_jobs_count,
-      e.max_concurrent_jobs,
-      tl.latitude AS current_latitude,
-      tl.longitude AS current_longitude,
-      tl.updated_at AS location_updated_at,
-      COALESCE(
-        (SELECT AVG(rating)
-         FROM job_completions
-         WHERE tech_id = e.id),
-        3.0
-      ) AS avg_rating
-    FROM employees e
-    LEFT JOIN tech_locations tl
-      ON tl.tech_id = e.id
-    WHERE e.company_id = $1::uuid
-      AND e.role = 'tech'
-      AND e.is_available = true
-      AND (
-        tl.updated_at > NOW() - INTERVAL '10 minutes'
-        OR tl.updated_at IS NULL
-      )
-  `,
-		[companyId]
-	);
+	}>;
 
 	const allTechs = techRows.map((row) => ({
 		id: row.id,
