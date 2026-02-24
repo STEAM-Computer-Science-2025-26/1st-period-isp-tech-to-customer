@@ -14,7 +14,9 @@ import { registerEmployeeRoutes } from "./routes/employeeRoutes";
 import { dispatchRoutes } from "./routes/dispatchRoutes";
 import { employeeLocationRoutes } from "./routes/employeeLocationRoutes";
 import { healthRoutes } from "./routes/healthRoutes";
-
+import { stripeRoutes } from "./routes/stripeRoutes";
+import { qbRoutes } from "./routes/qbRoutes";
+import { partsRoutes } from "./routes/partsRoutes";
 import { customerRoutes } from "./routes/customerRoutes";
 import { branchRoutes } from "./routes/branchRoutes";
 import { onboardingRoutes } from "./routes/onboardingRoutes";
@@ -151,6 +153,9 @@ await fastify.register(branchRoutes);
 await fastify.register(onboardingRoutes);
 await fastify.register(certificationRoutes);
 await fastify.register(durationRoutes);
+await fastify.register(stripeRoutes);
+await fastify.register(qbRoutes);
+await fastify.register(partsRoutes); 
 
 // ============================================================
 // Root
