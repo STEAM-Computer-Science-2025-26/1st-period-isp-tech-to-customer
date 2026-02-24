@@ -1,4 +1,5 @@
 // services/server.ts
+import fastifyRawBody from "fastify-raw-body";
 import "dotenv/config";
 import Fastify from "fastify";
 import fastifyCors from "@fastify/cors";
@@ -12,30 +13,34 @@ import { registerEmployeeRoutes } from "./routes/employeeRoutes";
 import { dispatchRoutes } from "./routes/dispatchRoutes";
 import { employeeLocationRoutes } from "./routes/employeeLocationRoutes";
 import { healthRoutes } from "./routes/healthRoutes";
-// Week 1 routes
 import { customerRoutes } from "./routes/customerRoutes";
 import { branchRoutes } from "./routes/branchRoutes";
 import { onboardingRoutes } from "./routes/onboardingRoutes";
 import { certificationRoutes } from "./routes/certificationRoutes";
 import { durationRoutes } from "./routes/durationRoutes";
+import { pricebookRoutes } from "./routes/pricebookRoutes";
+import { estimateRoutes } from "./routes/estimateRoutes";
+import { invoiceRoutes } from "./routes/invoiceRoutes";
 // Existing workers
 import { getGeocodingWorker } from "./workers/geocodingWorker";
-// Week 1 worker
-import { runCustomerGeocodingWorker, retryFailedGeocoding } from "./workers/customerGeocodingWorker";
+import {
+	runCustomerGeocodingWorker,
+	retryFailedGeocoding
+} from "./workers/customerGeocodingWorker";
 // Middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 // ============================================================
 // Environment validation
 // ============================================================
 function validateEnvironment() {
-    const required = ["DATABASE_URL", "JWT_SECRET", "GEOCODIO_API_KEY"];
-    const missing = required.filter((key) => !process.env[key]);
-    if (missing.length > 0) {
-        console.error("\n❌ CRITICAL: Missing required environment variables:\n");
-        missing.forEach((key) => console.error(`   - ${key}`));
-        console.error("\nAdd these to your .env file and restart the server.\n");
-        process.exit(1);
-    }
+	const required = ["DATABASE_URL", "JWT_SECRET", "GEOCODIO_API_KEY"];
+	const missing = required.filter((key) => !process.env[key]);
+	if (missing.length > 0) {
+		console.error("\n❌ CRITICAL: Missing required environment variables:\n");
+		missing.forEach((key) => console.error(`   - ${key}`));
+		console.error("\nAdd these to your .env file and restart the server.\n");
+		process.exit(1);
+	}
 }
 validateEnvironment();
 // ============================================================
@@ -46,55 +51,58 @@ const geocodingWorker = getGeocodingWorker();
 geocodingWorker.start();
 // Customer + location geocoding — runs every 30 seconds
 const customerGeocodingInterval = setInterval(async () => {
-    await runCustomerGeocodingWorker();
+	await runCustomerGeocodingWorker();
 }, 30000);
 // Retry failed geocoding once per hour
 const retryGeocodingInterval = setInterval(async () => {
-    await retryFailedGeocoding();
+	await retryFailedGeocoding();
 }, 60 * 60000);
 // ============================================================
 // Server setup
 // ============================================================
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000")
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean);
+	.split(",")
+	.map((o) => o.trim())
+	.filter(Boolean);
 const fastify = Fastify({
-    logger: {
-        level: process.env.LOG_LEVEL || "info",
-        ...(process.env.NODE_ENV !== "production" && {
-            transport: {
-                target: "pino-pretty",
-                options: {
-                    colorize: true,
-                    translateTime: "HH:MM:ss",
-                    ignore: "pid,hostname"
-                }
-            }
-        })
-    }
+	logger: {
+		level: process.env.LOG_LEVEL || "info",
+		...(process.env.NODE_ENV !== "production" && {
+			transport: {
+				target: "pino-pretty",
+				options: {
+					colorize: true,
+					translateTime: "HH:MM:ss",
+					ignore: "pid,hostname"
+				}
+			}
+		})
+	}
 });
 // ============================================================
 // Plugins
 // ============================================================
+await fastify.register(fastifyRawBody, {
+	field: "rawBody",
+	global: false,
+	encoding: false, // keep as Buffer, not string
+	runFirst: true
+});
 await fastify.register(fastifyCors, {
-    origin: (origin, cb) => {
-        if (!origin)
-            return cb(null, true);
-        if (allowedOrigins.includes(origin))
-            return cb(null, true);
-        cb(new Error(`CORS: origin '${origin}' is not allowed`), false);
-    },
-    credentials: true
+	origin: (origin, cb) => {
+		if (!origin) return cb(null, true);
+		if (allowedOrigins.includes(origin)) return cb(null, true);
+		cb(new Error(`CORS: origin '${origin}' is not allowed`), false);
+	},
+	credentials: true
 });
 await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET });
 fastify.decorate("authenticate", async (request, reply) => {
-    try {
-        await request.jwtVerify();
-    }
-    catch (err) {
-        reply.send(err);
-    }
+	try {
+		await request.jwtVerify();
+	} catch (err) {
+		reply.send(err);
+	}
 });
 fastify.setErrorHandler(errorHandler);
 fastify.setNotFoundHandler(notFoundHandler);
@@ -109,9 +117,9 @@ await registerEmployeeRoutes(fastify);
 await dispatchRoutes(fastify);
 await employeeLocationRoutes(fastify);
 await fastify.register(locationRoutes);
-// ============================================================
-// Routes — Week 1
-// ============================================================
+await fastify.register(pricebookRoutes);
+await fastify.register(estimateRoutes);
+await fastify.register(invoiceRoutes);
 await fastify.register(customerRoutes);
 await fastify.register(branchRoutes);
 await fastify.register(onboardingRoutes);
@@ -121,9 +129,9 @@ await fastify.register(durationRoutes);
 // Root
 // ============================================================
 fastify.get("/", async () => ({
-    status: "running",
-    version: process.env.npm_package_version || "unknown",
-    environment: process.env.NODE_ENV || "development"
+	status: "running",
+	version: process.env.npm_package_version || "unknown",
+	environment: process.env.NODE_ENV || "development"
 }));
 // ============================================================
 // Start
@@ -131,84 +139,83 @@ fastify.get("/", async () => ({
 const port = Number(process.env.PORT ?? 3001);
 const host = process.env.HOST ?? "0.0.0.0";
 const start = async () => {
-    try {
-        await fastify.listen({ port, host });
-        console.log("\n✅ Backend server started successfully!\n");
-        console.log(`   URL:         http://localhost:${port}`);
-        console.log(`   Environment: ${process.env.NODE_ENV || "development"}`);
-        console.log(`   Log level:   ${process.env.LOG_LEVEL || "info"}`);
-        console.log("\n📍 Existing Endpoints:");
-        console.log("   GET  /health");
-        console.log("   GET  /health/ready");
-        console.log("   POST /login");
-        console.log("   GET  /jobs");
-        console.log("   POST /jobs");
-        console.log("   POST /jobs/:id/dispatch");
-        console.log("   POST /jobs/:id/assign");
-        console.log("   POST /jobs/:id/complete");
-        console.log("\n👤 Week 1 — Customer Endpoints:");
-        console.log("   POST   /customers");
-        console.log("   GET    /customers");
-        console.log("   GET    /customers/:customerId");
-        console.log("   PATCH  /customers/:customerId");
-        console.log("   DELETE /customers/:customerId");
-        console.log("   POST   /customers/:customerId/locations");
-        console.log("   GET    /customers/:customerId/locations");
-        console.log("   PATCH  /customers/:customerId/locations/:locationId");
-        console.log("   DELETE /customers/:customerId/locations/:locationId");
-        console.log("   POST   /customers/:customerId/equipment");
-        console.log("   GET    /customers/:customerId/equipment");
-        console.log("   PATCH  /customers/:customerId/equipment/:equipmentId");
-        console.log("   DELETE /customers/:customerId/equipment/:equipmentId");
-        console.log("   POST   /customers/:customerId/communications");
-        console.log("   GET    /customers/:customerId/communications");
-        console.log("   POST   /customers/:customerId/no-shows");
-        console.log("   GET    /customers/:customerId/no-shows");
-        console.log("\n🏢 Week 1 — Branch Endpoints:");
-        console.log("   POST   /branches");
-        console.log("   GET    /branches");
-        console.log("   GET    /branches/:branchId");
-        console.log("   PATCH  /branches/:branchId");
-        console.log("   DELETE /branches/:branchId");
-        console.log("\n🚀 Week 1 — Onboarding Endpoints:");
-        console.log("   POST   /onboard");
-        console.log("   GET    /onboard/check-email");
-        console.log("   GET    /onboard/status/:companyId");
-        console.log("\n📜 Week 1 — Certification Endpoints:");
-        console.log("   POST   /certifications");
-        console.log("   GET    /certifications/tech/:techId");
-        console.log("   GET    /certifications/expiring");
-        console.log("   PATCH  /certifications/:certId");
-        console.log("   DELETE /certifications/:certId");
-        console.log("   POST   /certifications/check-alerts");
-        console.log("\n⏱️  Week 1 — Duration Endpoints:");
-        console.log("   PATCH  /jobs/:jobId/estimated-duration");
-        console.log("   PATCH  /jobs/:jobId/actual-duration");
-        console.log("   GET    /analytics/duration");
-        console.log("\n📍 Workers running:");
-        console.log("   Job geocoding        — existing");
-        console.log("   Customer geocoding   — every 30s");
-        console.log("   Geocoding retry      — every 1h");
-        console.log("\n");
-    }
-    catch (err) {
-        fastify.log.error(err);
-        process.exit(1);
-    }
+	try {
+		await fastify.listen({ port, host });
+		console.log("\n✅ Backend server started successfully!\n");
+		console.log(`   URL:         http://localhost:${port}`);
+		console.log(`   Environment: ${process.env.NODE_ENV || "development"}`);
+		console.log(`   Log level:   ${process.env.LOG_LEVEL || "info"}`);
+		console.log("\n📍 Existing Endpoints:");
+		console.log("   GET  /health");
+		console.log("   GET  /health/ready");
+		console.log("   POST /login");
+		console.log("   GET  /jobs");
+		console.log("   POST /jobs");
+		console.log("   POST /jobs/:id/dispatch");
+		console.log("   POST /jobs/:id/assign");
+		console.log("   POST /jobs/:id/complete");
+		console.log("\n Customer Endpoints:");
+		console.log("   POST   /customers");
+		console.log("   GET    /customers");
+		console.log("   GET    /customers/:customerId");
+		console.log("   PATCH  /customers/:customerId");
+		console.log("   DELETE /customers/:customerId");
+		console.log("   POST   /customers/:customerId/locations");
+		console.log("   GET    /customers/:customerId/locations");
+		console.log("   PATCH  /customers/:customerId/locations/:locationId");
+		console.log("   DELETE /customers/:customerId/locations/:locationId");
+		console.log("   POST   /customers/:customerId/equipment");
+		console.log("   GET    /customers/:customerId/equipment");
+		console.log("   PATCH  /customers/:customerId/equipment/:equipmentId");
+		console.log("   DELETE /customers/:customerId/equipment/:equipmentId");
+		console.log("   POST   /customers/:customerId/communications");
+		console.log("   GET    /customers/:customerId/communications");
+		console.log("   POST   /customers/:customerId/no-shows");
+		console.log("   GET    /customers/:customerId/no-shows");
+		console.log("\n🏢 Branch Endpoints:");
+		console.log("   POST   /branches");
+		console.log("   GET    /branches");
+		console.log("   GET    /branches/:branchId");
+		console.log("   PATCH  /branches/:branchId");
+		console.log("   DELETE /branches/:branchId");
+		console.log("\n🚀 Onboarding Endpoints:");
+		console.log("   POST   /onboard");
+		console.log("   GET    /onboard/check-email");
+		console.log("   GET    /onboard/status/:companyId");
+		console.log("\n📜 Certification Endpoints:");
+		console.log("   POST   /certifications");
+		console.log("   GET    /certifications/tech/:techId");
+		console.log("   GET    /certifications/expiring");
+		console.log("   PATCH  /certifications/:certId");
+		console.log("   DELETE /certifications/:certId");
+		console.log("   POST   /certifications/check-alerts");
+		console.log("\n⏱️ Duration Endpoints:");
+		console.log("   PATCH  /jobs/:jobId/estimated-duration");
+		console.log("   PATCH  /jobs/:jobId/actual-duration");
+		console.log("   GET    /analytics/duration");
+		console.log("\n📍 Workers running:");
+		console.log("   Job geocoding        — existing");
+		console.log("   Customer geocoding   — every 30s");
+		console.log("   Geocoding retry      — every 1h");
+		console.log("\n");
+	} catch (err) {
+		fastify.log.error(err);
+		process.exit(1);
+	}
 };
 start();
 // ============================================================
 // Graceful shutdown
 // ============================================================
 function shutdown(signal) {
-    console.log(`\n${signal} received, shutting down gracefully...`);
-    geocodingWorker.stop();
-    clearInterval(customerGeocodingInterval);
-    clearInterval(retryGeocodingInterval);
-    fastify.close(() => {
-        console.log("Server closed");
-        process.exit(0);
-    });
+	console.log(`\n${signal} received, shutting down gracefully...`);
+	geocodingWorker.stop();
+	clearInterval(customerGeocodingInterval);
+	clearInterval(retryGeocodingInterval);
+	fastify.close(() => {
+		console.log("Server closed");
+		process.exit(0);
+	});
 }
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));

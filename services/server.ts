@@ -1,5 +1,5 @@
 // services/server.ts
-
+import fastifyRawBody from "fastify-raw-body";
 import "dotenv/config";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import fastifyCors from "@fastify/cors";
@@ -15,17 +15,17 @@ import { dispatchRoutes } from "./routes/dispatchRoutes";
 import { employeeLocationRoutes } from "./routes/employeeLocationRoutes";
 import { healthRoutes } from "./routes/healthRoutes";
 
-// Week 1 routes
 import { customerRoutes } from "./routes/customerRoutes";
 import { branchRoutes } from "./routes/branchRoutes";
 import { onboardingRoutes } from "./routes/onboardingRoutes";
 import { certificationRoutes } from "./routes/certificationRoutes";
 import { durationRoutes } from "./routes/durationRoutes";
-
+import { pricebookRoutes } from "./routes/pricebookRoutes";
+import { estimateRoutes } from "./routes/estimateRoutes";
+import { invoiceRoutes } from "./routes/invoiceRoutes";
 // Existing workers
 import { getGeocodingWorker } from "./workers/geocodingWorker";
 
-// Week 1 worker
 import {
 	runCustomerGeocodingWorker,
 	retryFailedGeocoding
@@ -100,7 +100,12 @@ const fastify = Fastify({
 // ============================================================
 // Plugins
 // ============================================================
-
+await fastify.register(fastifyRawBody, {
+	field: "rawBody",
+	global: false,
+	encoding: false, // keep as Buffer, not string
+	runFirst: true
+});
 await fastify.register(fastifyCors, {
 	origin: (origin, cb) => {
 		if (!origin) return cb(null, true);
@@ -138,11 +143,9 @@ await registerEmployeeRoutes(fastify);
 await dispatchRoutes(fastify);
 await employeeLocationRoutes(fastify);
 await fastify.register(locationRoutes);
-
-// ============================================================
-// Routes — Week 1
-// ============================================================
-
+await fastify.register(pricebookRoutes);
+await fastify.register(estimateRoutes);
+await fastify.register(invoiceRoutes);
 await fastify.register(customerRoutes);
 await fastify.register(branchRoutes);
 await fastify.register(onboardingRoutes);
@@ -185,7 +188,7 @@ const start = async () => {
 		console.log("   POST /jobs/:id/assign");
 		console.log("   POST /jobs/:id/complete");
 
-		console.log("\n👤 Week 1 — Customer Endpoints:");
+		console.log("\n Customer Endpoints:");
 		console.log("   POST   /customers");
 		console.log("   GET    /customers");
 		console.log("   GET    /customers/:customerId");
@@ -204,19 +207,19 @@ const start = async () => {
 		console.log("   POST   /customers/:customerId/no-shows");
 		console.log("   GET    /customers/:customerId/no-shows");
 
-		console.log("\n🏢 Week 1 — Branch Endpoints:");
+		console.log("\n🏢 Branch Endpoints:");
 		console.log("   POST   /branches");
 		console.log("   GET    /branches");
 		console.log("   GET    /branches/:branchId");
 		console.log("   PATCH  /branches/:branchId");
 		console.log("   DELETE /branches/:branchId");
 
-		console.log("\n🚀 Week 1 — Onboarding Endpoints:");
+		console.log("\n🚀 Onboarding Endpoints:");
 		console.log("   POST   /onboard");
 		console.log("   GET    /onboard/check-email");
 		console.log("   GET    /onboard/status/:companyId");
 
-		console.log("\n📜 Week 1 — Certification Endpoints:");
+		console.log("\n📜 Certification Endpoints:");
 		console.log("   POST   /certifications");
 		console.log("   GET    /certifications/tech/:techId");
 		console.log("   GET    /certifications/expiring");
@@ -224,7 +227,7 @@ const start = async () => {
 		console.log("   DELETE /certifications/:certId");
 		console.log("   POST   /certifications/check-alerts");
 
-		console.log("\n⏱️  Week 1 — Duration Endpoints:");
+		console.log("\n⏱️ Duration Endpoints:");
 		console.log("   PATCH  /jobs/:jobId/estimated-duration");
 		console.log("   PATCH  /jobs/:jobId/actual-duration");
 		console.log("   GET    /analytics/duration");

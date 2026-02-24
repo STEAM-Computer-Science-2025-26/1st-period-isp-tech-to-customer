@@ -1166,7 +1166,7 @@ export async function customerRoutes(
 	// ----------------------------------------------------------
 	// POST /customers/:customerId/equipment
 	// Adds HVAC equipment to a customer, optionally at a location.
-	// refrigerantType stored now — feeds EPA compliance log in Week 4.
+	// refrigerantType stored now — feeds EPA compliance log
 	// ----------------------------------------------------------
 	fastify.post(
 		"/customers/:customerId/equipment",
