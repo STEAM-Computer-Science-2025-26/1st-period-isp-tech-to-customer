@@ -25,13 +25,16 @@ export async function runDispatchForJob(
 		throw new Error(`Job ${jobId} not found`);
 	}
 
-	const result = await orchestrator.dispatchJob(jobId, { autoAssign, assignedByUserId });
+	const result = await orchestrator.dispatchJob(jobId, {
+		autoAssign,
+		assignedByUserId
+	});
 	metrics.recordDispatchResult(
-    result.totalEligibleTechs,
-    result.requiresManualDispatch,
-    result.manualDispatchReason
-);
-return result;
+		result.totalEligibleTechs,
+		result.requiresManualDispatch,
+		result.manualDispatchReason
+	);
+	return result;
 
 	// Record dispatch results
 	metrics.recordDispatchResult(

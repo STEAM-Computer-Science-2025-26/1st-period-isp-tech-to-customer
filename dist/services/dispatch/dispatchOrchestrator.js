@@ -1,6 +1,8 @@
 // services/dispatch/DispatchOrchestrator.ts
 import { dispatch } from "../../algo/main-dispatch";
 import { filterEligibleTechnicians } from "../../algo/stage1-eligibility";
+import { Pool } from "pg";
+const pool = new Pool();
 export class DispatchOrchestrator {
     constructor(techRepo, jobRepo) {
         this.techRepo = techRepo;
@@ -80,7 +82,7 @@ export class DispatchOrchestrator {
         await this.assignJobToTech(jobId, techId, assignedByUserId, true, reason, null, job);
     }
     async assignJobToTech(jobId, techId, assignedByUserId, isManualOverride, overrideReason, recommendation, job) {
-        const client = await this.jobRepo.getClient();
+        const client = await pool.connect();
         try {
             await client.query("BEGIN");
             // Lock the job to prevent concurrent assignments

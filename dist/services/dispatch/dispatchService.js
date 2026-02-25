@@ -21,6 +21,8 @@ export async function runDispatchForJob(jobId, assignedByUserId, autoAssign = tr
         autoAssign,
         assignedByUserId
     });
+    metrics.recordDispatchResult(result.totalEligibleTechs, result.requiresManualDispatch, result.manualDispatchReason);
+    return result;
     // Record dispatch results
     metrics.recordDispatchResult(result.totalEligibleTechs, result.requiresManualDispatch, result.manualDispatchReason);
 }

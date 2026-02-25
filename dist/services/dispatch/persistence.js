@@ -1,6 +1,23 @@
 // services/dispatch/persistence.ts
-// FIXED VERSION - Uses Neon, proper transaction handling
 import { getSql } from "../../db";
+import { Pool } from "pg";
+const pool = new Pool(); // reads DATABASE_URL from env
+async function transaction(fn) {
+    const client = (await pool.connect());
+    try {
+        await client.query("BEGIN");
+        const result = await fn(client);
+        await client.query("COMMIT");
+        return result;
+    }
+    catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+    }
+    finally {
+        client.release();
+    }
+}
 export async function assignJobToTech(jobId, techId, assignedByUserId, isManualOverride, overrideReason, scoringDetails) {
     await transaction(async (client) => {
         // Lock the job FIRST before reading
@@ -81,18 +98,6 @@ export async function completeJob(jobId, completionNotes, durationMinutes, first
             first_time_fix: firstTimeFix ?? true,
             customer_rating: customerRating || null
         };
-        await client.query(`INSERT INTO job_completions 
-			(job_id, tech_id, company_id, completion_notes, duration_minutes, 
-			 first_time_fix, customer_rating)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`, [
-            completionParams.job_id,
-            completionParams.tech_id,
-            completionParams.company_id,
-            completionParams.completion_notes,
-            completionParams.duration_minutes,
-            completionParams.first_time_fix,
-            completionParams.customer_rating
-        ]);
     });
 }
 /**

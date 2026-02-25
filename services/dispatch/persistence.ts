@@ -6,8 +6,10 @@ import { Pool } from "pg";
 
 const pool = new Pool(); // reads DATABASE_URL from env
 
-async function transaction<T>(fn: (client: DBClient) => Promise<T>): Promise<T> {
-	const client = await pool.connect() as unknown as DBClient;
+async function transaction<T>(
+	fn: (client: DBClient) => Promise<T>
+): Promise<T> {
+	const client = (await pool.connect()) as unknown as DBClient;
 	try {
 		await client.query("BEGIN");
 		const result = await fn(client);
@@ -20,7 +22,6 @@ async function transaction<T>(fn: (client: DBClient) => Promise<T>): Promise<T> 
 		client.release();
 	}
 }
-
 
 interface QueryResult<T> {
 	rowCount: number;
