@@ -52,9 +52,12 @@ function calculateAvailabilityScore(
 
 /**
  * Calculate skill match score.
- * Fully matches skills → max points.
- * Slight mismatch (1 level) → 75% of max
- * Major mismatch → 50% of max
+ * All skills exactly met or overqualified (no deficit, any excess) → 15 (not perfect 20,
+ *   because excess qualification wastes a higher-tier tech on a routine job).
+ * Exact match (all levels exactly equal to minimum) → 20
+ * Mixed: some over, some slight deficit (avgDeficit <= 1) → 15
+ * Underqualified (avgDeficit > 1) → 10
+ * No required skills → 20
  * Handles missing skillLevel or requiredSkills safely.
  */
 function calculateSkillMatchScore(
@@ -67,6 +70,7 @@ function calculateSkillMatchScore(
 
 	let totalDifference = 0;
 	let hasOverqualified = false;
+	let hasExactMatch = false;
 
 	for (const skill of requiredSkills) {
 		const techLevel = tech.skillLevel?.[skill] ?? 0;
@@ -74,12 +78,23 @@ function calculateSkillMatchScore(
 		const deficit = Math.max(0, minLevel - techLevel); // only penalize under-qualification
 		totalDifference += deficit;
 		if (techLevel > minLevel) hasOverqualified = true;
+		if (techLevel === minLevel) hasExactMatch = true;
 	}
 
 	const avgDeficit = totalDifference / requiredSkills.length;
-	if (avgDeficit === 0) return maxPoints; // exact match or overqualified → 20
-	if (hasOverqualified && avgDeficit <= 1) return 15; // mixed: some over, some slight deficit
-	return 10; // genuinely underqualified
+
+	// All skills overqualified (no deficits, no exact matches) → 15
+	// Overqualified wastes a senior tech; penalize slightly
+	if (avgDeficit === 0 && hasOverqualified && !hasExactMatch) return 15;
+
+	// Exact match (all skills exactly at minimum, no over, no under) → 20
+	if (avgDeficit === 0) return maxPoints;
+
+	// Mixed: some over, some slight deficit → 15
+	if (hasOverqualified && avgDeficit <= 1) return 15;
+
+	// Genuinely underqualified → 10
+	return 10;
 }
 
 /**
@@ -207,7 +222,7 @@ export function scoreTechnician(
 export function scoreAllTechnicians(
 	technicians: TechnicianInput[],
 	job: JobInput
-): Array<ReturnType<typeof scoreTechnician>> {
+) {
 	if (!Array.isArray(technicians)) return [];
 	return technicians.map((tech) => scoreTechnician(tech, job));
 }

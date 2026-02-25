@@ -6,6 +6,7 @@ import fastifyCors from "@fastify/cors";
 import fastifyJwt from "@fastify/jwt";
 
 // Existing routes
+import { paymentCollectionRoutes } from "../services/dispatch/paymentCollectionRoutes";
 import locationRoutes from "./routes/locationRoutes";
 import { jobRoutes } from "./routes/jobRoutes";
 import { userRoutes } from "./routes/userRoutes";
@@ -138,7 +139,7 @@ fastify.setNotFoundHandler(notFoundHandler);
 // ============================================================
 // Routes — existing
 // ============================================================
-
+await fastify.register(paymentCollectionRoutes);
 await healthRoutes(fastify);
 await jobRoutes(fastify);
 await userRoutes(fastify);
