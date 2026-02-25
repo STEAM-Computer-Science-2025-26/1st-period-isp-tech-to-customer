@@ -119,13 +119,18 @@ await fastify.register(fastifyCors, {
 
 await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET! });
 
-fastify.decorate("authenticate", async (request: FastifyRequest, reply: FastifyReply) => {
-  try {
-    await request.jwtVerify();
-  } catch {
-    return reply.code(401).send({ error: "Unauthorized - Invalid or missing token" });
-  }
-});
+fastify.decorate(
+	"authenticate",
+	async (request: FastifyRequest, reply: FastifyReply) => {
+		try {
+			await request.jwtVerify();
+		} catch {
+			return reply
+				.code(401)
+				.send({ error: "Unauthorized - Invalid or missing token" });
+		}
+	}
+);
 
 fastify.setErrorHandler(errorHandler);
 fastify.setNotFoundHandler(notFoundHandler);
@@ -152,7 +157,7 @@ await fastify.register(certificationRoutes);
 await fastify.register(durationRoutes);
 await fastify.register(stripeRoutes);
 await fastify.register(qbRoutes);
-await fastify.register(partsRoutes); 
+await fastify.register(partsRoutes);
 
 // ============================================================
 // Root

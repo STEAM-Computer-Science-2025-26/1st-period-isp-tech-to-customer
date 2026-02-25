@@ -25,27 +25,25 @@ function getOAuthClient(): OAuthClient {
 	return new OAuthClient({
 		clientId: process.env.QB_CLIENT_ID!,
 		clientSecret: process.env.QB_CLIENT_SECRET!,
-		environment: (process.env.QB_ENVIRONMENT as "sandbox" | "production") ?? "sandbox",
+		environment:
+			(process.env.QB_ENVIRONMENT as "sandbox" | "production") ?? "sandbox",
 		redirectUri: process.env.QB_REDIRECT_URI!
 	});
 }
 
-function getQBClient(
-	accessToken: string,
-	realmId: string
-): QuickBooks {
+function getQBClient(accessToken: string, realmId: string): QuickBooks {
 	const isSandbox = (process.env.QB_ENVIRONMENT ?? "sandbox") === "sandbox";
 	return new QuickBooks(
 		process.env.QB_CLIENT_ID!,
 		process.env.QB_CLIENT_SECRET!,
 		accessToken,
-		false,        // no token secret (OAuth2)
+		false, // no token secret (OAuth2)
 		realmId,
-		isSandbox,    // use sandbox
-		false,        // enable debugging
-		null,         // minor version
-		"2.0",        // OAuth version
-		null          // refresh token (managed separately)
+		isSandbox, // use sandbox
+		false, // enable debugging
+		null, // minor version
+		"2.0", // OAuth version
+		null // refresh token (managed separately)
 	);
 }
 
@@ -72,13 +70,13 @@ async function getValidToken(companyId: string): Promise<{
 } | null> {
 	const sql = getSql();
 
-	const [tokenRow] = await sql`
+	const [tokenRow] = (await sql`
 		SELECT
 			access_token, refresh_token, realm_id,
 			access_token_expires_at, refresh_token_expires_at
 		FROM qb_tokens
 		WHERE company_id = ${companyId}
-	` as any[];
+	`) as any[];
 
 	if (!tokenRow) return null;
 
@@ -296,7 +294,7 @@ export async function qbRoutes(fastify: FastifyInstance) {
 			const companyId = resolveCompanyId(user);
 			const sql = getSql();
 
-			const [tokenRow] = await sql`
+			const [tokenRow] = (await sql`
 				SELECT
 					realm_id,
 					access_token_expires_at,
@@ -304,7 +302,7 @@ export async function qbRoutes(fastify: FastifyInstance) {
 					updated_at
 				FROM qb_tokens
 				WHERE company_id = ${companyId}
-			` as any[];
+			`) as any[];
 
 			if (!tokenRow) {
 				return reply.send({ connected: false });
@@ -357,17 +355,19 @@ export async function qbRoutes(fastify: FastifyInstance) {
 			const tokenData = await getValidToken(companyId!);
 			if (!tokenData) {
 				return reply.code(401).send({
-					error: "QuickBooks not connected or token expired. Re-authenticate at /qb/connect"
+					error:
+						"QuickBooks not connected or token expired. Re-authenticate at /qb/connect"
 				});
 			}
 
-			const [customer] = await sql`
+			const [customer] = (await sql`
 				SELECT * FROM customers
 				WHERE id = ${customerId}
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
-			` as any[];
+			`) as any[];
 
-			if (!customer) return reply.code(404).send({ error: "Customer not found" });
+			if (!customer)
+				return reply.code(404).send({ error: "Customer not found" });
 
 			const qb = getQBClient(tokenData.accessToken, tokenData.realmId);
 
@@ -411,11 +411,12 @@ export async function qbRoutes(fastify: FastifyInstance) {
 			const tokenData = await getValidToken(companyId!);
 			if (!tokenData) {
 				return reply.code(401).send({
-					error: "QuickBooks not connected or token expired. Re-authenticate at /qb/connect"
+					error:
+						"QuickBooks not connected or token expired. Re-authenticate at /qb/connect"
 				});
 			}
 
-			const [invoice] = await sql`
+			const [invoice] = (await sql`
 				SELECT i.*, c.first_name, c.last_name, c.email, c.phone,
 					c.address, c.city, c.state, c.zip,
 					c.qb_customer_id, c.id AS customer_record_id
@@ -423,16 +424,16 @@ export async function qbRoutes(fastify: FastifyInstance) {
 				JOIN customers c ON c.id = i.customer_id
 				WHERE i.id = ${invoiceId}
 					AND (${isDev(user) && !companyId} OR i.company_id = ${companyId})
-			` as any[];
+			`) as any[];
 
 			if (!invoice) return reply.code(404).send({ error: "Invoice not found" });
 
-			const lineItems = await sql`
+			const lineItems = (await sql`
 				SELECT name, quantity, unit_price, item_type
 				FROM invoice_line_items
 				WHERE invoice_id = ${invoiceId}
 				ORDER BY sort_order
-			` as any[];
+			`) as any[];
 
 			const qb = getQBClient(tokenData.accessToken, tokenData.realmId);
 
@@ -492,22 +493,23 @@ export async function qbRoutes(fastify: FastifyInstance) {
 			const tokenData = await getValidToken(companyId!);
 			if (!tokenData) {
 				return reply.code(401).send({
-					error: "QuickBooks not connected or token expired. Re-authenticate at /qb/connect"
+					error:
+						"QuickBooks not connected or token expired. Re-authenticate at /qb/connect"
 				});
 			}
 
 			const qb = getQBClient(tokenData.accessToken, tokenData.realmId);
 
 			// Unsynced customers
-			const customers = await sql`
+			const customers = (await sql`
 				SELECT * FROM customers
 				WHERE company_id = ${companyId}
 					AND is_active = true
 					AND qb_customer_id IS NULL
-			` as any[];
+			`) as any[];
 
 			// Unsynced invoices (only sent/paid — not drafts)
-			const invoices = await sql`
+			const invoices = (await sql`
 				SELECT i.*, c.qb_customer_id, c.id AS customer_record_id,
 					c.first_name, c.last_name, c.email, c.phone,
 					c.address, c.city, c.state, c.zip
@@ -516,7 +518,7 @@ export async function qbRoutes(fastify: FastifyInstance) {
 				WHERE i.company_id = ${companyId}
 					AND i.qb_invoice_id IS NULL
 					AND i.status IN ('sent', 'paid', 'partial', 'overdue')
-			` as any[];
+			`) as any[];
 
 			const results = {
 				customersSynced: 0,
@@ -542,17 +544,17 @@ export async function qbRoutes(fastify: FastifyInstance) {
 			// Sync invoices
 			for (const invoice of invoices) {
 				try {
-					const lineItems = await sql`
+					const lineItems = (await sql`
 						SELECT name, quantity, unit_price, item_type
 						FROM invoice_line_items
 						WHERE invoice_id = ${invoice.id}
 						ORDER BY sort_order
-					` as any[];
+					`) as any[];
 
 					// Refresh qb_customer_id in case we just synced it above
-					const [freshCustomer] = await sql`
+					const [freshCustomer] = (await sql`
 						SELECT qb_customer_id FROM customers WHERE id = ${invoice.customer_record_id}
-					` as any[];
+					`) as any[];
 
 					const qbCustomerId =
 						freshCustomer?.qb_customer_id ?? invoice.qb_customer_id;

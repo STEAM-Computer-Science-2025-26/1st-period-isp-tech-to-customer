@@ -67,10 +67,14 @@ export async function requireCompanyAccess(
 	if (user?.role === "dev") return;
 
 	if (!user?.companyId) {
-		return reply.code(403).send({ error: "Forbidden - Missing company in token" });
+		return reply
+			.code(403)
+			.send({ error: "Forbidden - Missing company in token" });
 	}
 
 	if (companyId && companyId !== user.companyId) {
-		return reply.code(403).send({ error: "Forbidden - Cannot access other company's data" });
+		return reply
+			.code(403)
+			.send({ error: "Forbidden - Cannot access other company's data" });
 	}
 }

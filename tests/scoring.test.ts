@@ -1,27 +1,28 @@
 import { scoreTechnician, scoreAllTechnicians } from "../algo/scoring";
 import { TechnicianInput } from "../services/types/technicianInput";
 
-
-function createMockTechnician(overrides: Partial<TechnicianInput>): TechnicianInput {
-  return {
-    id: "tech-default",
-    name: "Default Tech",
-    companyId: "company-123",
-    isActive: true,
-    isAvailable: true,
-    currentJobsCount: 0,
-    maxConcurrentJobs: 3,
-    latitude: 32.7767,
-    longitude: -96.797,
-    maxTravelDistanceMiles: 100,
-    skills: [],
-    skillLevel: {},
-    recentCompletionRate: 0.9,
-    recentJobCount: 10,
-    dailyJobCount: 0,
-    distanceMiles: 0,
-    ...overrides,
-  };
+function createMockTechnician(
+	overrides: Partial<TechnicianInput>
+): TechnicianInput {
+	return {
+		id: "tech-default",
+		name: "Default Tech",
+		companyId: "company-123",
+		isActive: true,
+		isAvailable: true,
+		currentJobsCount: 0,
+		maxConcurrentJobs: 3,
+		latitude: 32.7767,
+		longitude: -96.797,
+		maxTravelDistanceMiles: 100,
+		skills: [],
+		skillLevel: {},
+		recentCompletionRate: 0.9,
+		recentJobCount: 10,
+		dailyJobCount: 0,
+		distanceMiles: 0,
+		...overrides
+	};
 }
 describe("Stage 2 — Scoring System: Ultimate Bulletproof Tests", () => {
 	const baseJob = {
@@ -214,4 +215,3 @@ describe("Stage 2 — Scoring System: Ultimate Bulletproof Tests", () => {
 		});
 	});
 });
-

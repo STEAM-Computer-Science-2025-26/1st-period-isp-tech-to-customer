@@ -137,10 +137,20 @@ describe("Batch Dispatch Integration", () => {
 				/* ignore */
 			}
 
-			await db.query("DELETE FROM jobs WHERE id = ANY($1::uuid[])", [jobIds as any]);
-await db.query("DELETE FROM job_completions WHERE job_id = ANY($1::uuid[])", [jobIds as any]);
-await db.query("DELETE FROM tech_locations WHERE tech_id = ANY($1::uuid[])", [techIds as any]);
-await db.query("DELETE FROM employees WHERE id = ANY($1::uuid[])", [techIds as any]);
+			await db.query("DELETE FROM jobs WHERE id = ANY($1::uuid[])", [
+				jobIds as any
+			]);
+			await db.query(
+				"DELETE FROM job_completions WHERE job_id = ANY($1::uuid[])",
+				[jobIds as any]
+			);
+			await db.query(
+				"DELETE FROM tech_locations WHERE tech_id = ANY($1::uuid[])",
+				[techIds as any]
+			);
+			await db.query("DELETE FROM employees WHERE id = ANY($1::uuid[])", [
+				techIds as any
+			]);
 			await db.query(
 				"DELETE FROM tech_locations WHERE tech_id = ANY($1::uuid[])",
 				[techIds as any]

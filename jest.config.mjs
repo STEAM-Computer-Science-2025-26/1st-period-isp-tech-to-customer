@@ -25,10 +25,10 @@ const config = {
 					allowImportingTsExtensions: false,
 					noEmit: false,
 					esModuleInterop: true,
-					strict: false,
-				},
-			},
-		],
+					strict: false
+				}
+			}
+		]
 	},
 
 	// Needed for ESM + ts-jest
@@ -39,7 +39,7 @@ const config = {
 
 	// Map @ alias to project root (matches tsconfig.json paths)
 	moduleNameMapper: {
-		"^@/(.*)$": "<rootDir>/$1",
+		"^@/(.*)$": "<rootDir>/$1"
 	},
 
 	// Per-test timeout — Neon HTTP calls can be slow on cold start
@@ -49,7 +49,7 @@ const config = {
 	verbose: true,
 
 	// Run test suites sequentially (avoids DB race conditions between suites)
-	runInBand: true,
+	runInBand: true
 };
 
 export default config;

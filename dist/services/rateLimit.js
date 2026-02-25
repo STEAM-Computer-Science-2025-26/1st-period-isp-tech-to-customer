@@ -1,5 +1,5 @@
 export async function enforceRateLimit(sql, key, limit, windowSeconds) {
-	const rows = await sql`
+    const rows = (await sql `
 		INSERT INTO api_rate_limits (key, hits, reset_at)
 		VALUES (${key}, 1, NOW() + make_interval(secs => ${windowSeconds}))
 		ON CONFLICT (key) DO UPDATE
@@ -12,14 +12,12 @@ export async function enforceRateLimit(sql, key, limit, windowSeconds) {
 				ELSE api_rate_limits.reset_at
 			END
 		RETURNING hits::int AS hits, reset_at
-	`;
-	const row = rows[0];
-	const hits = row?.hits ?? 1;
-	if (hits <= limit) return { allowed: true };
-	const resetAt = row?.reset_at ? new Date(row.reset_at) : new Date();
-	const retryAfterSeconds = Math.max(
-		1,
-		Math.ceil((resetAt.getTime() - Date.now()) / 1000)
-	);
-	return { allowed: false, retryAfterSeconds };
+	`);
+    const row = rows[0];
+    const hits = row?.hits ?? 1;
+    if (hits <= limit)
+        return { allowed: true };
+    const resetAt = row?.reset_at ? new Date(row.reset_at) : new Date();
+    const retryAfterSeconds = Math.max(1, Math.ceil((resetAt.getTime() - Date.now()) / 1000));
+    return { allowed: false, retryAfterSeconds };
 }

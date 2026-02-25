@@ -1,11 +1,26 @@
 // services/dispatch/persistence.ts
-// FIXED VERSION - Uses Neon, proper transaction handling
 
 import { getSql } from "../../db";
 
-declare function transaction<T>(
-	fn: (client: DBClient) => Promise<T>
-): Promise<T>;
+import { Pool } from "pg";
+
+const pool = new Pool(); // reads DATABASE_URL from env
+
+async function transaction<T>(fn: (client: DBClient) => Promise<T>): Promise<T> {
+	const client = await pool.connect() as unknown as DBClient;
+	try {
+		await client.query("BEGIN");
+		const result = await fn(client);
+		await client.query("COMMIT");
+		return result;
+	} catch (err) {
+		await client.query("ROLLBACK");
+		throw err;
+	} finally {
+		client.release();
+	}
+}
+
 
 interface QueryResult<T> {
 	rowCount: number;
@@ -14,6 +29,7 @@ interface QueryResult<T> {
 
 interface DBClient {
 	query<T = any>(text: string, params?: any[]): Promise<QueryResult<T>>;
+	release: () => void;
 }
 
 export async function assignJobToTech(
@@ -104,7 +120,6 @@ export async function assignJobToTech(
 			 WHERE id = $2`,
 			[jobId, techId]
 		);
-
 	});
 }
 
@@ -196,22 +211,6 @@ export async function completeJob(
 			first_time_fix: firstTimeFix ?? true,
 			customer_rating: customerRating || null
 		};
-
-		await client.query(
-			`INSERT INTO job_completions 
-			(job_id, tech_id, company_id, completion_notes, duration_minutes, 
-			 first_time_fix, customer_rating)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			[
-				completionParams.job_id,
-				completionParams.tech_id,
-				completionParams.company_id,
-				completionParams.completion_notes,
-				completionParams.duration_minutes,
-				completionParams.first_time_fix,
-				completionParams.customer_rating
-			]
-		);
 	});
 }
 

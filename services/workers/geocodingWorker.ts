@@ -112,70 +112,74 @@ export class GeocodingWorker {
 		}
 	}
 
-private async fetchPendingJobs(): Promise<PendingJob[]> {
-	try {
-		let raw: unknown;
+	private async fetchPendingJobs(): Promise<PendingJob[]> {
+		try {
+			let raw: unknown;
 
-		if (this.hasRetriesColumn) {
-			raw = await query(
-				`SELECT id, address, COALESCE(geocoding_retries, 0) AS geocoding_retries
+			if (this.hasRetriesColumn) {
+				raw = await query(
+					`SELECT id, address, COALESCE(geocoding_retries, 0) AS geocoding_retries
 FROM jobs
 WHERE geocoding_status = 'pending'
 	OR (geocoding_status = 'failed'
 		AND COALESCE(geocoding_retries, 0) < $1)
 ORDER BY created_at ASC
 LIMIT $2`,
-				[MAX_RETRIES, BATCH_SIZE]
-			);
-		} else {
-			raw = await query(
-				`SELECT id, address, 0 AS geocoding_retries
+					[MAX_RETRIES, BATCH_SIZE]
+				);
+			} else {
+				raw = await query(
+					`SELECT id, address, 0 AS geocoding_retries
 FROM jobs
 WHERE geocoding_status = 'pending'
 	OR geocoding_status = 'failed'
 ORDER BY created_at ASC
 LIMIT $1`,
-				[BATCH_SIZE]
-			);
-		}
+					[BATCH_SIZE]
+				);
+			}
 
-		// Neon can return a result object instead of a plain array depending
-		// on the driver version. Normalize it here so iteration never throws.
-		if (Array.isArray(raw)) {
-			return raw as PendingJob[];
-		}
+			// Neon can return a result object instead of a plain array depending
+			// on the driver version. Normalize it here so iteration never throws.
+			if (Array.isArray(raw)) {
+				return raw as PendingJob[];
+			}
 
-		// pg-style result object: { rows: [...] }
-		const asObj = raw as { rows?: unknown[] };
-		if (asObj && Array.isArray(asObj.rows)) {
-			return asObj.rows as PendingJob[];
-		}
+			// pg-style result object: { rows: [...] }
+			const asObj = raw as { rows?: unknown[] };
+			if (asObj && Array.isArray(asObj.rows)) {
+				return asObj.rows as PendingJob[];
+			}
 
-		console.warn("⚠️  fetchPendingJobs: unexpected query result shape", raw);
-		return [];
-	} catch (error) {
-		console.error("❌ fetchPendingJobs failed:", error);
-		return [];
+			console.warn("⚠️  fetchPendingJobs: unexpected query result shape", raw);
+			return [];
+		} catch (error) {
+			console.error("❌ fetchPendingJobs failed:", error);
+			return [];
+		}
 	}
-}
 
 	private async logJobsSchemaInfo(): Promise<void> {
 		try {
-const rawColumns = await query(
-	"SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'jobs' ORDER BY ordinal_position",
-	[]
-);
-const columns: ColumnRow[] = Array.isArray(rawColumns) ? (rawColumns as unknown as ColumnRow[]) : [];
+			const rawColumns = await query(
+				"SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'jobs' ORDER BY ordinal_position",
+				[]
+			);
+			const columns: ColumnRow[] = Array.isArray(rawColumns)
+				? (rawColumns as unknown as ColumnRow[])
+				: [];
 
-const rawDbInfo = await query(
-	"SELECT current_database() AS database, current_schema() AS schema",
-	[]
-);
-const dbInfoRows: DBInfoRow[] = Array.isArray(rawDbInfo) ? (rawDbInfo as unknown as DBInfoRow[]) : [];
+			const rawDbInfo = await query(
+				"SELECT current_database() AS database, current_schema() AS schema",
+				[]
+			);
+			const dbInfoRows: DBInfoRow[] = Array.isArray(rawDbInfo)
+				? (rawDbInfo as unknown as DBInfoRow[])
+				: [];
 
-const database = dbInfoRows[0]?.database ?? "unknown";
-const schema = dbInfoRows[0]?.schema ?? "unknown";
-const columnList = columns.map((col) => col.column_name).join(", ");
+			const database = dbInfoRows[0]?.database ?? "unknown";
+			const schema = dbInfoRows[0]?.schema ?? "unknown";
+			const columnList = columns.map((col) => col.column_name).join(", ");
 
 			console.log(
 				`🧭 DB context: database=${database}, schema=${schema}, jobs columns=[${columnList}]`

@@ -88,15 +88,6 @@ export async function persistBatchAssignments(
 
 		// REAL BATCH INSERT - ONE QUERY FOR ALL ASSIGNMENTS
 		// ============================================================
-		const assignmentValues = validAssignments
-			.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3}, NOW())`)
-			.join(", ");
-
-		const assignmentParams = validAssignments.flatMap((a) => [
-			a.jobId,
-			a.techId,
-			companyId
-		]);
 
 		await client.query("COMMIT");
 

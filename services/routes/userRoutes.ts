@@ -102,7 +102,7 @@ export function getUser(fastify: FastifyInstance) {
 		const isDev = authUser?.role === "dev";
 		const sql = getSql();
 
-		const [user] = await sql`
+		const [user] = (await sql`
 			SELECT id, email, role,
 				company_id AS "companyId",
 				created_at AS "createdAt",
@@ -110,7 +110,7 @@ export function getUser(fastify: FastifyInstance) {
 			FROM users
 			WHERE id = ${userId}
 				AND (${isDev} OR company_id = ${authUser.companyId ?? null})
-		` as any[];
+		`) as any[];
 
 		if (!user) return reply.code(404).send({ error: "User not found" });
 		return { user };
@@ -124,7 +124,9 @@ export function createUser(fastify: FastifyInstance) {
 		const isCompanyAdmin = authUser?.role === "admin";
 
 		if (!isDev && !isCompanyAdmin) {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const parsed = createUserSchema.safeParse(request.body);
@@ -146,17 +148,19 @@ export function createUser(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 		if (!isDev && body.companyId !== effectiveCompanyId) {
-			return reply.code(403).send({ error: "Forbidden - Cannot create users for other companies" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Cannot create users for other companies" });
 		}
 
 		const sql = getSql();
 		const hashedPassword = await bcrypt.hash(body.password, 10);
 
-		const [result] = await sql`
+		const [result] = (await sql`
 			INSERT INTO users (email, password_hash, role, company_id)
 			VALUES (${body.email}, ${hashedPassword}, ${body.role}, ${effectiveCompanyId})
 			RETURNING id
-		` as any[];
+		`) as any[];
 
 		return { userId: result.id };
 	});
@@ -169,7 +173,9 @@ export function updateUser(fastify: FastifyInstance) {
 		const isCompanyAdmin = authUser?.role === "admin";
 
 		if (!isDev && !isCompanyAdmin) {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const parsed = updateUserSchema.safeParse(request.body);
@@ -185,9 +191,9 @@ export function updateUser(fastify: FastifyInstance) {
 		const sql = getSql();
 
 		if (!isDev) {
-			const [existing] = await sql`
+			const [existing] = (await sql`
 				SELECT id FROM users WHERE id = ${userId} AND company_id = ${authUser.companyId ?? null}
-			` as any[];
+			`) as any[];
 			if (!existing) return reply.code(404).send({ error: "User not found" });
 		}
 
@@ -199,7 +205,7 @@ export function updateUser(fastify: FastifyInstance) {
 			? await bcrypt.hash(body.password, 10)
 			: null;
 
-		const [result] = await sql`
+		const [result] = (await sql`
 			UPDATE users SET
 				email         = COALESCE(${body.email ?? null}, email),
 				role          = COALESCE(${body.role ?? null}, role),
@@ -208,7 +214,7 @@ export function updateUser(fastify: FastifyInstance) {
 			WHERE id = ${userId}
 				AND (${isDev} OR company_id = ${authUser.companyId ?? null})
 			RETURNING id
-		` as any[];
+		`) as any[];
 
 		if (!result) return reply.code(404).send({ error: "User not found" });
 		return { message: "User updated successfully", userId: result.id };
@@ -222,18 +228,20 @@ export function deleteUser(fastify: FastifyInstance) {
 		const isCompanyAdmin = authUser?.role === "admin";
 
 		if (!isDev && !isCompanyAdmin) {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const { userId } = request.params as { userId: string };
 		const sql = getSql();
 
-		const [result] = await sql`
+		const [result] = (await sql`
 			DELETE FROM users
 			WHERE id = ${userId}
 				AND (${isDev} OR company_id = ${authUser.companyId ?? null})
 			RETURNING id
-		` as any[];
+		`) as any[];
 
 		if (!result) return reply.code(404).send({ error: "User not found" });
 		return { message: `User ${userId} deleted successfully` };
@@ -263,10 +271,10 @@ export function loginUser(fastify: FastifyInstance) {
 
 		const { email, password } = parsed.data;
 
-		const [user] = await sql`
+		const [user] = (await sql`
 			SELECT id, email, password_hash, role, company_id
 			FROM users WHERE email = ${email}
-		` as any[];
+		`) as any[];
 
 		if (!user) {
 			return reply.code(401).send({ error: "Invalid email or password" });
@@ -311,7 +319,12 @@ export function registerUser(fastify: FastifyInstance) {
 		const ip = request.ip ?? "unknown";
 		const sql = getSql();
 
-		const rateLimitResult = await enforceRateLimit(sql, `register:${ip}`, 5, 900);
+		const rateLimitResult = await enforceRateLimit(
+			sql,
+			`register:${ip}`,
+			5,
+			900
+		);
 		if (!rateLimitResult.allowed) {
 			return reply.code(429).send({
 				error: "Too many registration attempts. Please try again later.",
@@ -329,19 +342,19 @@ export function registerUser(fastify: FastifyInstance) {
 
 		const { email, password, companyName } = parsed.data;
 
-		const [existing] = await sql`
+		const [existing] = (await sql`
 			SELECT id FROM users WHERE email = ${email}
-		` as any[];
+		`) as any[];
 		if (existing) {
 			return reply.code(409).send({ error: "Email is already registered" });
 		}
 
-		const [verified] = await sql`
+		const [verified] = (await sql`
 			SELECT id FROM email_verifications
 			WHERE email = ${email} AND verified = TRUE
 			ORDER BY used_at DESC NULLS LAST, verified_at DESC NULLS LAST
 			LIMIT 1
-		` as any[];
+		`) as any[];
 		if (!verified) {
 			return reply.code(403).send({
 				error: "Email verification required before registration"
@@ -351,18 +364,23 @@ export function registerUser(fastify: FastifyInstance) {
 		const finalCompanyName = buildCompanyName(email, companyName);
 		const hashedPassword = await bcrypt.hash(password, 10);
 
-		const [createdCompany] = await sql`
+		const [createdCompany] = (await sql`
 			INSERT INTO companies (name) VALUES (${finalCompanyName}) RETURNING id
-		` as any[];
+		`) as any[];
 
-		const [createdUser] = await sql`
+		const [createdUser] = (await sql`
 			INSERT INTO users (email, password_hash, role, company_id)
 			VALUES (${email}, ${hashedPassword}, 'admin', ${createdCompany.id})
 			RETURNING id
-		` as any[];
+		`) as any[];
 
 		const token = fastify.jwt.sign(
-			{ userId: createdUser.id, email, role: "admin", companyId: createdCompany.id },
+			{
+				userId: createdUser.id,
+				email,
+				role: "admin",
+				companyId: createdCompany.id
+			},
 			{ expiresIn: "8h" }
 		);
 

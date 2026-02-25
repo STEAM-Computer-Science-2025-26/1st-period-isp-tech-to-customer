@@ -77,7 +77,6 @@ async function linkJobsToCustomers(): Promise<void> {
 		const firstName = "Unknown";
 		const lastName = job.customer_name.trim() || "Customer";
 
-
 		const existing = (await sql`
 			SELECT id FROM customers
 			WHERE company_id = ${job.company_id}

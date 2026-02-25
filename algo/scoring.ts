@@ -77,9 +77,9 @@ function calculateSkillMatchScore(
 	}
 
 	const avgDeficit = totalDifference / requiredSkills.length;
-	if (avgDeficit === 0) return maxPoints;           // exact match or overqualified → 20
+	if (avgDeficit === 0) return maxPoints; // exact match or overqualified → 20
 	if (hasOverqualified && avgDeficit <= 1) return 15; // mixed: some over, some slight deficit
-	return 10;                                         // genuinely underqualified
+	return 10; // genuinely underqualified
 }
 
 /**

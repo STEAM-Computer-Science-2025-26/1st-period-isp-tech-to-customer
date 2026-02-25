@@ -2,6 +2,9 @@
 // UPDATED - Uses Neon instead of pg Pool
 
 import { getSql } from "../../db";
+import { Pool } from "pg";
+const pool = new Pool();
+
 
 export type JobRecord = {
 	id: string;
@@ -184,4 +187,6 @@ export class JobRepository {
 			[jobId, techId]
 		);
 	}
+
+	
 }
