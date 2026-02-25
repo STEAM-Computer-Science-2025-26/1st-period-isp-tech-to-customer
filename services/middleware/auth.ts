@@ -57,24 +57,20 @@ export async function requireDev(request: FastifyRequest, reply: FastifyReply) {
 
 // Ensure the requesting user can only access their own company's data.
 // Dev users bypass this check entirely.
-export function requireCompanyAccess(
+export async function requireCompanyAccess(
 	request: FastifyRequest,
 	reply: FastifyReply
-) {
+): Promise<void> {
 	const user = request.user as JWTPayload;
 	const { companyId } = request.query as { companyId?: string };
 
 	if (user?.role === "dev") return;
 
 	if (!user?.companyId) {
-		return reply
-			.code(403)
-			.send({ error: "Forbidden - Missing company in token" });
+		return reply.code(403).send({ error: "Forbidden - Missing company in token" });
 	}
 
 	if (companyId && companyId !== user.companyId) {
-		return reply
-			.code(403)
-			.send({ error: "Forbidden - Cannot access other company's data" });
+		return reply.code(403).send({ error: "Forbidden - Cannot access other company's data" });
 	}
 }

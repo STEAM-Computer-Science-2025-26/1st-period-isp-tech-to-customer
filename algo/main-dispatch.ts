@@ -65,21 +65,35 @@ each job is processed independently — workload state is not mutated
 between jobs (stateless). caller is responsible for any real-time
 workload updates between jobs if needed.
 */
-export function batchDispatch(
-	jobs: JobInput[],
-	technicians: TechnicianInput[]
-) {
-	console.log(`\n Starting batch dispatch for ${jobs.length} jobs...`);
+export function batchDispatch(jobs: JobInput[], technicians: TechnicianInput[]) {
+  // Mutable capacity map: techId → remaining slots
+  const assignedCount = new Map<string, number>(
+    technicians.map((t) => [t.id, t.currentJobsCount])
+  );
 
-	const recommendations = jobs.map((job, index) => {
-		console.log(`\n${"=".repeat(70)}`);
-		console.log(`Processing Job ${index + 1}/${jobs.length} (ID: ${job.id})`);
-		console.log(`${"=".repeat(70)}\n`);
-		return dispatch(job, technicians);
-	});
+  const recommendations = jobs.map((job, index) => {
+    console.log(`\n${"=".repeat(70)}`);
+    console.log(`Processing Job ${index + 1}/${jobs.length} (ID: ${job.id})`);
+    console.log(`${"=".repeat(70)}\n`);
 
-	console.log(`\n Batch dispatch completed for ${jobs.length} jobs.`);
-	return recommendations;
+    // Build a snapshot with updated workload counts
+    const updatedTechs = technicians.map((t) => ({
+      ...t,
+      currentJobsCount: assignedCount.get(t.id) ?? t.currentJobsCount,
+    }));
+
+    const rec = dispatch(job, updatedTechs);
+
+    // If a tech was auto-assigned, increment their count
+    if (!rec.requiresManualDispatch && rec.assignedTech) {
+      const techId = rec.assignedTech.techId;
+      assignedCount.set(techId, (assignedCount.get(techId) ?? 0) + 1);
+    }
+
+    return rec;
+  });
+
+  return recommendations;
 }
 
 /*

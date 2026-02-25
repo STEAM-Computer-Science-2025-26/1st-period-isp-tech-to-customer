@@ -71,18 +71,15 @@ function calculateSkillMatchScore(
 	for (const skill of requiredSkills) {
 		const techLevel = tech.skillLevel?.[skill] ?? 0;
 		const minLevel = job.minimumSkillLevel ?? 0;
-		const diff = Math.abs(techLevel - minLevel);
-
-		totalDifference += diff;
-
+		const deficit = Math.max(0, minLevel - techLevel); // only penalize under-qualification
+		totalDifference += deficit;
 		if (techLevel > minLevel) hasOverqualified = true;
 	}
 
-	const avgDiff = totalDifference / requiredSkills.length;
-
-	if (avgDiff === 0) return maxPoints; // perfect match
-	if (hasOverqualified && avgDiff <= 2) return 15; // slight overqualification → 15
-	return 10; // major mismatch / missing → 10
+	const avgDeficit = totalDifference / requiredSkills.length;
+	if (avgDeficit === 0) return maxPoints;           // exact match or overqualified → 20
+	if (hasOverqualified && avgDeficit <= 1) return 15; // mixed: some over, some slight deficit
+	return 10;                                         // genuinely underqualified
 }
 
 /**

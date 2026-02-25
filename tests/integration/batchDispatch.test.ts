@@ -1,6 +1,6 @@
+/// <reference types="jest" />
 import { batchDispatch } from "../../services/dispatch/batchDispatch";
 import * as db from "../../db";
-import { describe, test, expect, beforeAll, afterAll } from "@jest/globals";
 
 describe("Batch Dispatch Integration", () => {
 	let companyId: string;
@@ -122,7 +122,7 @@ describe("Batch Dispatch Integration", () => {
 			try {
 				await db.query(
 					"DELETE FROM job_assignments WHERE job_id = ANY($1::uuid[])",
-					[jobIds.join(",")]
+					[jobIds as any]
 				);
 			} catch {
 				/* ignore */
@@ -131,21 +131,22 @@ describe("Batch Dispatch Integration", () => {
 			try {
 				await db.query(
 					"DELETE FROM job_completions WHERE job_id = ANY($1::uuid[])",
-					[jobIds.join(",")]
+					[jobIds as any]
 				);
 			} catch {
 				/* ignore */
 			}
 
-			await db.query("DELETE FROM jobs WHERE id = ANY($1::uuid[])", [
-				jobIds.join(",")
-			]);
+			await db.query("DELETE FROM jobs WHERE id = ANY($1::uuid[])", [jobIds as any]);
+await db.query("DELETE FROM job_completions WHERE job_id = ANY($1::uuid[])", [jobIds as any]);
+await db.query("DELETE FROM tech_locations WHERE tech_id = ANY($1::uuid[])", [techIds as any]);
+await db.query("DELETE FROM employees WHERE id = ANY($1::uuid[])", [techIds as any]);
 			await db.query(
 				"DELETE FROM tech_locations WHERE tech_id = ANY($1::uuid[])",
-				[techIds.join(",")]
+				[techIds as any]
 			);
 			await db.query("DELETE FROM employees WHERE id = ANY($1::uuid[])", [
-				techIds.join(",")
+				techIds as any
 			]);
 			await db.query("DELETE FROM companies WHERE id = $1", [companyId]);
 		} catch (err) {

@@ -44,22 +44,13 @@ function tryLoadDatabaseUrlFromDotenv(): void {
 	}
 }
 
-export function getSql(): NeonQueryFunction<false, false> {
-	tryLoadDatabaseUrlFromDotenv();
-	maybeAllowSelfSignedCerts();
-
-	const databaseUrl = process.env.DATABASE_URL;
-	if (!databaseUrl) {
-		throw new Error(
-			"DATABASE_URL environment variable is not set. Cannot create SQL client."
-		);
-	}
-
-	if (!cachedSql) {
-		cachedSql = neon(databaseUrl);
-	}
-
-	return cachedSql;
+export function getSql() {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is not set. Cannot create SQL client.");
+  }
+  cachedSql = neon(databaseUrl);
+  return cachedSql;
 }
 
 export async function testConnection(): Promise<{
@@ -125,4 +116,7 @@ export async function queryAll<T extends Record<string, unknown>>(
 ): Promise<T[]> {
 	const sql = getSql();
 	return queryFn(sql);
+}
+export function resetSqlClient() {
+  cachedSql = null;
 }

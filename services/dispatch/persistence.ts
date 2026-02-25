@@ -105,26 +105,6 @@ export async function assignJobToTech(
 			[jobId, techId]
 		);
 
-		// Log the assignment
-		await client.query(
-			`INSERT INTO job_assignments 
-			(job_id, tech_id, assigned_by_user_id, company_id, assigned_at, 
-			 is_manual_override, override_reason, scoring_details, 
-			 job_priority, job_type, is_emergency)
-			VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8, $9, $10)`,
-			[
-				jobId,
-				techId,
-				assignedByUserId,
-				job.company_id,
-				isManualOverride,
-				overrideReason || null,
-				scoringDetails ? JSON.stringify(scoringDetails) : null,
-				job.priority,
-				job.job_type,
-				job.priority === "emergency"
-			]
-		);
 	});
 }
 

@@ -128,9 +128,12 @@ export async function queryAll<T>(
 	return queryFn(sql);
 }
 
-export function query(
-	arg0: string,
-	arg1: (string | number | boolean | null | undefined)[]
-) {
-	throw new Error("Function not implemented.");
+export async function query(
+	sql: string,
+	params: (string | number | boolean | null | undefined)[] = []
+): Promise<Record<string, unknown>[]> {
+	const client = getSql();
+	// Neon's tagged template doesn't accept raw strings with $N params directly,
+	// so we use the unsafe() escape hatch which accepts a raw SQL string + params.
+	return (client as any).unsafe(sql, params) as Record<string, unknown>[];
 }

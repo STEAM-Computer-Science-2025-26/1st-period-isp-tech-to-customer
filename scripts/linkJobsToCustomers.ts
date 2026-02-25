@@ -74,9 +74,9 @@ async function linkJobsToCustomers(): Promise<void> {
 
 		// Check if a matching customer already exists in the DB
 		// Match on company + name + address (loose — some addresses may differ)
-		const nameParts = job.customer_name.trim().split(" ");
-		const firstName = nameParts[0] ?? "Unknown";
-		const lastName = nameParts.slice(1).join(" ") || "Customer";
+		const firstName = "Unknown";
+		const lastName = job.customer_name.trim() || "Customer";
+
 
 		const existing = (await sql`
 			SELECT id FROM customers

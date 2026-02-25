@@ -98,14 +98,6 @@ export async function persistBatchAssignments(
 			companyId
 		]);
 
-		await client.query(
-			`
-      INSERT INTO job_assignments (job_id, tech_id, company_id, assigned_at)
-      VALUES ${assignmentValues}
-    `,
-			assignmentParams
-		);
-
 		await client.query("COMMIT");
 
 		console.log(`✅ Batch assigned ${validAssignments.length} jobs`);

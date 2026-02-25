@@ -1,6 +1,28 @@
 import { scoreTechnician, scoreAllTechnicians } from "../algo/scoring";
 import { TechnicianInput } from "../services/types/technicianInput";
 
+
+function createMockTechnician(overrides: Partial<TechnicianInput>): TechnicianInput {
+  return {
+    id: "tech-default",
+    name: "Default Tech",
+    companyId: "company-123",
+    isActive: true,
+    isAvailable: true,
+    currentJobsCount: 0,
+    maxConcurrentJobs: 3,
+    latitude: 32.7767,
+    longitude: -96.797,
+    maxTravelDistanceMiles: 100,
+    skills: [],
+    skillLevel: {},
+    recentCompletionRate: 0.9,
+    recentJobCount: 10,
+    dailyJobCount: 0,
+    distanceMiles: 0,
+    ...overrides,
+  };
+}
 describe("Stage 2 — Scoring System: Ultimate Bulletproof Tests", () => {
 	const baseJob = {
 		latitude: 32.7767,
@@ -192,44 +214,4 @@ describe("Stage 2 — Scoring System: Ultimate Bulletproof Tests", () => {
 		});
 	});
 });
-function createMockTechnician(arg0: {
-	id: string;
-	name: string;
-	latitude: number;
-	longitude: number;
-	currentJobsCount: number;
-	maxConcurrentJobs: number;
-	skills: string[];
-	skillLevel: { hvac_repair: number; plumbing: number; electric: number };
-	distanceMiles: number;
-	recentCompletionRate: number;
-	recentJobCount: number;
-	dailyJobCount: number;
-}) {
-	const defaults = {
-		id: "tech-000",
-		name: "Mock Tech",
-		latitude: 0,
-		longitude: 0,
-		currentJobsCount: 0,
-		maxConcurrentJobs: 3,
-		skills: [] as string[],
-		skillLevel: { hvac_repair: 0, plumbing: 0, electric: 0 },
-		distanceMiles: 0,
-		recentCompletionRate: 1,
-		recentJobCount: 0,
-		dailyJobCount: 0
-	};
 
-	// shallow merge, but ensure nested skillLevel merges too
-	const merged = {
-		...defaults,
-		...arg0,
-		skillLevel: {
-			...defaults.skillLevel,
-			...(arg0.skillLevel || {})
-		}
-	};
-
-	return merged as unknown as TechnicianInput;
-}
