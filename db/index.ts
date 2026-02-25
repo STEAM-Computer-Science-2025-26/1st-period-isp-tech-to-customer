@@ -133,7 +133,14 @@ export async function query(
 	params: (string | number | boolean | null | undefined)[] = []
 ): Promise<Record<string, unknown>[]> {
 	const client = getSql();
-	// Neon's tagged template doesn't accept raw strings with $N params directly,
-	// so we use the unsafe() escape hatch which accepts a raw SQL string + params.
-	return (client as any).unsafe(sql, params) as Record<string, unknown>[];
+	// Neon's client exposes query() for raw SQL with $N params.
+	// Normalize the result to always return rows.
+	const result = await (client as any).query(sql, params);
+	if (Array.isArray(result)) {
+		return result as Record<string, unknown>[];
+	}
+	if (result && Array.isArray(result.rows)) {
+		return result.rows as Record<string, unknown>[];
+	}
+	return [];
 }
