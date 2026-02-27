@@ -11,7 +11,14 @@
 //   - Onboarding status
 
 import "dotenv/config";
-import { get, post, patch, del, seedCompanyAndUser, deleteCompany } from "./helpers/api";
+import {
+	get,
+	post,
+	patch,
+	del,
+	seedCompanyAndUser,
+	deleteCompany
+} from "./helpers/api";
 
 // ============================================================
 // Test state shared across this file
@@ -50,21 +57,21 @@ afterAll(async () => {
 describe("Health", () => {
 	test("GET /health returns ok", async () => {
 		const res = await fetch(`${BASE}/health`);
-		const body = await res.json() as any;
+		const body = (await res.json()) as any;
 		expect(res.status).toBe(200);
 		expect(body.status).toBe("ok");
 	});
 
 	test("GET /health/live returns alive", async () => {
 		const res = await fetch(`${BASE}/health/live`);
-		const body = await res.json() as any;
+		const body = (await res.json()) as any;
 		expect(res.status).toBe(200);
 		expect(body.status).toBe("alive");
 	});
 
 	test("GET /health/ready returns ready", async () => {
 		const res = await fetch(`${BASE}/health/ready`);
-		const body = await res.json() as any;
+		const body = (await res.json()) as any;
 		expect([200, 503]).toContain(res.status);
 		expect(body).toHaveProperty("checks");
 		expect(body.checks.database).toBe("ok");
@@ -163,27 +170,37 @@ describe("Customers", () => {
 	});
 
 	test("GET /customers/:id with bad ID returns 404", async () => {
-		const { status } = await get("/customers/00000000-0000-0000-0000-000000000000", token);
+		const { status } = await get(
+			"/customers/00000000-0000-0000-0000-000000000000",
+			token
+		);
 		expect(status).toBe(404);
 	});
 
 	// Locations
 	test("POST /customers/:id/locations adds a location", async () => {
-		const { status, body } = await post(`/customers/${customerId}/locations`, token, {
-			address: "456 Oak Ave",
-			city: "Dallas",
-			state: "TX",
-			zip: "75202",
-			locationType: "service",
-			isPrimary: true
-		});
+		const { status, body } = await post(
+			`/customers/${customerId}/locations`,
+			token,
+			{
+				address: "456 Oak Ave",
+				city: "Dallas",
+				state: "TX",
+				zip: "75202",
+				locationType: "service",
+				isPrimary: true
+			}
+		);
 		expect(status).toBe(201);
 		expect(body.location).toHaveProperty("id");
 		locationId = body.location.id;
 	});
 
 	test("GET /customers/:id/locations returns locations", async () => {
-		const { status, body } = await get(`/customers/${customerId}/locations`, token);
+		const { status, body } = await get(
+			`/customers/${customerId}/locations`,
+			token
+		);
 		expect(status).toBe(200);
 		expect(Array.isArray(body.locations)).toBe(true);
 		expect(body.locations.some((l: any) => l.id === locationId)).toBe(true);
@@ -200,37 +217,51 @@ describe("Customers", () => {
 
 	// Equipment
 	test("POST /customers/:id/equipment adds equipment", async () => {
-		const { status, body } = await post(`/customers/${customerId}/equipment`, token, {
-			equipmentType: "hvac_unit",
-			brand: "Carrier",
-			model: "24ACC636A003",
-			serialNumber: "SN-TEST-001",
-			installDate: "2022-01-15"
-		});
+		const { status, body } = await post(
+			`/customers/${customerId}/equipment`,
+			token,
+			{
+				equipmentType: "hvac_unit",
+				brand: "Carrier",
+				model: "24ACC636A003",
+				serialNumber: "SN-TEST-001",
+				installDate: "2022-01-15"
+			}
+		);
 		expect(status).toBe(201);
 		expect(body.equipment).toHaveProperty("id");
 		equipmentId = body.equipment.id;
 	});
 
 	test("GET /customers/:id/equipment returns equipment", async () => {
-		const { status, body } = await get(`/customers/${customerId}/equipment`, token);
+		const { status, body } = await get(
+			`/customers/${customerId}/equipment`,
+			token
+		);
 		expect(status).toBe(200);
 		expect(body.equipment.some((e: any) => e.id === equipmentId)).toBe(true);
 	});
 
 	// Communications
 	test("POST /customers/:id/communications logs a note", async () => {
-		const { status } = await post(`/customers/${customerId}/communications`, token, {
-			type: "phone",
-			direction: "inbound",
-			subject: "Customer called about AC",
-			notes: "Scheduled service visit"
-		});
+		const { status } = await post(
+			`/customers/${customerId}/communications`,
+			token,
+			{
+				type: "phone",
+				direction: "inbound",
+				subject: "Customer called about AC",
+				notes: "Scheduled service visit"
+			}
+		);
 		expect(status).toBe(201);
 	});
 
 	test("GET /customers/:id/communications returns logs", async () => {
-		const { status, body } = await get(`/customers/${customerId}/communications`, token);
+		const { status, body } = await get(
+			`/customers/${customerId}/communications`,
+			token
+		);
 		expect(status).toBe(200);
 		expect(Array.isArray(body.communications)).toBe(true);
 	});
@@ -334,7 +365,9 @@ describe("Jobs", () => {
 	});
 
 	test("POST /jobs with missing required fields returns 400", async () => {
-		const { status } = await post("/jobs", token, { initialNotes: "no required fields" });
+		const { status } = await post("/jobs", token, {
+			initialNotes: "no required fields"
+		});
 		expect(status).toBe(400);
 	});
 });
@@ -353,7 +386,10 @@ describe("Onboarding", () => {
 	});
 
 	test("GET /onboard/status with bad companyId returns 404", async () => {
-		const { status } = await get("/onboard/status/00000000-0000-0000-0000-000000000000", token);
+		const { status } = await get(
+			"/onboard/status/00000000-0000-0000-0000-000000000000",
+			token
+		);
 		expect(status).toBe(404);
 	});
 });

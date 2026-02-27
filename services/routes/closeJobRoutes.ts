@@ -43,7 +43,6 @@ function resolveCompanyId(user: JWTPayload): string | null {
 // ============================================================
 
 export async function closeJobRoutes(fastify: FastifyInstance) {
-
 	// ----------------------------------------------------------
 	// POST /jobs/:jobId/close
 	// ----------------------------------------------------------
@@ -126,7 +125,11 @@ export async function closeJobRoutes(fastify: FastifyInstance) {
 			const method = body.paymentMethod;
 
 			if (method === "cash" || method === "check") {
-				if (body.invoiceId && body.amountToCollect != null && body.amountToCollect > 0) {
+				if (
+					body.invoiceId &&
+					body.amountToCollect != null &&
+					body.amountToCollect > 0
+				) {
 					const [inv] = (await sql`
 						SELECT id, status, total, amount_paid
 						FROM invoices
@@ -136,10 +139,15 @@ export async function closeJobRoutes(fastify: FastifyInstance) {
 
 					if (inv) {
 						const newAmountPaid =
-							Math.round((Number(inv.amount_paid) + body.amountToCollect) * 100) / 100;
+							Math.round(
+								(Number(inv.amount_paid) + body.amountToCollect) * 100
+							) / 100;
 						const newStatus =
-							newAmountPaid >= Number(inv.total) ? "paid" :
-							newAmountPaid > 0 ? "partial" : inv.status;
+							newAmountPaid >= Number(inv.total)
+								? "paid"
+								: newAmountPaid > 0
+									? "partial"
+									: inv.status;
 
 						const [updated] = (await sql`
 							UPDATE invoices SET
@@ -168,15 +176,17 @@ export async function closeJobRoutes(fastify: FastifyInstance) {
 						? { checkNumber: body.checkNumber }
 						: {})
 				};
-
 			} else if (method === "card") {
 				try {
 					const Stripe = (await import("stripe")).default;
 					const stripeKey = process.env.STRIPE_SECRET_KEY;
 					if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not configured");
 
-					const stripe = new Stripe(stripeKey, { apiVersion: "2024-04-10" as any });
-					if (!body.invoiceId) throw new Error("invoiceId required for card payment");
+					const stripe = new Stripe(stripeKey, {
+						apiVersion: "2024-04-10" as any
+					});
+					if (!body.invoiceId)
+						throw new Error("invoiceId required for card payment");
 
 					const [inv] = (await sql`
 						SELECT id, balance_due, total FROM invoices WHERE id = ${body.invoiceId}
@@ -210,14 +220,12 @@ export async function closeJobRoutes(fastify: FastifyInstance) {
 						FROM invoices WHERE id = ${body.invoiceId}
 					`) as any[];
 					invoiceResult = updatedInv;
-
 				} catch (err: any) {
 					return reply.code(503).send({
 						error: "Payment processing unavailable",
 						detail: err.message
 					});
 				}
-
 			} else {
 				// none — bill later
 				paymentResult = { method: "none" };

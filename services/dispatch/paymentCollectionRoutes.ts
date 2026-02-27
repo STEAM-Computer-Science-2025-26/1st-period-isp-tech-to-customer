@@ -314,8 +314,13 @@ export async function paymentCollectionRoutes(fastify: FastifyInstance) {
 			if (body.paymentMethod === "cash" || body.paymentMethod === "check") {
 				const collectAmount = body.amountToCollect ?? balanceDue;
 				const currentAmountPaid = Number(invoice.amount_paid);
-				const newAmountPaid = Math.round((currentAmountPaid + collectAmount) * 100) / 100;
-				const newStatus = deriveInvoiceStatus(total, newAmountPaid, invoice.status);
+				const newAmountPaid =
+					Math.round((currentAmountPaid + collectAmount) * 100) / 100;
+				const newStatus = deriveInvoiceStatus(
+					total,
+					newAmountPaid,
+					invoice.status
+				);
 				const paidAt = newStatus === "paid" ? sql`NOW()` : sql`paid_at`;
 
 				const [updatedInvoice] = (await sql`
@@ -389,7 +394,8 @@ export async function paymentCollectionRoutes(fastify: FastifyInstance) {
 						existing.status !== "succeeded"
 					) {
 						return reply.code(200).send({
-							message: "Job closed. Use existing payment intent to collect card payment.",
+							message:
+								"Job closed. Use existing payment intent to collect card payment.",
 							jobId,
 							jobStatus: "completed",
 							actualDurationMinutes: actualDuration,

@@ -33,9 +33,12 @@ function calculateAvailabilityScore(currentJobs = 0, maxJobs = 1, isEmergency = 
 }
 /**
  * Calculate skill match score.
- * Fully matches skills → max points.
- * Slight mismatch (1 level) → 75% of max
- * Major mismatch → 50% of max
+ * All skills exactly met or overqualified (no deficit, any excess) → 15 (not perfect 20,
+ *   because excess qualification wastes a higher-tier tech on a routine job).
+ * Exact match (all levels exactly equal to minimum) → 20
+ * Mixed: some over, some slight deficit (avgDeficit <= 1) → 15
+ * Underqualified (avgDeficit > 1) → 10
+ * No required skills → 20
  * Handles missing skillLevel or requiredSkills safely.
  */
 function calculateSkillMatchScore(tech, job) {
@@ -45,6 +48,7 @@ function calculateSkillMatchScore(tech, job) {
         return maxPoints;
     let totalDifference = 0;
     let hasOverqualified = false;
+    let hasExactMatch = false;
     for (const skill of requiredSkills) {
         const techLevel = tech.skillLevel?.[skill] ?? 0;
         const minLevel = job.minimumSkillLevel ?? 0;
@@ -52,13 +56,22 @@ function calculateSkillMatchScore(tech, job) {
         totalDifference += deficit;
         if (techLevel > minLevel)
             hasOverqualified = true;
+        if (techLevel === minLevel)
+            hasExactMatch = true;
     }
     const avgDeficit = totalDifference / requiredSkills.length;
+    // All skills overqualified (no deficits, no exact matches) → 15
+    // Overqualified wastes a senior tech; penalize slightly
+    if (avgDeficit === 0 && hasOverqualified && !hasExactMatch)
+        return 15;
+    // Exact match (all skills exactly at minimum, no over, no under) → 20
     if (avgDeficit === 0)
-        return maxPoints; // exact match or overqualified → 20
+        return maxPoints;
+    // Mixed: some over, some slight deficit → 15
     if (hasOverqualified && avgDeficit <= 1)
-        return 15; // mixed: some over, some slight deficit
-    return 10; // genuinely underqualified
+        return 15;
+    // Genuinely underqualified → 10
+    return 10;
 }
 /**
  * Calculate performance score based on completion rate and job history.

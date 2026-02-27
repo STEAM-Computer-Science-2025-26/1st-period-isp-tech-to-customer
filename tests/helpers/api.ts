@@ -67,14 +67,18 @@ export async function del(path: string, token: string) {
 // Auth
 // ============================================================
 
-export async function getToken(email: string, password: string): Promise<string> {
+export async function getToken(
+	email: string,
+	password: string
+): Promise<string> {
 	const res = await fetch(`${BASE}/login`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ email, password })
 	});
-	const body = await res.json() as any;
-	if (!body.token) throw new Error(`Login failed for ${email}: ${JSON.stringify(body)}`);
+	const body = (await res.json()) as any;
+	if (!body.token)
+		throw new Error(`Login failed for ${email}: ${JSON.stringify(body)}`);
 	return body.token;
 }
 
@@ -88,20 +92,25 @@ export async function seedCompanyAndUser(suffix: string) {
 	const hash = await bcrypt.hash("TestPass123!", 10);
 	const email = `test-${suffix}-${Date.now()}@testco.local`;
 
-	const [company] = await sql`
+	const [company] = (await sql`
 		INSERT INTO companies (name) VALUES (${"TestCo-" + suffix})
 		RETURNING id
-	` as any[];
+	`) as any[];
 
-	const [user] = await sql`
+	const [user] = (await sql`
 		INSERT INTO users (email, password_hash, role, company_id)
 		VALUES (${email}, ${hash}, 'admin', ${company.id})
 		RETURNING id
-	` as any[];
+	`) as any[];
 
 	const token = await getToken(email, "TestPass123!");
 
-	return { companyId: company.id as string, userId: user.id as string, token, email };
+	return {
+		companyId: company.id as string,
+		userId: user.id as string,
+		token,
+		email
+	};
 }
 
 // ============================================================

@@ -183,6 +183,20 @@ export function createJob(fastify) {
         return reply.code(201).send({ job });
     });
 }
+export function getJob(fastify) {
+    fastify.get("/jobs/:jobId", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getAuthUser(request);
+        const dev = isDev(user);
+        const companyId = requireCompanyId(user);
+        const { jobId } = request.params;
+        const result = await query(`SELECT ${JOB_SELECT} FROM jobs
+			 WHERE id = $1
+			   AND ($2::boolean OR company_id = $3)`, [jobId, dev && !companyId, companyId]);
+        if (!result[0])
+            return reply.code(404).send({ error: "Job not found" });
+        return reply.send({ job: result[0] });
+    });
+}
 export function updateJobStatus(fastify) {
     fastify.put("/jobs/:jobId/status", async (request, reply) => {
         const user = getAuthUser(request);
