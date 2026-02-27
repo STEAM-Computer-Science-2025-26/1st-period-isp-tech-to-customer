@@ -58,15 +58,28 @@ export async function POST(request: NextRequest) {
 	const { companyId } = auth.user;
 
 	let body: any;
-	try { body = await request.json(); } catch {
+	try {
+		body = await request.json();
+	} catch {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
 	const {
-		customerId, agreementId, title, description, jobType,
-		skillsRequired = [], preferredTechId, frequency,
-		preferredTimeStart, preferredTimeEnd, preferredDays = [],
-		durationMinutes = 60, nextRunAt, advanceDays = 3, branchId
+		customerId,
+		agreementId,
+		title,
+		description,
+		jobType,
+		skillsRequired = [],
+		preferredTechId,
+		frequency,
+		preferredTimeStart,
+		preferredTimeEnd,
+		preferredDays = [],
+		durationMinutes = 60,
+		nextRunAt,
+		advanceDays = 3,
+		branchId
 	} = body;
 
 	if (!customerId || !title || !jobType || !frequency || !nextRunAt) {

@@ -49,20 +49,33 @@ export async function POST(request: NextRequest) {
 	const { companyId } = auth.user;
 
 	let body: any;
-	try { body = await request.json(); } catch {
+	try {
+		body = await request.json();
+	} catch {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
 	const {
-		name, weekdayStart = "17:00", weekdayEnd = "08:00",
-		weekendAllDay = true, holidayAllDay = true,
-		routingStrategy = "on_call_pool", onCallEmployeeIds = [],
-		surchargeFlatFlat = 0, surchargePercent = 0,
-		autoAccept = false, notifyManager = true, managerPhone, branchId
+		name,
+		weekdayStart = "17:00",
+		weekdayEnd = "08:00",
+		weekendAllDay = true,
+		holidayAllDay = true,
+		routingStrategy = "on_call_pool",
+		onCallEmployeeIds = [],
+		surchargeFlatFlat = 0,
+		surchargePercent = 0,
+		autoAccept = false,
+		notifyManager = true,
+		managerPhone,
+		branchId
 	} = body;
 
 	if (!name || !routingStrategy) {
-		return NextResponse.json({ error: "name and routingStrategy are required" }, { status: 400 });
+		return NextResponse.json(
+			{ error: "name and routingStrategy are required" },
+			{ status: 400 }
+		);
 	}
 
 	const sql = getSql();

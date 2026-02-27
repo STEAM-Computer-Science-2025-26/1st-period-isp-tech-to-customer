@@ -10,38 +10,50 @@ const orchestrator = new DispatchOrchestrator(techRepo, jobRepo);
 /**
  * Run dispatch for a job with metrics tracking
  */
-export async function runDispatchForJob(jobId, assignedByUserId, autoAssign = true) {
-    // Get job to extract company ID and priority for metrics
-    // Get job to extract company ID and priority for metrics
-    const job = await jobRepo.findById(jobId);
-    if (!job) {
-        throw new Error(`Job ${jobId} not found`);
-    }
-    const result = await orchestrator.dispatchJob(jobId, {
-        autoAssign,
-        assignedByUserId
-    });
-    metrics.recordDispatchResult(result.totalEligibleTechs, result.requiresManualDispatch, result.manualDispatchReason);
-    return result;
-    // Record dispatch results
-    metrics.recordDispatchResult(result.totalEligibleTechs, result.requiresManualDispatch, result.manualDispatchReason);
+export async function runDispatchForJob(
+	jobId,
+	assignedByUserId,
+	autoAssign = true
+) {
+	// Get job to extract company ID and priority for metrics
+	// Get job to extract company ID and priority for metrics
+	const job = await jobRepo.findById(jobId);
+	if (!job) {
+		throw new Error(`Job ${jobId} not found`);
+	}
+	const result = await orchestrator.dispatchJob(jobId, {
+		autoAssign,
+		assignedByUserId
+	});
+	metrics.recordDispatchResult(
+		result.totalEligibleTechs,
+		result.requiresManualDispatch,
+		result.manualDispatchReason
+	);
+	return result;
+	// Record dispatch results
+	metrics.recordDispatchResult(
+		result.totalEligibleTechs,
+		result.requiresManualDispatch,
+		result.manualDispatchReason
+	);
 }
 /**
  * Get dispatch recommendations without assigning
  */
 export async function getDispatchRecommendations(jobId) {
-    const job = await jobRepo.findById(jobId);
-    if (!job) {
-        throw new Error(`Job ${jobId} not found`);
-    }
-    const result = await orchestrator.dispatchJob(jobId, { autoAssign: false });
-    // Track eligible techs even for preview
-    // eligible techs metric not available; skip observing in preview
-    return result;
+	const job = await jobRepo.findById(jobId);
+	if (!job) {
+		throw new Error(`Job ${jobId} not found`);
+	}
+	const result = await orchestrator.dispatchJob(jobId, { autoAssign: false });
+	// Track eligible techs even for preview
+	// eligible techs metric not available; skip observing in preview
+	return result;
 }
 /**
  * Manually assign a job to a specific tech
  */
 export async function manualAssignJob(jobId, assignedByUserId, techId, reason) {
-    return orchestrator.manualAssign(jobId, techId, assignedByUserId, reason);
+	return orchestrator.manualAssign(jobId, techId, assignedByUserId, reason);
 }

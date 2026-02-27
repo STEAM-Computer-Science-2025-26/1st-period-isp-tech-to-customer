@@ -5,54 +5,41 @@
 //   2. Membership expiration checks + renewal reminders
 //   3. Auto-billing triggers for renewals
 //   4. Review request dispatch (post-job)
-
 import { getSql } from "@/db/connection";
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Frequency → days helper
 // ─────────────────────────────────────────────────────────────────────────────
-
-const FREQUENCY_DAYS: Record<string, number> = {
-	weekly: 7,
-	biweekly: 14,
-	monthly: 30,
-	bimonthly: 60,
-	quarterly: 90,
-	semiannual: 180,
-	annual: 365
+const FREQUENCY_DAYS = {
+    weekly: 7,
+    biweekly: 14,
+    monthly: 30,
+    bimonthly: 60,
+    quarterly: 90,
+    semiannual: 180,
+    annual: 365
 };
-
-function addDays(dateStr: string, days: number): string {
-	const d = new Date(dateStr);
-	d.setDate(d.getDate() + days);
-	return d.toISOString().split("T")[0];
+function addDays(dateStr, days) {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split("T")[0];
 }
-
-function today(): string {
-	return new Date().toISOString().split("T")[0];
+function today() {
+    return new Date().toISOString().split("T")[0];
 }
-
-function daysFromNow(days: number): string {
-	return addDays(today(), days);
+function daysFromNow(days) {
+    return addDays(today(), days);
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. RECURRING JOB CREATION
 //    Finds schedules where next_run_at <= today + advance_days
 //    and creates a job for each, then advances next_run_at.
 // ─────────────────────────────────────────────────────────────────────────────
-
-export async function processRecurringSchedules(): Promise<{
-	processed: number;
-	created: number;
-	errors: number;
-}> {
-	const sql = getSql();
-	let created = 0;
-	let errors = 0;
-
-	// Find all due schedules
-	const schedules = (await sql`
+export async function processRecurringSchedules() {
+    const sql = getSql();
+    let created = 0;
+    let errors = 0;
+    // Find all due schedules
+    const schedules = (await sql `
 		SELECT
 			r.*,
 			c.address, c.city, c.state, c.zip,
@@ -64,12 +51,11 @@ export async function processRecurringSchedules(): Promise<{
 		WHERE r.is_active = TRUE
 		  AND r.next_run_at <= NOW() + (r.advance_days || ' days')::interval
 		ORDER BY r.next_run_at ASC
-	`) as any[];
-
-	for (const schedule of schedules) {
-		try {
-			// Create the job
-			const [job] = (await sql`
+	`);
+    for (const schedule of schedules) {
+        try {
+            // Create the job
+            const [job] = (await sql `
 				INSERT INTO jobs (
 					company_id, branch_id, customer_id,
 					title, description, job_type,
@@ -100,14 +86,12 @@ export async function processRecurringSchedules(): Promise<{
 					${schedule.id}
 				)
 				RETURNING id
-			`) as any[];
-
-			// Advance next_run_at
-			const freq = schedule.frequency as string;
-			const days = FREQUENCY_DAYS[freq] ?? 30;
-			const nextRun = addDays(schedule.next_run_at, days);
-
-			await sql`
+			`);
+            // Advance next_run_at
+            const freq = schedule.frequency;
+            const days = FREQUENCY_DAYS[freq] ?? 30;
+            const nextRun = addDays(schedule.next_run_at, days);
+            await sql `
 				UPDATE recurring_job_schedules SET
 					last_run_at = ${schedule.next_run_at},
 					last_job_id = ${job.id},
@@ -115,38 +99,26 @@ export async function processRecurringSchedules(): Promise<{
 					updated_at = NOW()
 				WHERE id = ${schedule.id}
 			`;
-
-			created++;
-		} catch (err) {
-			console.error(
-				`[cron] Failed to create job for schedule ${schedule.id}:`,
-				err
-			);
-			errors++;
-		}
-	}
-
-	return { processed: schedules.length, created, errors };
+            created++;
+        }
+        catch (err) {
+            console.error(`[cron] Failed to create job for schedule ${schedule.id}:`, err);
+            errors++;
+        }
+    }
+    return { processed: schedules.length, created, errors };
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. MEMBERSHIP EXPIRATION: send renewal reminders 30 days before expiry
 // ─────────────────────────────────────────────────────────────────────────────
-
-export async function processMembershipRenewals(): Promise<{
-	reminded: number;
-	expired: number;
-	renewed: number;
-}> {
-	const sql = getSql();
-	let reminded = 0;
-	let expired = 0;
-	let renewed = 0;
-
-	const thirtyDaysOut = daysFromNow(30);
-
-	// Agreements expiring within 30 days that haven't been notified yet
-	const expiringSoon = (await sql`
+export async function processMembershipRenewals() {
+    const sql = getSql();
+    let reminded = 0;
+    let expired = 0;
+    let renewed = 0;
+    const thirtyDaysOut = daysFromNow(30);
+    // Agreements expiring within 30 days that haven't been notified yet
+    const expiringSoon = (await sql `
 		SELECT a.*, t.name AS tier_name, c.email, c.phone,
 		       c.first_name || ' ' || c.last_name AS customer_name
 		FROM maintenance_agreements a
@@ -155,46 +127,37 @@ export async function processMembershipRenewals(): Promise<{
 		WHERE a.status = 'active'
 		  AND a.expires_at <= ${thirtyDaysOut}
 		  AND a.renewal_notified_at IS NULL
-	`) as any[];
-
-	for (const agreement of expiringSoon) {
-		// TODO: Integrate SMS/email provider to send actual notification
-		// For now, log the notification and mark it sent
-		console.log(
-			`[cron] Renewal reminder: ${agreement.customer_name} — ${agreement.tier_name} expires ${agreement.expires_at}`
-		);
-
-		await sql`
+	`);
+    for (const agreement of expiringSoon) {
+        // TODO: Integrate SMS/email provider to send actual notification
+        // For now, log the notification and mark it sent
+        console.log(`[cron] Renewal reminder: ${agreement.customer_name} — ${agreement.tier_name} expires ${agreement.expires_at}`);
+        await sql `
 			UPDATE maintenance_agreements SET
 				renewal_notified_at = NOW(),
 				updated_at = NOW()
 			WHERE id = ${agreement.id}
 		`;
-
-		reminded++;
-	}
-
-	// Mark expired agreements
-	const expiredAgreements = (await sql`
+        reminded++;
+    }
+    // Mark expired agreements
+    const expiredAgreements = (await sql `
 		UPDATE maintenance_agreements SET
 			status = 'expired',
 			updated_at = NOW()
 		WHERE status = 'active'
 		  AND expires_at < ${today()}
 		RETURNING id, company_id, customer_id, tier_id, billing_cycle, price_locked, auto_renew
-	`) as any[];
-
-	expired = expiredAgreements.length;
-
-	// Auto-renew eligible agreements
-	for (const a of expiredAgreements) {
-		if (!a.auto_renew) continue;
-
-		try {
-			const newStart = today();
-			const newExpiry = daysFromNow(365);
-
-			const [renewed_agreement] = (await sql`
+	`);
+    expired = expiredAgreements.length;
+    // Auto-renew eligible agreements
+    for (const a of expiredAgreements) {
+        if (!a.auto_renew)
+            continue;
+        try {
+            const newStart = today();
+            const newExpiry = daysFromNow(365);
+            const [renewed_agreement] = (await sql `
 				INSERT INTO maintenance_agreements (
 					company_id, customer_id, tier_id, billing_cycle,
 					price_locked, starts_at, expires_at, auto_renew,
@@ -206,40 +169,31 @@ export async function processMembershipRenewals(): Promise<{
 					visits_allowed, 0
 				FROM maintenance_agreements WHERE id = ${a.id}
 				RETURNING id
-			`) as any[];
-
-			// Queue a billing trigger for the renewal
-			await sql`
+			`);
+            // Queue a billing trigger for the renewal
+            await sql `
 				INSERT INTO billing_trigger_log (
 					company_id, agreement_id, trigger_type, status
 				) VALUES (
 					${a.company_id}, ${renewed_agreement.id}, 'agreement_renewal', 'pending'
 				)
 			`;
-
-			renewed++;
-		} catch (err) {
-			console.error(`[cron] Auto-renew failed for agreement ${a.id}:`, err);
-		}
-	}
-
-	return { reminded, expired, renewed };
+            renewed++;
+        }
+        catch (err) {
+            console.error(`[cron] Auto-renew failed for agreement ${a.id}:`, err);
+        }
+    }
+    return { reminded, expired, renewed };
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. AUTO-BILLING: process pending billing triggers
 // ─────────────────────────────────────────────────────────────────────────────
-
-export async function processBillingTriggers(): Promise<{
-	processed: number;
-	invoiced: number;
-	failed: number;
-}> {
-	const sql = getSql();
-	let invoiced = 0;
-	let failed = 0;
-
-	const pending = (await sql`
+export async function processBillingTriggers() {
+    const sql = getSql();
+    let invoiced = 0;
+    let failed = 0;
+    const pending = (await sql `
 		SELECT b.*, a.customer_id, a.price_locked, a.billing_cycle, a.company_id
 		FROM billing_trigger_log b
 		JOIN maintenance_agreements a ON a.id = b.agreement_id
@@ -247,17 +201,14 @@ export async function processBillingTriggers(): Promise<{
 		  AND b.trigger_type = 'agreement_renewal'
 		ORDER BY b.triggered_at ASC
 		LIMIT 50
-	`) as any[];
-
-	for (const trigger of pending) {
-		try {
-			// Generate invoice number: INV-YYYY-NNNNN
-			const year = new Date().getFullYear();
-			const seqResult =
-				(await sql`SELECT nextval('invoice_number_seq') AS seq`) as any[];
-			const invoiceNumber = `INV-${year}-${String(seqResult[0].seq).padStart(5, "0")}`;
-
-			const [invoice] = (await sql`
+	`);
+    for (const trigger of pending) {
+        try {
+            // Generate invoice number: INV-YYYY-NNNNN
+            const year = new Date().getFullYear();
+            const seqResult = (await sql `SELECT nextval('invoice_number_seq') AS seq`);
+            const invoiceNumber = `INV-${year}-${String(seqResult[0].seq).padStart(5, "0")}`;
+            const [invoice] = (await sql `
 				INSERT INTO invoices (
 					company_id, customer_id, agreement_id,
 					invoice_number, status,
@@ -277,10 +228,9 @@ export async function processBillingTriggers(): Promise<{
 					TRUE
 				)
 				RETURNING id
-			`) as any[];
-
-			// Insert the single line item into invoice_line_items
-			await sql`
+			`);
+            // Insert the single line item into invoice_line_items
+            await sql `
 				INSERT INTO invoice_line_items (
 					invoice_id, item_type, name, quantity, unit_price, taxable, sort_order
 				) VALUES (
@@ -293,43 +243,38 @@ export async function processBillingTriggers(): Promise<{
 					0
 				)
 			`;
-
-			await sql`
+            await sql `
 				UPDATE billing_trigger_log SET
 					status = 'success',
 					invoice_id = ${invoice.id},
 					processed_at = NOW()
 				WHERE id = ${trigger.id}
 			`;
-
-			invoiced++;
-		} catch (err) {
-			console.error(`[cron] Billing trigger failed ${trigger.id}:`, err);
-			await sql`
+            invoiced++;
+        }
+        catch (err) {
+            console.error(`[cron] Billing trigger failed ${trigger.id}:`, err);
+            await sql `
 				UPDATE billing_trigger_log SET
 					status = 'failed',
 					error_message = ${String(err)},
 					processed_at = NOW()
 				WHERE id = ${trigger.id}
 			`;
-			failed++;
-		}
-	}
-
-	return { processed: pending.length, invoiced, failed };
+            failed++;
+        }
+    }
+    return { processed: pending.length, invoiced, failed };
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. REVIEW REQUEST DISPATCH
 //    Schedule review requests 2 hours after job completion.
 //    The actual send happens via SMS/email provider (stub here).
 // ─────────────────────────────────────────────────────────────────────────────
-
-export async function scheduleReviewRequests(): Promise<{ scheduled: number }> {
-	const sql = getSql();
-
-	// Find completed jobs in last 24h that don't have a review request yet
-	const completedJobs = (await sql`
+export async function scheduleReviewRequests() {
+    const sql = getSql();
+    // Find completed jobs in last 24h that don't have a review request yet
+    const completedJobs = (await sql `
 		SELECT j.id, j.company_id, j.customer_id, j.completed_at,
 		       c.phone, c.email
 		FROM jobs j
@@ -340,14 +285,12 @@ export async function scheduleReviewRequests(): Promise<{ scheduled: number }> {
 		      SELECT 1 FROM review_requests r WHERE r.job_id = j.id
 		  )
 		  AND (c.phone IS NOT NULL OR c.email IS NOT NULL)
-	`) as any[];
-
-	for (const job of completedJobs) {
-		const channel = job.phone ? "sms" : "email";
-		const scheduledFor = new Date(job.completed_at);
-		scheduledFor.setHours(scheduledFor.getHours() + 2);
-
-		await sql`
+	`);
+    for (const job of completedJobs) {
+        const channel = job.phone ? "sms" : "email";
+        const scheduledFor = new Date(job.completed_at);
+        scheduledFor.setHours(scheduledFor.getHours() + 2);
+        await sql `
 			INSERT INTO review_requests (
 				company_id, job_id, customer_id, channel, scheduled_for, review_platform
 			) VALUES (
@@ -355,20 +298,14 @@ export async function scheduleReviewRequests(): Promise<{ scheduled: number }> {
 				${channel}, ${scheduledFor.toISOString()}, 'google'
 			)
 		`;
-	}
-
-	return { scheduled: completedJobs.length };
+    }
+    return { scheduled: completedJobs.length };
 }
-
-export async function dispatchPendingReviewRequests(): Promise<{
-	sent: number;
-	failed: number;
-}> {
-	const sql = getSql();
-	let sent = 0;
-	let failed = 0;
-
-	const due = (await sql`
+export async function dispatchPendingReviewRequests() {
+    const sql = getSql();
+    let sent = 0;
+    let failed = 0;
+    const due = (await sql `
 		SELECT r.*, c.phone, c.email, c.first_name,
 		       comp.name AS company_name
 		FROM review_requests r
@@ -378,62 +315,49 @@ export async function dispatchPendingReviewRequests(): Promise<{
 		  AND r.scheduled_for <= NOW()
 		ORDER BY r.scheduled_for ASC
 		LIMIT 100
-	`) as any[];
-
-	for (const req of due) {
-		try {
-			// TODO: Integrate Twilio / SendGrid here
-			// const message = buildReviewMessage(req);
-			// await sendSms(req.phone, message) or sendEmail(req.email, message)
-			console.log(
-				`[review] Sending ${req.channel} review request to customer ${req.customer_id} for job ${req.job_id}`
-			);
-
-			await sql`
+	`);
+    for (const req of due) {
+        try {
+            // TODO: Integrate Twilio / SendGrid here
+            // const message = buildReviewMessage(req);
+            // await sendSms(req.phone, message) or sendEmail(req.email, message)
+            console.log(`[review] Sending ${req.channel} review request to customer ${req.customer_id} for job ${req.job_id}`);
+            await sql `
 				UPDATE review_requests SET
 					status = 'sent',
 					sent_at = NOW(),
 					updated_at = NOW()
 				WHERE id = ${req.id}
 			`;
-			sent++;
-		} catch (err) {
-			console.error(`[review] Failed to send request ${req.id}:`, err);
-			await sql`
+            sent++;
+        }
+        catch (err) {
+            console.error(`[review] Failed to send request ${req.id}:`, err);
+            await sql `
 				UPDATE review_requests SET status = 'failed', updated_at = NOW()
 				WHERE id = ${req.id}
 			`;
-			failed++;
-		}
-	}
-
-	return { sent, failed };
+            failed++;
+        }
+    }
+    return { sent, failed };
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // MASTER RUNNER — called by /api/cron/run
 // ─────────────────────────────────────────────────────────────────────────────
-
 export async function runAllCronJobs() {
-	const results: Record<string, any> = {};
-
-	console.log("[cron] Starting cron run...");
-
-	results.recurringJobs = await processRecurringSchedules();
-	console.log("[cron] Recurring jobs:", results.recurringJobs);
-
-	results.membershipRenewals = await processMembershipRenewals();
-	console.log("[cron] Membership renewals:", results.membershipRenewals);
-
-	results.billingTriggers = await processBillingTriggers();
-	console.log("[cron] Billing triggers:", results.billingTriggers);
-
-	results.reviewRequests = await scheduleReviewRequests();
-	console.log("[cron] Review request scheduling:", results.reviewRequests);
-
-	results.reviewDispatch = await dispatchPendingReviewRequests();
-	console.log("[cron] Review dispatch:", results.reviewDispatch);
-
-	console.log("[cron] Run complete.");
-	return results;
+    const results = {};
+    console.log("[cron] Starting cron run...");
+    results.recurringJobs = await processRecurringSchedules();
+    console.log("[cron] Recurring jobs:", results.recurringJobs);
+    results.membershipRenewals = await processMembershipRenewals();
+    console.log("[cron] Membership renewals:", results.membershipRenewals);
+    results.billingTriggers = await processBillingTriggers();
+    console.log("[cron] Billing triggers:", results.billingTriggers);
+    results.reviewRequests = await scheduleReviewRequests();
+    console.log("[cron] Review request scheduling:", results.reviewRequests);
+    results.reviewDispatch = await dispatchPendingReviewRequests();
+    console.log("[cron] Review dispatch:", results.reviewDispatch);
+    console.log("[cron] Run complete.");
+    return results;
 }

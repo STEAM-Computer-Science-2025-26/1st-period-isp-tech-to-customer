@@ -23,9 +23,9 @@ const mockGetSql = getSql as jest.Mock;
  */
 function makeSqlMock(responses: unknown[][]) {
 	let i = 0;
-	const fn = jest.fn().mockImplementation(() =>
-		Promise.resolve(responses[i++] ?? [])
-	);
+	const fn = jest
+		.fn()
+		.mockImplementation(() => Promise.resolve(responses[i++] ?? []));
 	mockGetSql.mockReturnValue(fn);
 	return fn;
 }
@@ -46,7 +46,17 @@ describe("triggerEscalation", () => {
 
 	test("returns triggered=false for completed job", async () => {
 		makeSqlMock([
-			[{ id: "j1", company_id: "co-1", branch_id: null, description: "AC repair", job_type: "repair", priority: "normal", status: "completed" }]
+			[
+				{
+					id: "j1",
+					company_id: "co-1",
+					branch_id: null,
+					description: "AC repair",
+					job_type: "repair",
+					priority: "normal",
+					status: "completed"
+				}
+			]
 		]);
 		const result = await triggerEscalation("j1");
 		expect(result.triggered).toBe(false);
@@ -55,7 +65,17 @@ describe("triggerEscalation", () => {
 
 	test("returns triggered=false for cancelled job", async () => {
 		makeSqlMock([
-			[{ id: "j1", company_id: "co-1", branch_id: null, description: "", job_type: "repair", priority: "normal", status: "cancelled" }]
+			[
+				{
+					id: "j1",
+					company_id: "co-1",
+					branch_id: null,
+					description: "",
+					job_type: "repair",
+					priority: "normal",
+					status: "cancelled"
+				}
+			]
 		]);
 		const result = await triggerEscalation("j1");
 		expect(result.triggered).toBe(false);
@@ -65,7 +85,17 @@ describe("triggerEscalation", () => {
 	test("returns triggered=false when escalation already active", async () => {
 		makeSqlMock([
 			// jobs query
-			[{ id: "j1", company_id: "co-1", branch_id: null, description: "no heat", job_type: "repair", priority: "emergency", status: "unassigned" }],
+			[
+				{
+					id: "j1",
+					company_id: "co-1",
+					branch_id: null,
+					description: "no heat",
+					job_type: "repair",
+					priority: "emergency",
+					status: "unassigned"
+				}
+			],
 			// existing active events query → found
 			[{ id: "evt-existing" }]
 		]);
@@ -78,11 +108,28 @@ describe("triggerEscalation", () => {
 	test("returns triggered=false when no matching policy", async () => {
 		makeSqlMock([
 			// jobs query
-			[{ id: "j1", company_id: "co-1", branch_id: null, description: "routine filter change", job_type: "maintenance", priority: "normal", status: "unassigned" }],
+			[
+				{
+					id: "j1",
+					company_id: "co-1",
+					branch_id: null,
+					description: "routine filter change",
+					job_type: "maintenance",
+					priority: "normal",
+					status: "unassigned"
+				}
+			],
 			// no existing events
 			[],
 			// policies — exists but keyword won't match "routine filter change"
-			[{ id: "pol-1", name: "Emergency", trigger_conditions: { keywords: ["no heat", "flooding"] }, steps: [] }]
+			[
+				{
+					id: "pol-1",
+					name: "Emergency",
+					trigger_conditions: { keywords: ["no heat", "flooding"] },
+					steps: []
+				}
+			]
 		]);
 		const result = await triggerEscalation("j1");
 		expect(result.triggered).toBe(false);
@@ -92,11 +139,28 @@ describe("triggerEscalation", () => {
 	test("triggers when job description matches policy keyword", async () => {
 		makeSqlMock([
 			// jobs query
-			[{ id: "j1", company_id: "co-1", branch_id: null, description: "customer says no heat at all", job_type: "repair", priority: "normal", status: "unassigned" }],
+			[
+				{
+					id: "j1",
+					company_id: "co-1",
+					branch_id: null,
+					description: "customer says no heat at all",
+					job_type: "repair",
+					priority: "normal",
+					status: "unassigned"
+				}
+			],
 			// no existing events
 			[],
 			// matching policy
-			[{ id: "pol-1", name: "No Heat", trigger_conditions: { keywords: ["no heat"] }, steps: [{ delayMinutes: 0, notify: ["manager"], channel: "sms" }] }],
+			[
+				{
+					id: "pol-1",
+					name: "No Heat",
+					trigger_conditions: { keywords: ["no heat"] },
+					steps: [{ delayMinutes: 0, notify: ["manager"], channel: "sms" }]
+				}
+			],
 			// INSERT RETURNING id
 			[{ id: "evt-new" }],
 			// executeEscalationStep UPDATE notification_log
@@ -109,9 +173,26 @@ describe("triggerEscalation", () => {
 
 	test("triggers when job priority matches policy", async () => {
 		makeSqlMock([
-			[{ id: "j2", company_id: "co-1", branch_id: null, description: "routine call", job_type: "inspection", priority: "emergency", status: "unassigned" }],
+			[
+				{
+					id: "j2",
+					company_id: "co-1",
+					branch_id: null,
+					description: "routine call",
+					job_type: "inspection",
+					priority: "emergency",
+					status: "unassigned"
+				}
+			],
 			[],
-			[{ id: "pol-2", name: "Emergency Priority", trigger_conditions: { priority: ["emergency"] }, steps: [{ delayMinutes: 0, notify: ["dispatcher"], channel: "call" }] }],
+			[
+				{
+					id: "pol-2",
+					name: "Emergency Priority",
+					trigger_conditions: { priority: ["emergency"] },
+					steps: [{ delayMinutes: 0, notify: ["dispatcher"], channel: "call" }]
+				}
+			],
 			[{ id: "evt-2" }],
 			[]
 		]);
@@ -122,10 +203,27 @@ describe("triggerEscalation", () => {
 
 	test("triggers when no conditions set (catch-all policy)", async () => {
 		makeSqlMock([
-			[{ id: "j3", company_id: "co-1", branch_id: null, description: "anything", job_type: "repair", priority: "low", status: "unassigned" }],
+			[
+				{
+					id: "j3",
+					company_id: "co-1",
+					branch_id: null,
+					description: "anything",
+					job_type: "repair",
+					priority: "low",
+					status: "unassigned"
+				}
+			],
 			[],
 			// Empty conditions object = match everything
-			[{ id: "pol-3", name: "Catch-all", trigger_conditions: {}, steps: [{ delayMinutes: 0, notify: ["admin"], channel: "email" }] }],
+			[
+				{
+					id: "pol-3",
+					name: "Catch-all",
+					trigger_conditions: {},
+					steps: [{ delayMinutes: 0, notify: ["admin"], channel: "email" }]
+				}
+			],
 			[{ id: "evt-3" }],
 			[]
 		]);
@@ -149,13 +247,17 @@ describe("advanceEscalations", () => {
 	test("times out an event that has no more steps to advance to", async () => {
 		makeSqlMock([
 			// active events — current_step=0, steps=[one step only]
-			[{
-				id: "evt-1",
-				current_step: 0,
-				triggered_at: new Date(Date.now() - 30 * 60000).toISOString(),
-				notification_log: [{ sentAt: new Date(Date.now() - 25 * 60000).toISOString() }],
-				steps: [{ delayMinutes: 0, notify: ["tech"], channel: "sms" }] // only 1 step, nextStepIndex=1 >= length=1
-			}],
+			[
+				{
+					id: "evt-1",
+					current_step: 0,
+					triggered_at: new Date(Date.now() - 30 * 60000).toISOString(),
+					notification_log: [
+						{ sentAt: new Date(Date.now() - 25 * 60000).toISOString() }
+					],
+					steps: [{ delayMinutes: 0, notify: ["tech"], channel: "sms" }] // only 1 step, nextStepIndex=1 >= length=1
+				}
+			],
 			// UPDATE timed_out
 			[]
 		]);
@@ -167,16 +269,20 @@ describe("advanceEscalations", () => {
 	test("does NOT advance when delay has not yet elapsed", async () => {
 		// notification was sent 2 minutes ago, next step needs 15 minutes
 		makeSqlMock([
-			[{
-				id: "evt-1",
-				current_step: 0,
-				triggered_at: new Date(Date.now() - 5 * 60000).toISOString(),
-				notification_log: [{ sentAt: new Date(Date.now() - 2 * 60000).toISOString() }],
-				steps: [
-					{ delayMinutes: 0, notify: ["tech"], channel: "sms" },
-					{ delayMinutes: 15, notify: ["manager"], channel: "call" }
-				]
-			}]
+			[
+				{
+					id: "evt-1",
+					current_step: 0,
+					triggered_at: new Date(Date.now() - 5 * 60000).toISOString(),
+					notification_log: [
+						{ sentAt: new Date(Date.now() - 2 * 60000).toISOString() }
+					],
+					steps: [
+						{ delayMinutes: 0, notify: ["tech"], channel: "sms" },
+						{ delayMinutes: 15, notify: ["manager"], channel: "call" }
+					]
+				}
+			]
 			// No more SQL calls expected
 		]);
 		const result = await advanceEscalations();
@@ -187,16 +293,20 @@ describe("advanceEscalations", () => {
 	test("advances step when delay has elapsed", async () => {
 		// notification was sent 20 minutes ago, next step needs 15 minutes
 		makeSqlMock([
-			[{
-				id: "evt-1",
-				current_step: 0,
-				triggered_at: new Date(Date.now() - 25 * 60000).toISOString(),
-				notification_log: [{ sentAt: new Date(Date.now() - 20 * 60000).toISOString() }],
-				steps: [
-					{ delayMinutes: 0, notify: ["tech"], channel: "sms" },
-					{ delayMinutes: 15, notify: ["manager"], channel: "call" }
-				]
-			}],
+			[
+				{
+					id: "evt-1",
+					current_step: 0,
+					triggered_at: new Date(Date.now() - 25 * 60000).toISOString(),
+					notification_log: [
+						{ sentAt: new Date(Date.now() - 20 * 60000).toISOString() }
+					],
+					steps: [
+						{ delayMinutes: 0, notify: ["tech"], channel: "sms" },
+						{ delayMinutes: 15, notify: ["manager"], channel: "call" }
+					]
+				}
+			],
 			// executeEscalationStep UPDATE notification_log
 			[],
 			// UPDATE current_step
@@ -216,7 +326,9 @@ describe("advanceEscalations", () => {
 					id: "evt-a",
 					current_step: 0,
 					triggered_at: new Date(now - 60 * 60000).toISOString(),
-					notification_log: [{ sentAt: new Date(now - 60 * 60000).toISOString() }],
+					notification_log: [
+						{ sentAt: new Date(now - 60 * 60000).toISOString() }
+					],
 					steps: [{ delayMinutes: 0, notify: ["tech"], channel: "sms" }]
 				},
 				// Event 2: delay elapsed, will advance
@@ -224,7 +336,9 @@ describe("advanceEscalations", () => {
 					id: "evt-b",
 					current_step: 0,
 					triggered_at: new Date(now - 30 * 60000).toISOString(),
-					notification_log: [{ sentAt: new Date(now - 25 * 60000).toISOString() }],
+					notification_log: [
+						{ sentAt: new Date(now - 25 * 60000).toISOString() }
+					],
 					steps: [
 						{ delayMinutes: 0, notify: ["tech"], channel: "sms" },
 						{ delayMinutes: 20, notify: ["manager"], channel: "call" }
@@ -233,7 +347,7 @@ describe("advanceEscalations", () => {
 			],
 			[], // timed_out UPDATE for evt-a
 			[], // notification_log UPDATE for evt-b
-			[]  // current_step UPDATE for evt-b
+			[] // current_step UPDATE for evt-b
 		]);
 		const result = await advanceEscalations();
 		expect(result.timedOut).toBe(1);
@@ -261,8 +375,6 @@ describe("resolveEscalation", () => {
 		const sqlFn = jest.fn().mockResolvedValue([]);
 		mockGetSql.mockReturnValue(sqlFn);
 
-		await expect(
-			resolveEscalation("evt-2", "user-2")
-		).resolves.toBeUndefined();
+		await expect(resolveEscalation("evt-2", "user-2")).resolves.toBeUndefined();
 	});
 });

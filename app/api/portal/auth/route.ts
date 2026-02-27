@@ -11,7 +11,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
 	let body: any;
-	try { body = await request.json(); } catch {
+	try {
+		body = await request.json();
+	} catch {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
@@ -28,20 +30,23 @@ export async function POST(request: NextRequest) {
 
 	// Look up customer
 	const customers = email
-		? (await sql`
+		? await sql`
 			SELECT id, first_name, email, phone FROM customers
 			WHERE email = ${email} AND company_id = ${companyId} AND is_active = TRUE
 			LIMIT 1
-		`)
-		: (await sql`
+		`
+		: await sql`
 			SELECT id, first_name, email, phone FROM customers
 			WHERE phone = ${phone} AND company_id = ${companyId} AND is_active = TRUE
 			LIMIT 1
-		`);
+		`;
 
 	// Always return 200 to avoid customer enumeration
 	if ((customers as any[]).length === 0) {
-		return NextResponse.json({ ok: true, message: "If an account exists, a login link has been sent." });
+		return NextResponse.json({
+			ok: true,
+			message: "If an account exists, a login link has been sent."
+		});
 	}
 
 	const customer = (customers as any[])[0];

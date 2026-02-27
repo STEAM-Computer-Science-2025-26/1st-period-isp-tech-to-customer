@@ -60,14 +60,20 @@ export async function POST(request: NextRequest) {
 	const { companyId } = auth.user;
 
 	let body: any;
-	try { body = await request.json(); } catch {
+	try {
+		body = await request.json();
+	} catch {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
 	const {
-		customerId, agreementId, jobId,
-		lineItems = [], taxRate = 0,
-		dueDate, notes
+		customerId,
+		agreementId,
+		jobId,
+		lineItems = [],
+		taxRate = 0,
+		dueDate,
+		notes
 	} = body;
 
 	if (!customerId || lineItems.length === 0) {
@@ -78,7 +84,8 @@ export async function POST(request: NextRequest) {
 	}
 
 	const subtotal = lineItems.reduce(
-		(sum: number, item: any) => sum + item.quantity * item.unitPrice, 0
+		(sum: number, item: any) => sum + item.quantity * item.unitPrice,
+		0
 	);
 	const taxableAmount = lineItems
 		.filter((li: any) => li.taxable !== false)
@@ -112,7 +119,7 @@ export async function POST(request: NextRequest) {
 				quantity, unit_price, unit_cost, taxable, sort_order
 			) VALUES (
 				${invoice.id},
-				${li.itemType ?? 'custom'},
+				${li.itemType ?? "custom"},
 				${li.name},
 				${li.description ?? null},
 				${li.quantity},

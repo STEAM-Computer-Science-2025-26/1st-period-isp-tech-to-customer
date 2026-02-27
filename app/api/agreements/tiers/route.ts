@@ -45,14 +45,21 @@ export async function POST(request: NextRequest) {
 	const { companyId } = auth.user;
 
 	let body: any;
-	try { body = await request.json(); } catch {
+	try {
+		body = await request.json();
+	} catch {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
 	const {
-		name, description, priceMonthly, priceAnnual,
-		billingCycle = "annual", includedVisits = 1,
-		discountPercent = 0, priorityDispatch = false,
+		name,
+		description,
+		priceMonthly,
+		priceAnnual,
+		billingCycle = "annual",
+		includedVisits = 1,
+		discountPercent = 0,
+		priorityDispatch = false,
 		includedServices = []
 	} = body;
 

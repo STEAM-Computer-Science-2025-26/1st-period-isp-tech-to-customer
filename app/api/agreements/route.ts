@@ -68,7 +68,15 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
-	const { customerId, tierId, billingCycle = "annual", startsAt, autoRenew = true, notes, branchId } = body;
+	const {
+		customerId,
+		tierId,
+		billingCycle = "annual",
+		startsAt,
+		autoRenew = true,
+		notes,
+		branchId
+	} = body;
 
 	if (!customerId || !tierId || !startsAt) {
 		return NextResponse.json(
@@ -90,7 +98,8 @@ export async function POST(request: NextRequest) {
 	}
 
 	const tier = tiers[0] as any;
-	const priceLocked = billingCycle === "monthly" ? tier.price_monthly : tier.price_annual;
+	const priceLocked =
+		billingCycle === "monthly" ? tier.price_monthly : tier.price_annual;
 
 	if (!priceLocked) {
 		return NextResponse.json(

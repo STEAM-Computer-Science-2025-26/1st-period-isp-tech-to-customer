@@ -11,6 +11,7 @@
 		"build:frontend": "node -e \"const {execSync}=require('child_process');try{execSync('pnpm exec prettier . --check',{stdio:'inherit'});}catch(e){execSync('pnpm exec prettier . --write',{stdio:'inherit'});}execSync('pnpm exec next build',{stdio:'inherit'});\"",
 		"build:backend": "tsc -p tsconfig.backend.json",
 		"start": "next start",
+		"test": "jest --runInBand",
 		"format": "pnpm exec prettier . --write",
 		"lint": "eslint . -f  ./eslint.formatter.js && pnpm exec prettier . --check",
 		"lint:auto-format": "eslint . -f ./eslint.formatter.js --fix && node -e \"const {execSync}=require('child_process');try{execSync('pnpm exec prettier . --check',{stdio:'inherit'});}catch(e){execSync('pnpm exec prettier . --write',{stdio:'inherit'});}\"",

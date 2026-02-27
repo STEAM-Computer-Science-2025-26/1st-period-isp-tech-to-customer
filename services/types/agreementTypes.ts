@@ -22,14 +22,22 @@ export interface MaintenanceTier {
 	updatedAt: string;
 }
 
-export type CreateTierInput = Omit<MaintenanceTier, "id" | "createdAt" | "updatedAt">;
+export type CreateTierInput = Omit<
+	MaintenanceTier,
+	"id" | "createdAt" | "updatedAt"
+>;
 export type UpdateTierInput = Partial<CreateTierInput>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Maintenance Agreements
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type AgreementStatus = "active" | "pending" | "expired" | "cancelled" | "suspended";
+export type AgreementStatus =
+	| "active"
+	| "pending"
+	| "expired"
+	| "cancelled"
+	| "suspended";
 
 export interface MaintenanceAgreement {
 	id: string;
@@ -40,8 +48,8 @@ export interface MaintenanceAgreement {
 	status: AgreementStatus;
 	billingCycle: "monthly" | "annual";
 	priceLocked: number;
-	startsAt: string;   // ISO date
-	expiresAt: string;  // ISO date
+	startsAt: string; // ISO date
+	expiresAt: string; // ISO date
 	autoRenew: boolean;
 	renewalNotifiedAt?: string | null;
 	visitsUsed: number;
@@ -132,7 +140,13 @@ export interface CreateRecurringScheduleInput {
 // Invoices
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "void" | "refunded";
+export type InvoiceStatus =
+	| "draft"
+	| "sent"
+	| "paid"
+	| "overdue"
+	| "void"
+	| "refunded";
 
 export interface LineItem {
 	description: string;
@@ -180,7 +194,12 @@ export interface CreateInvoiceInput {
 // Booking Requests (Customer Portal)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type BookingRequestStatus = "pending" | "confirmed" | "declined" | "cancelled" | "converted";
+export type BookingRequestStatus =
+	| "pending"
+	| "confirmed"
+	| "declined"
+	| "cancelled"
+	| "converted";
 
 export interface BookingRequest {
 	id: string;
@@ -221,7 +240,13 @@ export interface CreateBookingRequestInput {
 // Review Requests
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type ReviewRequestStatus = "pending" | "sent" | "clicked" | "reviewed" | "opted_out" | "failed";
+export type ReviewRequestStatus =
+	| "pending"
+	| "sent"
+	| "clicked"
+	| "reviewed"
+	| "opted_out"
+	| "failed";
 
 export interface ReviewRequest {
 	id: string;
@@ -243,7 +268,11 @@ export interface ReviewRequest {
 // After-Hours Rules
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type RoutingStrategy = "on_call_pool" | "specific_tech" | "escalate_immediately" | "voicemail_queue";
+export type RoutingStrategy =
+	| "on_call_pool"
+	| "specific_tech"
+	| "escalate_immediately"
+	| "voicemail_queue";
 
 export interface AfterHoursRule {
 	id: string;
@@ -251,8 +280,8 @@ export interface AfterHoursRule {
 	branchId?: string | null;
 	name: string;
 	isActive: boolean;
-	weekdayStart: string;  // HH:MM
-	weekdayEnd: string;    // HH:MM
+	weekdayStart: string; // HH:MM
+	weekdayEnd: string; // HH:MM
 	weekendAllDay: boolean;
 	holidayAllDay: boolean;
 	routingStrategy: RoutingStrategy;
@@ -288,14 +317,14 @@ export interface CreateAfterHoursRuleInput {
 
 export interface EscalationStep {
 	delayMinutes: number;
-	notify: string[];      // role names or employee IDs
+	notify: string[]; // role names or employee IDs
 	channel: "sms" | "call" | "email" | "push";
 	message?: string;
 }
 
 export interface EscalationTriggerConditions {
-	keywords?: string[];   // match job description/type
-	priority?: string[];   // job priority levels
+	keywords?: string[]; // match job description/type
+	priority?: string[]; // job priority levels
 	jobTypes?: string[];
 }
 
@@ -311,7 +340,11 @@ export interface EscalationPolicy {
 	updatedAt: string;
 }
 
-export type EscalationEventStatus = "active" | "resolved" | "cancelled" | "timed_out";
+export type EscalationEventStatus =
+	| "active"
+	| "resolved"
+	| "cancelled"
+	| "timed_out";
 
 export interface EscalationEvent {
 	id: string;

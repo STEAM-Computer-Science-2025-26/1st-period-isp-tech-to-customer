@@ -1,8 +1,3 @@
-// app/api/agreements/[id]/route.ts
-// GET   /api/agreements/:id          — get single agreement
-// PATCH /api/agreements/:id          — update (cancel, suspend, toggle auto-renew)
-// POST  /api/agreements/:id/renew    — manual renewal
-
 import { NextRequest, NextResponse } from "next/server";
 import { getSql } from "@/db/connection";
 import { requireAuth } from "@/lib/apiAuth";
@@ -12,28 +7,31 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
 	request: NextRequest,
-	{ params }: { params: { id: string } }
+	context: { params: Promise<{ id: string }> }
 ) {
+	const { id } = await context.params;
+
 	const auth = await requireAuth(request);
 	if (!auth.ok) return auth.response;
+
 	const { companyId } = auth.user;
 	const sql = getSql();
 
 	const rows = await sql`
-		SELECT
-			a.*,
-			t.name               AS "tierName",
-			t.included_services  AS "includedServices",
-			t.discount_percent   AS "discountPercent",
-			t.priority_dispatch  AS "priorityDispatch",
-			c.first_name || ' ' || c.last_name AS "customerName",
-			c.email              AS "customerEmail",
-			c.phone              AS "customerPhone"
-		FROM maintenance_agreements a
-		JOIN maintenance_agreement_tiers t ON t.id = a.tier_id
-		JOIN customers c ON c.id = a.customer_id
-		WHERE a.id = ${params.id} AND a.company_id = ${companyId}
-	`;
+    SELECT
+      a.*,
+      t.name               AS "tierName",
+      t.included_services  AS "includedServices",
+      t.discount_percent   AS "discountPercent",
+      t.priority_dispatch  AS "priorityDispatch",
+      c.first_name || ' ' || c.last_name AS "customerName",
+      c.email              AS "customerEmail",
+      c.phone              AS "customerPhone"
+    FROM maintenance_agreements a
+    JOIN maintenance_agreement_tiers t ON t.id = a.tier_id
+    JOIN customers c ON c.id = a.customer_id
+    WHERE a.id = ${id} AND a.company_id = ${companyId}
+  `;
 
 	if (rows.length === 0) {
 		return NextResponse.json({ error: "Agreement not found" }, { status: 404 });
@@ -44,24 +42,28 @@ export async function GET(
 
 export async function PATCH(
 	request: NextRequest,
-	{ params }: { params: { id: string } }
+	context: { params: Promise<{ id: string }> }
 ) {
+	const { id } = await context.params;
+
 	const auth = await requireAuth(request);
 	if (!auth.ok) return auth.response;
+
 	const { companyId } = auth.user;
 
 	let body: any;
-	try { body = await request.json(); } catch {
+	try {
+		body = await request.json();
+	} catch {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
 	const sql = getSql();
 
-	// Verify ownership
 	const existing = await sql`
-		SELECT id, status FROM maintenance_agreements
-		WHERE id = ${params.id} AND company_id = ${companyId}
-	`;
+    SELECT id, status FROM maintenance_agreements
+    WHERE id = ${id} AND company_id = ${companyId}
+  `;
 	if (existing.length === 0) {
 		return NextResponse.json({ error: "Agreement not found" }, { status: 404 });
 	}
@@ -70,55 +72,54 @@ export async function PATCH(
 
 	if (action === "cancel") {
 		const updated = await sql`
-			UPDATE maintenance_agreements SET
-				status = 'cancelled',
-				cancelled_at = NOW(),
-				cancellation_reason = ${reason ?? null},
-				updated_at = NOW()
-			WHERE id = ${params.id}
-			RETURNING *
-		`;
+      UPDATE maintenance_agreements SET
+        status = 'cancelled',
+        cancelled_at = NOW(),
+        cancellation_reason = ${reason ?? null},
+        updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 		return NextResponse.json({ agreement: updated[0] });
 	}
 
 	if (action === "suspend") {
 		const updated = await sql`
-			UPDATE maintenance_agreements SET
-				status = 'suspended', updated_at = NOW()
-			WHERE id = ${params.id}
-			RETURNING *
-		`;
+      UPDATE maintenance_agreements SET
+        status = 'suspended',
+        updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 		return NextResponse.json({ agreement: updated[0] });
 	}
 
 	if (action === "reactivate") {
 		const updated = await sql`
-			UPDATE maintenance_agreements SET
-				status = 'active', updated_at = NOW()
-			WHERE id = ${params.id}
-			RETURNING *
-		`;
+      UPDATE maintenance_agreements SET
+        status = 'active',
+        updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 		return NextResponse.json({ agreement: updated[0] });
 	}
 
-	// General field updates
-	const updates: Record<string, any> = {};
-	if (autoRenew !== undefined) updates.auto_renew = autoRenew;
-	if (notes !== undefined) updates.notes = notes;
-
-	if (Object.keys(updates).length === 0) {
-		return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+	if (autoRenew === undefined && notes === undefined) {
+		return NextResponse.json(
+			{ error: "No valid fields to update" },
+			{ status: 400 }
+		);
 	}
 
-	const sets = Object.entries(updates).map(([k, v]) => `${k} = '${v}'`).join(", ");
 	const updated = await sql`
-		UPDATE maintenance_agreements SET
-			auto_renew = COALESCE(${updates.auto_renew ?? null}, auto_renew),
-			notes = COALESCE(${updates.notes ?? null}, notes),
-			updated_at = NOW()
-		WHERE id = ${params.id}
-		RETURNING *
-	`;
+    UPDATE maintenance_agreements SET
+      auto_renew = COALESCE(${autoRenew ?? null}, auto_renew),
+      notes = COALESCE(${notes ?? null}, notes),
+      updated_at = NOW()
+    WHERE id = ${id}
+    RETURNING *
+  `;
 
 	return NextResponse.json({ agreement: updated[0] });
 }

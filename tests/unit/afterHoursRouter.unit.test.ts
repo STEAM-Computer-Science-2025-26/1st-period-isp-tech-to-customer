@@ -120,14 +120,16 @@ describe("evaluateAfterHours – midnight-wrapping window (17:00–08:00)", () =
 
 describe("evaluateAfterHours – non-wrapping window (22:00–23:00)", () => {
 	beforeEach(() =>
-		mockDb([{
-			...weekdayRule,
-			weekday_start: "22:00",
-			weekday_end: "23:00",
-			weekend_all_day: false,
-			routing_strategy: "voicemail_queue",
-			on_call_employee_ids: []
-		}])
+		mockDb([
+			{
+				...weekdayRule,
+				weekday_start: "22:00",
+				weekday_end: "23:00",
+				weekend_all_day: false,
+				routing_strategy: "voicemail_queue",
+				on_call_employee_ids: []
+			}
+		])
 	);
 
 	test("10:30 PM is after-hours (inside window)", async () => {

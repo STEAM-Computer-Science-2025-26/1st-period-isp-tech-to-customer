@@ -1,5 +1,5 @@
 // services/routes/jobRoutes.ts
-import { getSql } from "../../db";
+import { getSql, query as runQuery } from "../../db";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 import { tryGeocodeJob } from "./geocoding";
@@ -139,7 +139,7 @@ export function listJobs(fastify) {
             conditions.push(`priority = $${params.length}`);
         }
         const sql = `SELECT ${JOB_SELECT} FROM jobs WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC`;
-        const jobs = await query(sql, params);
+        const jobs = await runQuery(sql, params);
         return { jobs };
     });
 }

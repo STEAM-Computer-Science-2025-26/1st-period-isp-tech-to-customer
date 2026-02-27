@@ -11,14 +11,17 @@ export const dynamic = "force-dynamic";
 
 export async function PATCH(
 	request: NextRequest,
-	{ params }: { params: { id: string } }
+	{ params: _params }: { params: Promise<{ id: string }> }
 ) {
+	const params = await _params;
 	const auth = await requireAuth(request);
 	if (!auth.ok) return auth.response;
 	const { userId } = auth.user;
 
 	let body: any;
-	try { body = await request.json(); } catch {
+	try {
+		body = await request.json();
+	} catch {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
@@ -32,10 +35,10 @@ export async function PATCH(
 	if (action === "cancel") {
 		const sql = getSql();
 		await sql`
-			UPDATE escalation_events SET
-				status = 'cancelled', updated_at = NOW()
-			WHERE id = ${params.id}
-		`;
+                        UPDATE escalation_events SET
+                                status = 'cancelled', updated_at = NOW()
+                        WHERE id = ${params.id}
+                `;
 		return NextResponse.json({ ok: true, status: "cancelled" });
 	}
 

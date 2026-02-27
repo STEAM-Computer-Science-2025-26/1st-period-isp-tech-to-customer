@@ -5,7 +5,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql } from "@/db/connection";
 import { requireAuth } from "@/lib/apiAuth";
-import { triggerEscalation, resolveEscalation } from "../../../../services/escalation/escalationEngine"
+import {
+	triggerEscalation,
+	resolveEscalation
+} from "../../../../services/escalation/escalationEngine";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,12 +54,15 @@ export async function POST(request: NextRequest) {
 	if (!auth.ok) return auth.response;
 
 	let body: any;
-	try { body = await request.json(); } catch {
+	try {
+		body = await request.json();
+	} catch {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
 	const { jobId } = body;
-	if (!jobId) return NextResponse.json({ error: "jobId required" }, { status: 400 });
+	if (!jobId)
+		return NextResponse.json({ error: "jobId required" }, { status: 400 });
 
 	const result = await triggerEscalation(jobId);
 	return NextResponse.json(result, { status: result.triggered ? 201 : 200 });

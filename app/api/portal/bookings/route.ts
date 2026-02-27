@@ -101,16 +101,23 @@ export async function POST(request: NextRequest) {
 	}
 
 	let body: any;
-	try { body = await request.json(); } catch {
+	try {
+		body = await request.json();
+	} catch {
 		return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 	}
 
 	const {
-		serviceType, description,
-		preferredDate1, preferredTime1,
-		preferredDate2, preferredTime2,
-		preferredDate3, preferredTime3,
-		customerNotes, agreementId
+		serviceType,
+		description,
+		preferredDate1,
+		preferredTime1,
+		preferredDate2,
+		preferredTime2,
+		preferredDate3,
+		preferredTime3,
+		customerNotes,
+		agreementId
 	} = body;
 
 	if (!serviceType || !preferredDate1) {

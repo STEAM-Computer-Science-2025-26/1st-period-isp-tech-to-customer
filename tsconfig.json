@@ -32,8 +32,11 @@
 		"**/*.tsx",
 		".next/types/**/*.ts",
 		".next/dev/types/**/*.ts",
-		"**/*.mts"
-, "services/escalation"	],
+		"**/*.mts",
+		"services/escalation",
+		"tests/helpers/globalTeardown.mjs",
+		"tests/helpers/globalSetup.mjs"
+	],
 	"exclude": [
 		"node_modules",
 		"services/logging/**",
