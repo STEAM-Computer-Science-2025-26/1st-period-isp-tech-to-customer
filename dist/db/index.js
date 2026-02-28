@@ -93,12 +93,11 @@ export async function queryAll(queryFn) {
     return queryFn(sql);
 }
 /**
- * Execute raw SQL with $N parameters.
- * Uses Neon's .unsafe() which accepts a raw string + params array.
+ * Execute raw SQL. Use parameter interpolation in the sqlString (e.g. $1, $2) if supported by your driver.
+ * Uses Neon's .unsafe() which accepts a raw SQL string.
  */
-export async function query(sql, params = []) {
+export async function query(sqlString, params = []) {
     const client = getSql();
-    // .unsafe() is the correct Neon HTTP API for parameterized raw SQL.
-    // Unlike .query() (which doesn't exist), .unsafe() is part of the public API.
-    return client.unsafe(sql, params);
+    // neon's .unsafe accepts a single SQL string; pass params by embedding them in the query string if needed
+    return client.unsafe(sqlString);
 }

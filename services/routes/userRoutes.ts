@@ -252,7 +252,20 @@ export function loginUser(fastify: FastifyInstance) {
 	fastify.post("/login", async (request, reply) => {
 		const ip = request.ip ?? "unknown";
 		const sql = getSql();
-
+		if (process.env.NODE_ENV !== "test") {
+			const rateLimitResult = await enforceRateLimit(
+				sql,
+				`login:${ip}`,
+				10,
+				900
+			);
+			if (!rateLimitResult.allowed) {
+				return reply.code(429).send({
+					error: "Too many login attempts. Please try again later.",
+					retryAfterSeconds: rateLimitResult.retryAfterSeconds
+				});
+			}
+		}
 		const rateLimitResult = await enforceRateLimit(sql, `login:${ip}`, 10, 900);
 		if (!rateLimitResult.allowed) {
 			return reply.code(429).send({

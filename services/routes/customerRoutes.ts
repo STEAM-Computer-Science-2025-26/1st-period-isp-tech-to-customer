@@ -45,8 +45,8 @@ const createCustomerSchema = z.object({
 	state: z.string().min(2).max(2),
 	zip: z.string().min(5),
 	notes: z.string().optional(),
-	branchId: z.string().uuid().optional(),
-	companyId: z.string().uuid().optional() // dev only
+	branchId: z.uuid().optional(),
+	companyId: z.uuid().optional() // dev only
 });
 
 const updateCustomerSchema = z
@@ -55,7 +55,7 @@ const updateCustomerSchema = z
 		lastName: z.string().min(1).optional(),
 		companyName: z.string().optional(),
 		customerType: z.enum(["residential", "commercial"]).optional(),
-		email: z.string().email().optional(),
+		email: z.email().optional(),
 		phone: z.string().min(1).optional(),
 		altPhone: z.string().optional(),
 		address: z.string().min(1).optional(),
@@ -64,15 +64,15 @@ const updateCustomerSchema = z
 		zip: z.string().min(5).optional(),
 		notes: z.string().optional(),
 		isActive: z.boolean().optional(),
-		branchId: z.string().uuid().optional()
+		branchId: z.uuid().optional()
 	})
 	.refine((d) => Object.keys(d).length > 0, {
 		message: "At least one field must be provided"
 	});
 
 const listCustomersSchema = z.object({
-	companyId: z.string().uuid().optional(),
-	branchId: z.string().uuid().optional(),
+	companyId: z.uuid().optional(),
+	branchId: z.uuid().optional(),
 	customerType: z.enum(["residential", "commercial"]).optional(),
 	zip: z.string().optional(),
 	isActive: z.coerce.boolean().optional(),
@@ -82,7 +82,7 @@ const listCustomersSchema = z.object({
 });
 
 const createLocationSchema = z.object({
-	label: z.string().min(1),
+	label: z.string().min(1).optional(),
 	address: z.string().min(1),
 	city: z.string().min(1),
 	state: z.string().min(2).max(2),
@@ -111,7 +111,7 @@ const updateLocationSchema = z
 	});
 
 const createEquipmentSchema = z.object({
-	locationId: z.string().uuid().optional(),
+	locationId: z.uuid().optional(),
 	equipmentType: z.enum([
 		"furnace",
 		"ac",
@@ -122,10 +122,13 @@ const createEquipmentSchema = z.object({
 		"boiler",
 		"mini_split",
 		"package_unit",
+		"hvac_unit",
 		"other"
 	]),
 	manufacturer: z.string().optional(),
+	brand: z.string().optional(),
 	modelNumber: z.string().optional(),
+	model: z.string().optional(),
 	serialNumber: z.string().optional(),
 	installDate: z.string().optional(),
 	warrantyExpiry: z.string().optional(),
@@ -139,7 +142,7 @@ const createEquipmentSchema = z.object({
 
 const updateEquipmentSchema = z
 	.object({
-		locationId: z.string().uuid().optional(),
+		locationId: z.uuid().optional(),
 		equipmentType: z
 			.enum([
 				"furnace",
@@ -172,14 +175,17 @@ const updateEquipmentSchema = z
 	});
 
 const createCommunicationSchema = z.object({
-	jobId: z.string().uuid().optional(),
+	jobId: z.uuid().optional(),
 	direction: z.enum(["inbound", "outbound"]),
-	channel: z.enum(["phone", "sms", "email", "in_person"]),
-	summary: z.string().min(1)
+	channel: z.enum(["phone", "sms", "email", "in_person"]).optional(),
+	type: z.string().optional(),
+	summary: z.string().min(1).optional(),
+	subject: z.string().optional(),
+	notes: z.string().optional()
 });
 
 const createNoShowSchema = z.object({
-	jobId: z.string().uuid(),
+	jobId: z.uuid(),
 	notes: z.string().optional()
 });
 
@@ -906,27 +912,28 @@ export async function customerRoutes(
             `;
 			}
 
-			await sql`
-            INSERT INTO customer_locations (
-                customer_id, company_id, label, address, city, state, zip,
-                access_notes, gate_code, has_pets, is_primary, geocoding_status
-            ) VALUES (
-                ${customerId},
-                ${existing[0].company_id},
-                ${body.label},
-                ${body.address},
-                ${body.city},
-                ${body.state},
-                ${body.zip},
-                ${body.accessNotes ?? null},
-                ${body.gateCode ?? null},
-                ${body.hasPets},
-                ${body.isPrimary},
-                'pending'
-            )
-        `;
+			const [location] = (await sql`
+				INSERT INTO customer_locations (
+					customer_id, company_id, label, address, city, state, zip,
+					access_notes, gate_code, has_pets, is_primary, geocoding_status
+				) VALUES (
+					${customerId},
+					${existing[0].company_id},
+					${body.label ?? "primary"},
+					${body.address},
+					${body.city},
+					${body.state},
+					${body.zip},
+					${body.accessNotes ?? null},
+					${body.gateCode ?? null},
+					${body.hasPets ?? false},
+					${body.isPrimary ?? false},
+					'pending'
+				)
+				RETURNING id, address, city, state, zip, is_primary AS "isPrimary", created_at AS "createdAt"
+			`) as any[];
 
-			return reply.code(201).send({ message: "Location added" });
+			return reply.code(201).send({ location });
 		}
 	);
 
@@ -1217,8 +1224,8 @@ export async function customerRoutes(
                 ${body.locationId ?? null},
                 ${existing[0].company_id},
                 ${body.equipmentType},
-                ${body.manufacturer ?? null},
-                ${body.modelNumber ?? null},
+                ${body.manufacturer ?? body.brand ?? null},
+                ${body.modelNumber ?? body.model ?? null},
                 ${body.serialNumber ?? null},
                 ${body.installDate ?? null},
                 ${body.warrantyExpiry ?? null},
@@ -1227,10 +1234,10 @@ export async function customerRoutes(
                 ${body.refrigerantType ?? null},
                 ${body.notes ?? null}
             )
-            RETURNING id
+            RETURNING id, equipment_type AS "equipmentType", manufacturer, model_number AS "modelNumber", created_at AS "createdAt"
         `) as EquipmentRow[];
 
-			return reply.code(201).send({ equipmentId: result[0].id });
+			return reply.code(201).send({ equipment: result[0] });
 		}
 	);
 
@@ -1516,8 +1523,8 @@ export async function customerRoutes(
                 ${existing[0].company_id},
                 ${body.jobId ?? null},
                 ${body.direction},
-                ${body.channel},
-                ${body.summary},
+                ${body.channel ?? body.type ?? "phone"},
+                 ${body.summary ?? body.subject ?? body.notes ?? ""},
                 ${userId ?? null}
             )
         `;

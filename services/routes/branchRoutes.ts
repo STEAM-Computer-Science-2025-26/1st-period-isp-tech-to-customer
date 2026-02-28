@@ -127,10 +127,10 @@ export async function branchRoutes(fastify: FastifyInstance) {
 				${body.phone ?? null},
 				${body.email ?? null}
 			)
-			RETURNING id
+			RETURNING id, name, address, city, state, zip, phone, email, is_active AS "isActive", created_at AS "createdAt"
 		`) as BranchRow[];
 
-			return reply.code(201).send({ branchId: result[0].id });
+			return reply.code(201).send({ branch: result[0] });
 		}
 	);
 

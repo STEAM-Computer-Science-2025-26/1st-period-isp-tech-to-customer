@@ -61,7 +61,14 @@ validateEnvironment();
 
 // Existing job geocoding worker
 const geocodingWorker = getGeocodingWorker();
-geocodingWorker.start();
+try {
+	await geocodingWorker.start();
+} catch (err) {
+	console.error(
+		"⚠️ Geocoding worker failed to start — server continuing:",
+		err
+	);
+}
 
 // Customer + location geocoding — runs every 30 seconds
 const customerGeocodingInterval = setInterval(async () => {

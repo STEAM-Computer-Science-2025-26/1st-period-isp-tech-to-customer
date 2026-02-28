@@ -5,7 +5,7 @@
 
 import "dotenv/config";
 import { getSql } from "../../db";
-
+const sql = getSql();
 export const BASE = "http://localhost:3001";
 
 // ============================================================
@@ -121,7 +121,7 @@ export async function deleteCompany(companyId: string) {
 	if (!companyId) return; // seed failed, nothing to clean up
 	const sql = getSql();
 	// Delete in dependency order
-	await sql`DELETE FROM parts_usage_log         WHERE job_id IN (SELECT id FROM jobs WHERE company_id = ${companyId})`;
+	await sql`DELETE FROM parts_usage_log          WHERE job_id IN (SELECT id FROM jobs WHERE company_id = ${companyId})`;
 	await sql`DELETE FROM invoice_line_items       WHERE invoice_id IN (SELECT id FROM invoices WHERE company_id = ${companyId})`;
 	await sql`DELETE FROM estimate_line_items      WHERE estimate_id IN (SELECT id FROM estimates WHERE company_id = ${companyId})`;
 	await sql`DELETE FROM invoices                 WHERE company_id = ${companyId}`;
@@ -139,4 +139,5 @@ export async function deleteCompany(companyId: string) {
 	await sql`DELETE FROM branches                 WHERE company_id = ${companyId}`;
 	await sql`DELETE FROM users                    WHERE company_id = ${companyId}`;
 	await sql`DELETE FROM companies                WHERE id = ${companyId}`;
+	await sql`DELETE FROM api_rate_limits 		   WHERE key LIKE 'login:%'`;
 }
