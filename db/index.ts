@@ -135,8 +135,8 @@ export async function queryAll<T>(
 export async function query(
 	sqlString: string,
 	params: unknown[] = []
-): Promise<unknown> {
+): Promise<unknown[]> {
 	const client = getSql();
-	// neon's .unsafe accepts a single SQL string; pass params by embedding them in the query string if needed
-	return client.unsafe(sqlString) as unknown;
+	const result = await (client as any).unsafe(sqlString, params);
+	return Array.isArray(result) ? result : (result?.rows ?? []);
 }

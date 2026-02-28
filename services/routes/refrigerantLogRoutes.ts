@@ -29,12 +29,12 @@ const createLogSchema = z.object({
 	techId: z.string().uuid(),
 	refrigerantType: z.string().min(1),
 	actionType: z.enum([
-		//"recovery",
+		"recovery",
 		"recharge",
-		//"top_off",
+		"top_off",
 		"leak_check",
-		"reclaim"
-		//"disposal"
+		"reclaim",
+		"disposal"
 	]),
 	quantityLbs: z.number().min(0),
 	cylinderTag: z.string().optional(),
@@ -42,7 +42,7 @@ const createLogSchema = z.object({
 	leakRepaired: z.boolean().default(false),
 	epaSection608Cert: z.string().optional(),
 	notes: z.string().optional(),
-	serviceDate: z.string().optional(), // YYYY-MM-DD, defaults to today
+	serviceDate: z.string().optional(),
 	loggedAt: z.string().optional()
 });
 
@@ -98,7 +98,6 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 			const body = parsed.data;
 			const sql = getSql();
 
-			// Verify tech belongs to company
 			const [tech] = (await sql`
 				SELECT id FROM employees
 				WHERE id = ${body.techId}
@@ -148,11 +147,6 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 
 	// -------------------------------------------------------------------------
 	// GET /refrigerant-logs
-	// List logs. Filters: jobId, equipmentId, techId, type, from, to, limit, offset.
-	//
-	// Uses sql.unsafe() with a dynamic param array because Neon's tagged template
-	// literal cannot infer types for nullable UUID/text params — it trips on $10
-	// with error "could not determine data type of parameter $N".
 	// -------------------------------------------------------------------------
 	fastify.get(
 		"/refrigerant-logs",
@@ -168,43 +162,25 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 			const offset = parseInt(q.offset ?? "0", 10);
 			const sql = getSql();
 
-			// Build dynamic WHERE clauses — only add a condition if the filter was provided.
-			// This avoids passing undefined/null as typed params to Neon which causes $10 errors.
 			const conditions: string[] = [`rl.company_id = $1`];
 			const filterParams: unknown[] = [companyId];
 
 			const push = (val: unknown) => filterParams.push(val);
 
-			if (q.jobId) {
-				conditions.push(`rl.job_id = $${push(q.jobId)}::uuid`);
-			}
-			if (q.equipmentId) {
-				conditions.push(`rl.equipment_id = $${push(q.equipmentId)}::uuid`);
-			}
-			if (q.techId) {
-				conditions.push(`rl.tech_id = $${push(q.techId)}::uuid`);
-			}
-			if (q.type) {
-				conditions.push(`rl.refrigerant_type = $${push(q.type)}`);
-			}
-			if (q.from) {
-				conditions.push(`rl.logged_at >= $${push(q.from)}::timestamptz`);
-			}
-			if (q.to) {
-				conditions.push(`rl.logged_at <= $${push(q.to)}::timestamptz`);
-			}
+			if (q.jobId)       conditions.push(`rl.job_id = $${push(q.jobId)}::uuid`);
+			if (q.equipmentId) conditions.push(`rl.equipment_id = $${push(q.equipmentId)}::uuid`);
+			if (q.techId)      conditions.push(`rl.tech_id = $${push(q.techId)}::uuid`);
+			if (q.type)        conditions.push(`rl.refrigerant_type = $${push(q.type)}`);
+			if (q.from)        conditions.push(`rl.logged_at >= $${push(q.from)}::timestamptz`);
+			if (q.to)          conditions.push(`rl.logged_at <= $${push(q.to)}::timestamptz`);
 
 			const where = conditions.join(" AND ");
-
-			// Count uses only filter params (no limit/offset)
 			const countParams = [...filterParams];
-
-			// Page query appends limit + offset
 			const pageParams = [...filterParams, limit, offset];
 			const limitIdx = pageParams.length - 1;
 			const offsetIdx = pageParams.length;
 
-			const rows = (await (sql as any).unsafe(
+			const rowsResult = await (sql as any).unsafe(
 				`SELECT
 					rl.*,
 					e.name            AS tech_name,
@@ -218,12 +194,14 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 				ORDER BY rl.logged_at DESC
 				LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
 				pageParams
-			)) as any[];
+			);
+			const rows = Array.isArray(rowsResult) ? rowsResult : (rowsResult?.rows ?? []);
 
-			const [countRow] = (await (sql as any).unsafe(
+			const countResult = await (sql as any).unsafe(
 				`SELECT COUNT(*) AS total FROM refrigerant_logs rl WHERE ${where}`,
 				countParams
-			)) as any[];
+			);
+			const [countRow] = Array.isArray(countResult) ? countResult : (countResult?.rows ?? []);
 
 			return {
 				logs: rows,
@@ -236,7 +214,6 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 
 	// -------------------------------------------------------------------------
 	// GET /refrigerant-logs/summary
-	// EPA reporting summary: totals by refrigerant type.
 	// IMPORTANT: registered BEFORE /:logId to avoid route conflict.
 	// -------------------------------------------------------------------------
 	fastify.get(
@@ -292,7 +269,6 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 
 	// -------------------------------------------------------------------------
 	// GET /refrigerant-logs/:logId
-	// Get a single log entry + its full amendment chain.
 	// -------------------------------------------------------------------------
 	fastify.get(
 		"/refrigerant-logs/:logId",
@@ -302,7 +278,6 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 			const { logId } = request.params as { logId: string };
 			const companyId = resolveCompanyId(user);
 
-			// Guard against empty logId (e.g. GET /refrigerant-logs/ with trailing slash)
 			if (!logId) return reply.code(400).send({ error: "logId is required" });
 
 			const sql = getSql();
@@ -343,8 +318,6 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 
 	// -------------------------------------------------------------------------
 	// POST /refrigerant-logs/:logId/amend
-	// Create an amendment to correct an existing log.
-	// The original log is NEVER modified.
 	// -------------------------------------------------------------------------
 	fastify.post(
 		"/refrigerant-logs/:logId/amend",

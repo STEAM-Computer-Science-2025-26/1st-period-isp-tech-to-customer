@@ -87,7 +87,6 @@ function requireCompanyId(user: AuthUser): string | null {
 	return user.companyId ?? null;
 }
 
-const query = getSql();
 
 /**
  * Background geocoding — doesn't block the HTTP response.
@@ -96,17 +95,17 @@ const query = getSql();
 async function geocodeJobAsync(jobId: string, address: string): Promise<void> {
 	try {
 		const geo = await tryGeocodeJob(address);
-		await query(
+		await runQuery(
 			`UPDATE jobs
 			 SET latitude = $1, longitude = $2, geocoding_status = $3, updated_at = NOW()
-			 WHERE id = $4` as unknown as TemplateStringsArray,
+			 WHERE id = $4`,
 			[geo.latitude, geo.longitude, geo.geocodingStatus, jobId]
 		);
 		console.log(`✅ Geocoded job ${jobId}: ${geo.geocodingStatus}`);
-	} catch (error) {
+		} catch (error) {
 		console.error(`❌ Geocoding failed for job ${jobId}:`, error);
-		await query(
-			`UPDATE jobs SET geocoding_status = 'failed', updated_at = NOW() WHERE id = $1` as unknown as TemplateStringsArray,
+		await runQuery(
+			`UPDATE jobs SET geocoding_status = 'failed', updated_at = NOW() WHERE id = $1`,
 			[jobId]
 		).catch((err) => console.error("Failed to update geocoding status:", err));
 	}
@@ -205,13 +204,13 @@ export function createJob(fastify: FastifyInstance) {
 			return reply.code(400).send({ error: "Missing companyId" });
 		}
 
-		const result = await query(
+		const result = (await runQuery(
 			`INSERT INTO jobs (
 				company_id, customer_name, address, phone,
 				job_type, priority, status, scheduled_time,
 				initial_notes, geocoding_status, required_skills
 			) VALUES ($1, $2, $3, $4, $5, $6, 'unassigned', $7, $8, 'pending', $9)
-			RETURNING ${JOB_SELECT}` as unknown as TemplateStringsArray,
+			RETURNING ${JOB_SELECT}`,
 			[
 				effectiveCompanyId,
 				body.customerName,
@@ -223,7 +222,7 @@ export function createJob(fastify: FastifyInstance) {
 				body.initialNotes ?? null,
 				body.requiredSkills ?? []
 			]
-		);
+		)) as any[];
 
 		const job = result[0];
 
@@ -243,10 +242,10 @@ export function getJob(fastify: FastifyInstance) {
 			const companyId = requireCompanyId(user);
 			const { jobId } = request.params as { jobId: string };
 
-			const result = await query(
+			const result = await runQuery(
 				`SELECT ${JOB_SELECT} FROM jobs
 			 WHERE id = $1
-			   AND ($2::boolean OR company_id = $3)` as unknown as TemplateStringsArray,
+			   AND ($2::boolean OR company_id = $3)`,
 				[jobId, dev && !companyId, companyId]
 			);
 
@@ -290,13 +289,13 @@ export function updateJobStatus(fastify: FastifyInstance) {
 			where += ` AND company_id = $${values.length}`;
 		}
 
-		const result = await query(
+		const result = (await runQuery(
 			`UPDATE jobs
 			 SET status = $1, completion_notes = $2${setCompletedAt}, updated_at = NOW()
 			 ${where}
-			 RETURNING id` as unknown as TemplateStringsArray,
+			 RETURNING id`,
 			values
-		);
+		)) as any[];
 
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Job not found" });
@@ -376,10 +375,10 @@ export function updateJob(fastify: FastifyInstance) {
 			where += ` AND company_id = $${values.length}`;
 		}
 
-		const result = await query(
-			`UPDATE jobs SET ${updates.join(", ")}, updated_at = NOW() ${where} RETURNING id` as unknown as TemplateStringsArray,
+		const result = (await runQuery(
+			`UPDATE jobs SET ${updates.join(", ")}, updated_at = NOW() ${where} RETURNING id`,
 			values
-		);
+		)) as { id: string }[];
 
 		if (!result[0]) {
 			return reply.code(404).send({ error: "Job not found" });
@@ -403,12 +402,12 @@ export function deleteJob(fastify: FastifyInstance) {
 		const { jobId } = request.params as { jobId: string };
 
 		const result = dev
-			? await query(
-					"DELETE FROM jobs WHERE id = $1 RETURNING id" as unknown as TemplateStringsArray,
+			? await runQuery(
+					"DELETE FROM jobs WHERE id = $1 RETURNING id",
 					[jobId]
 				)
-			: await query(
-					"DELETE FROM jobs WHERE id = $1 AND company_id = $2 RETURNING id" as unknown as TemplateStringsArray,
+			: await runQuery(
+					"DELETE FROM jobs WHERE id = $1 AND company_id = $2 RETURNING id",
 					[jobId, companyId]
 				);
 
@@ -440,8 +439,8 @@ export function retryGeocoding(fastify: FastifyInstance) {
 			whereClause += " AND company_id = $2";
 		}
 
-		const result = await query(
-			`SELECT id, address, geocoding_status AS "geocodingStatus" FROM jobs ${whereClause}` as unknown as TemplateStringsArray,
+		const result = await runQuery(
+			`SELECT id, address, geocoding_status AS "geocodingStatus" FROM jobs ${whereClause}`,
 			params
 		);
 
