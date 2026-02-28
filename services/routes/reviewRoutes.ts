@@ -30,7 +30,9 @@ const updateReviewSettingsSchema = z.object({
 
 const listReviewRequestsSchema = z.object({
 	companyId: z.string().uuid().optional(),
-	status: z.enum(["pending", "sent", "clicked", "reviewed", "failed"]).optional(),
+	status: z
+		.enum(["pending", "sent", "clicked", "reviewed", "failed"])
+		.optional(),
 	limit: z.coerce.number().int().min(1).max(100).default(50),
 	offset: z.coerce.number().int().min(0).default(0)
 });
@@ -43,10 +45,12 @@ function buildGoogleReviewUrl(placeId: string): string {
 	return `https://search.google.com/local/writereview?placeid=${placeId}`;
 }
 
-function buildSmsBody(template: string, customerName: string, reviewUrl: string): string {
-	return template
-		.replace("{name}", customerName)
-		.replace("{url}", reviewUrl);
+function buildSmsBody(
+	template: string,
+	customerName: string,
+	reviewUrl: string
+): string {
+	return template.replace("{name}", customerName).replace("{url}", reviewUrl);
 }
 
 const DEFAULT_SMS_TEMPLATE =
@@ -60,11 +64,14 @@ export function triggerReviewRequest(fastify: FastifyInstance) {
 	fastify.post("/reviews/request", async (request, reply) => {
 		const user = request.user as JWTPayload;
 		const companyId = user.companyId;
-		if (!companyId) return reply.code(403).send({ error: "No company on token" });
+		if (!companyId)
+			return reply.code(403).send({ error: "No company on token" });
 
 		const parsed = triggerReviewRequestSchema.safeParse(request.body);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
 		const { jobId, channel, delayMinutes } = parsed.data;
@@ -85,7 +92,9 @@ export function triggerReviewRequest(fastify: FastifyInstance) {
 		if (!job) return reply.code(404).send({ error: "Job not found" });
 
 		if (job.status !== "completed") {
-			return reply.code(422).send({ error: "Review requests can only be sent for completed jobs" });
+			return reply
+				.code(422)
+				.send({ error: "Review requests can only be sent for completed jobs" });
 		}
 
 		// Get company review settings
@@ -103,7 +112,11 @@ export function triggerReviewRequest(fastify: FastifyInstance) {
 		`) as any[];
 
 		if (!settings?.googlePlaceId) {
-			return reply.code(422).send({ error: "Google Place ID not configured. Add it in company settings." });
+			return reply
+				.code(422)
+				.send({
+					error: "Google Place ID not configured. Add it in company settings."
+				});
 		}
 
 		const reviewUrl = buildGoogleReviewUrl(settings.googlePlaceId);
@@ -130,7 +143,11 @@ export function triggerReviewRequest(fastify: FastifyInstance) {
 
 		// If delayMinutes is 0, send immediately
 		if (delayMinutes === 0) {
-			if ((channel === "sms" || channel === "both") && job.phone && settings.accountSid) {
+			if (
+				(channel === "sms" || channel === "both") &&
+				job.phone &&
+				settings.accountSid
+			) {
 				const smsBody = buildSmsBody(
 					settings.smsTemplate ?? DEFAULT_SMS_TEMPLATE,
 					customerName,
@@ -194,11 +211,18 @@ export function listReviewRequests(fastify: FastifyInstance) {
 
 		const parsed = listReviewRequestsSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid query", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({
+					error: "Invalid query",
+					details: z.treeifyError(parsed.error)
+				});
 		}
 
 		const { status, limit, offset } = parsed.data;
-		const effectiveCompanyId = isDev ? (parsed.data.companyId ?? null) : (user.companyId ?? null);
+		const effectiveCompanyId = isDev
+			? (parsed.data.companyId ?? null)
+			: (user.companyId ?? null);
 		const sql = getSql();
 
 		const requests = await sql`
@@ -254,15 +278,20 @@ export function updateReviewSettings(fastify: FastifyInstance) {
 	fastify.patch("/settings/reviews", async (request, reply) => {
 		const user = request.user as JWTPayload;
 		if (user.role !== "admin" && user.role !== "dev") {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const companyId = user.companyId;
-		if (!companyId) return reply.code(403).send({ error: "No company on token" });
+		if (!companyId)
+			return reply.code(403).send({ error: "No company on token" });
 
 		const parsed = updateReviewSettingsSchema.safeParse(request.body);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
 		const d = parsed.data;

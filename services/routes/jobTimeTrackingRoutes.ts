@@ -36,7 +36,6 @@ function isDev(user: JWTPayload): boolean {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function jobTimeTrackingRoutes(fastify: FastifyInstance) {
-
 	// -------------------------------------------------------------------------
 	// POST /jobs/:jobId/time-tracking
 	// Initialize tracking record. Called at dispatch time.
@@ -108,7 +107,10 @@ export async function jobTimeTrackingRoutes(fastify: FastifyInstance) {
 				RETURNING *
 			`) as any[];
 
-			if (!row) return reply.code(404).send({ error: "Time tracking record not found" });
+			if (!row)
+				return reply
+					.code(404)
+					.send({ error: "Time tracking record not found" });
 			return { tracking: row };
 		}
 	);
@@ -135,7 +137,10 @@ export async function jobTimeTrackingRoutes(fastify: FastifyInstance) {
 				RETURNING *
 			`) as any[];
 
-			if (!row) return reply.code(404).send({ error: "Time tracking record not found" });
+			if (!row)
+				return reply
+					.code(404)
+					.send({ error: "Time tracking record not found" });
 			return { tracking: row };
 		}
 	);
@@ -162,7 +167,10 @@ export async function jobTimeTrackingRoutes(fastify: FastifyInstance) {
 				RETURNING *
 			`) as any[];
 
-			if (!row) return reply.code(404).send({ error: "Time tracking record not found" });
+			if (!row)
+				return reply
+					.code(404)
+					.send({ error: "Time tracking record not found" });
 			return { tracking: row };
 		}
 	);
@@ -189,7 +197,10 @@ export async function jobTimeTrackingRoutes(fastify: FastifyInstance) {
 				RETURNING *
 			`) as any[];
 
-			if (!row) return reply.code(404).send({ error: "Time tracking record not found" });
+			if (!row)
+				return reply
+					.code(404)
+					.send({ error: "Time tracking record not found" });
 			return { tracking: row };
 		}
 	);
@@ -217,34 +228,37 @@ export async function jobTimeTrackingRoutes(fastify: FastifyInstance) {
 				RETURNING *
 			`) as any[];
 
-			if (!row) return reply.code(404).send({ error: "Time tracking record not found" });
+			if (!row)
+				return reply
+					.code(404)
+					.send({ error: "Time tracking record not found" });
 
 			// Compute drive and wrench minutes and sync to job_completions if it exists
 			const driveMinutes =
 				row.departed_at && row.arrived_at
 					? Math.round(
-						(new Date(row.arrived_at).getTime() -
-							new Date(row.departed_at).getTime()) /
-						60000
-					)
+							(new Date(row.arrived_at).getTime() -
+								new Date(row.departed_at).getTime()) /
+								60000
+						)
 					: null;
 
 			const wrenchMinutes =
 				row.work_started_at && row.work_ended_at
 					? Math.round(
-						(new Date(row.work_ended_at).getTime() -
-							new Date(row.work_started_at).getTime()) /
-						60000
-					)
+							(new Date(row.work_ended_at).getTime() -
+								new Date(row.work_started_at).getTime()) /
+								60000
+						)
 					: null;
 
 			const actualMinutes =
 				row.arrived_at && row.departed_job_at
 					? Math.round(
-						(new Date(row.departed_job_at).getTime() -
-							new Date(row.arrived_at).getTime()) /
-						60000
-					)
+							(new Date(row.departed_job_at).getTime() -
+								new Date(row.arrived_at).getTime()) /
+								60000
+						)
 					: null;
 
 			// Sync to job_completions if the record exists
@@ -301,7 +315,10 @@ export async function jobTimeTrackingRoutes(fastify: FastifyInstance) {
 				  AND (${isDev(user)} OR jtt.company_id = ${companyId})
 			`) as any[];
 
-			if (!row) return reply.code(404).send({ error: "No time tracking found for this job" });
+			if (!row)
+				return reply
+					.code(404)
+					.send({ error: "No time tracking found for this job" });
 			return { tracking: row };
 		}
 	);

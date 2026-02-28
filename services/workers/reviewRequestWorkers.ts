@@ -40,11 +40,18 @@ async function processReviewRequests(): Promise<void> {
 		let success = false;
 
 		try {
-			if ((req.channel === "sms" || req.channel === "both") && req.phone && req.accountSid) {
+			if (
+				(req.channel === "sms" || req.channel === "both") &&
+				req.phone &&
+				req.accountSid
+			) {
 				const template = req.smsTemplate ?? DEFAULT_SMS_TEMPLATE;
 				const body = template
 					.replace("{name}", req.firstName ?? "there")
-					.replace("{url}", `${process.env.APP_URL ?? ""}/reviews/click/${req.id}`);
+					.replace(
+						"{url}",
+						`${process.env.APP_URL ?? ""}/reviews/click/${req.id}`
+					);
 
 				const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${req.accountSid}/Messages.json`;
 				const params = new URLSearchParams({
@@ -65,8 +72,11 @@ async function processReviewRequests(): Promise<void> {
 				success = res.ok;
 
 				if (!res.ok) {
-					const err = await res.json() as any;
-					console.error(`❌ Twilio error for review request ${req.id}:`, err.message);
+					const err = (await res.json()) as any;
+					console.error(
+						`❌ Twilio error for review request ${req.id}:`,
+						err.message
+					);
 				}
 			} else {
 				// Email path or no credentials — mark as sent to avoid infinite retry

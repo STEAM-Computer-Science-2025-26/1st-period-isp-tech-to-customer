@@ -70,11 +70,14 @@ export function generatePortalToken(fastify: FastifyInstance) {
 	fastify.post("/portal/token", async (request, reply) => {
 		const user = request.user as JWTPayload;
 		const companyId = user.companyId;
-		if (!companyId) return reply.code(403).send({ error: "No company on token" });
+		if (!companyId)
+			return reply.code(403).send({ error: "No company on token" });
 
 		const parsed = generatePortalTokenSchema.safeParse(request.body);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
 		const { customerId, expiresInHours } = parsed.data;
@@ -142,7 +145,12 @@ export function getPortalInvoices(fastify: FastifyInstance) {
 
 		const parsed = listPortalInvoicesSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid query", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({
+					error: "Invalid query",
+					details: z.treeifyError(parsed.error)
+				});
 		}
 
 		const { status, limit, offset } = parsed.data;

@@ -173,7 +173,6 @@ await fastify.register(kpiRoutes);
 await fastify.register(dispatchAuditRoutes);
 await fastify.register(refrigerantLogRoutes);
 
-
 // ============================================================
 // Root
 // ============================================================

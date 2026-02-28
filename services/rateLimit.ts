@@ -66,36 +66,36 @@ export async function enforceRateLimit(
 
 export const RATE_LIMITS = {
 	// ── Auth ────────────────────────────────────────────────
-	"auth:login":           { limit: 10,  windowSeconds: 900   }, // 10/15min per IP
-	"auth:register":        { limit: 5,   windowSeconds: 900   }, // 5/15min per IP
-	"auth:password-reset":  { limit: 3,   windowSeconds: 3600  }, // 3/hr per IP
-	"auth:verify-send":     { limit: 3,   windowSeconds: 1800  }, // 3/30min per email
-	"auth:verify-code":     { limit: 5,   windowSeconds: 600   }, // 5/10min per verificationId
+	"auth:login": { limit: 10, windowSeconds: 900 }, // 10/15min per IP
+	"auth:register": { limit: 5, windowSeconds: 900 }, // 5/15min per IP
+	"auth:password-reset": { limit: 3, windowSeconds: 3600 }, // 3/hr per IP
+	"auth:verify-send": { limit: 3, windowSeconds: 1800 }, // 3/30min per email
+	"auth:verify-code": { limit: 5, windowSeconds: 600 }, // 5/10min per verificationId
 
 	// ── SMS — costs money, protect hard ────────────────────
-	"sms:send":             { limit: 50,  windowSeconds: 3600  }, // 50/hr per company
-	"sms:inbound-webhook":  { limit: 300, windowSeconds: 60    }, // 300/min global
+	"sms:send": { limit: 50, windowSeconds: 3600 }, // 50/hr per company
+	"sms:inbound-webhook": { limit: 300, windowSeconds: 60 }, // 300/min global
 
 	// ── General API ─────────────────────────────────────────
-	"api:read":             { limit: 500, windowSeconds: 60    }, // 500/min per company
-	"api:write":            { limit: 100, windowSeconds: 60    }, // 100/min per company
-	"api:dev":              { limit: 2000, windowSeconds: 60   }, // dev role gets more headroom
+	"api:read": { limit: 500, windowSeconds: 60 }, // 500/min per company
+	"api:write": { limit: 100, windowSeconds: 60 }, // 100/min per company
+	"api:dev": { limit: 2000, windowSeconds: 60 }, // dev role gets more headroom
 
 	// ── Webhooks ────────────────────────────────────────────
-	"webhook:stripe":       { limit: 500, windowSeconds: 60    },
-	"webhook:twilio":       { limit: 300, windowSeconds: 60    },
-	"webhook:quickbooks":   { limit: 100, windowSeconds: 60    },
+	"webhook:stripe": { limit: 500, windowSeconds: 60 },
+	"webhook:twilio": { limit: 300, windowSeconds: 60 },
+	"webhook:quickbooks": { limit: 100, windowSeconds: 60 },
 
 	// ── Customer portal (unauthenticated) ───────────────────
-	"portal:token-lookup":  { limit: 30,  windowSeconds: 60    },
-	"portal:eta-lookup":    { limit: 60,  windowSeconds: 60    },
+	"portal:token-lookup": { limit: 30, windowSeconds: 60 },
+	"portal:eta-lookup": { limit: 60, windowSeconds: 60 },
 
 	// ── Review requests ─────────────────────────────────────
-	"review:request":       { limit: 20,  windowSeconds: 3600  }, // 20 review sends/hr per company
+	"review:request": { limit: 20, windowSeconds: 3600 }, // 20 review sends/hr per company
 
 	// ── Expensive endpoints ─────────────────────────────────
-	"analytics:query":      { limit: 30,  windowSeconds: 60    },
-	"export:jobs":          { limit: 5,   windowSeconds: 300   }, // 5 exports/5min
+	"analytics:query": { limit: 30, windowSeconds: 60 },
+	"export:jobs": { limit: 5, windowSeconds: 300 } // 5 exports/5min
 } as const;
 
 export type RateLimitPreset = keyof typeof RATE_LIMITS;
@@ -159,7 +159,8 @@ export function rateLimitMiddleware(opts: RateLimitMiddlewareOptions) {
 			reply.header("Retry-After", String(result.retryAfterSeconds));
 			reply.header("X-RateLimit-Remaining", "0");
 			return reply.code(429).send({
-				error: opts.errorMessage ?? "Too many requests. Please try again later.",
+				error:
+					opts.errorMessage ?? "Too many requests. Please try again later.",
 				retryAfterSeconds: result.retryAfterSeconds
 			});
 		}
@@ -201,7 +202,9 @@ export async function rateLimitPlugin(fastify: FastifyInstance) {
 	fastify.addHook("onRequest", async (request, reply) => {
 		const sql = getSql();
 		const ip = getClientIp(request);
-		const user = request.user as { companyId?: string; role?: string } | undefined;
+		const user = request.user as
+			| { companyId?: string; role?: string }
+			| undefined;
 
 		// Skip rate limiting for dev tools routes
 		if (request.url.startsWith("/api/dev/")) return;
@@ -213,7 +216,12 @@ export async function rateLimitPlugin(fastify: FastifyInstance) {
 
 		if (user?.companyId) {
 			// Authenticated: rate limit per company
-			const preset = user.role === "dev" ? "api:dev" : isWriteMethod(request.method) ? "api:write" : "api:read";
+			const preset =
+				user.role === "dev"
+					? "api:dev"
+					: isWriteMethod(request.method)
+						? "api:write"
+						: "api:read";
 			result = await enforcePreset(sql, preset, user.companyId);
 		} else {
 			// Unauthenticated: rate limit per IP (generous limit)
@@ -250,7 +258,10 @@ export function rateLimitAdminRoutes(fastify: FastifyInstance) {
 		}
 
 		const sql = getSql();
-		const { prefix, limit: qLimit } = request.query as { prefix?: string; limit?: string };
+		const { prefix, limit: qLimit } = request.query as {
+			prefix?: string;
+			limit?: string;
+		};
 		const limitNum = Math.min(parseInt(qLimit ?? "100", 10) || 100, 500);
 
 		const rows = await sql`
@@ -295,11 +306,11 @@ export function rateLimitAdminRoutes(fastify: FastifyInstance) {
 		}
 
 		const sql = getSql();
-		const result = await sql`
+		const result = (await sql`
 			DELETE FROM api_rate_limits
 			WHERE key LIKE ${prefix + "%"}
 			RETURNING key
-		` as { key: string }[];
+		`) as { key: string }[];
 
 		return { ok: true, deleted: result.length };
 	});
@@ -356,7 +367,9 @@ export async function cleanupExpiredRateLimits(): Promise<{ deleted: number }> {
  * Usage:
  *   startRateLimitCleanup();
  */
-export function startRateLimitCleanup(intervalMs = 10 * 60 * 1000): NodeJS.Timeout {
+export function startRateLimitCleanup(
+	intervalMs = 10 * 60 * 1000
+): NodeJS.Timeout {
 	// Run once immediately on startup
 	cleanupExpiredRateLimits().catch(console.error);
 
@@ -364,4 +377,3 @@ export function startRateLimitCleanup(intervalMs = 10 * 60 * 1000): NodeJS.Timeo
 		cleanupExpiredRateLimits().catch(console.error);
 	}, intervalMs);
 }
-

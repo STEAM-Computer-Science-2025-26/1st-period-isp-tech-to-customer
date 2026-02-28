@@ -14,12 +14,28 @@ import { writeAuditLog } from "./auditRoutes";
 const createLogSchema = z.object({
 	customerId: z.string().uuid(),
 	jobId: z.string().uuid().optional(),
-	channel: z.enum(["sms", "email", "phone_call", "in_person", "portal", "note"]),
+	channel: z.enum([
+		"sms",
+		"email",
+		"phone_call",
+		"in_person",
+		"portal",
+		"note"
+	]),
 	direction: z.enum(["inbound", "outbound", "internal"]).default("outbound"),
 	subject: z.string().max(200).optional(),
 	body: z.string().min(1).max(5000),
 	durationSeconds: z.number().int().min(0).optional(), // for phone calls
-	outcome: z.enum(["resolved", "follow_up", "no_answer", "voicemail", "escalated", "informational"]).optional(),
+	outcome: z
+		.enum([
+			"resolved",
+			"follow_up",
+			"no_answer",
+			"voicemail",
+			"escalated",
+			"informational"
+		])
+		.optional(),
 	followUpAt: z.string().datetime().optional()
 });
 
@@ -27,16 +43,29 @@ const updateLogSchema = z
 	.object({
 		subject: z.string().max(200).optional(),
 		body: z.string().min(1).max(5000).optional(),
-		outcome: z.enum(["resolved", "follow_up", "no_answer", "voicemail", "escalated", "informational"]).optional(),
+		outcome: z
+			.enum([
+				"resolved",
+				"follow_up",
+				"no_answer",
+				"voicemail",
+				"escalated",
+				"informational"
+			])
+			.optional(),
 		followUpAt: z.string().datetime().nullable().optional()
 	})
-	.refine((d) => Object.keys(d).length > 0, { message: "At least one field required" });
+	.refine((d) => Object.keys(d).length > 0, {
+		message: "At least one field required"
+	});
 
 const listLogsSchema = z.object({
 	companyId: z.string().uuid().optional(),
 	customerId: z.string().uuid().optional(),
 	jobId: z.string().uuid().optional(),
-	channel: z.enum(["sms", "email", "phone_call", "in_person", "portal", "note"]).optional(),
+	channel: z
+		.enum(["sms", "email", "phone_call", "in_person", "portal", "note"])
+		.optional(),
 	direction: z.enum(["inbound", "outbound", "internal"]).optional(),
 	followUpPending: z.coerce.boolean().optional(),
 	limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -51,14 +80,27 @@ export function createCommunicationLog(fastify: FastifyInstance) {
 	fastify.post("/communication-logs", async (request, reply) => {
 		const user = request.user as JWTPayload;
 		const companyId = user.companyId;
-		if (!companyId) return reply.code(403).send({ error: "No company on token" });
+		if (!companyId)
+			return reply.code(403).send({ error: "No company on token" });
 
 		const parsed = createLogSchema.safeParse(request.body);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
-		const { customerId, jobId, channel, direction, subject, body, durationSeconds, outcome, followUpAt } = parsed.data;
+		const {
+			customerId,
+			jobId,
+			channel,
+			direction,
+			subject,
+			body,
+			durationSeconds,
+			outcome,
+			followUpAt
+		} = parsed.data;
 		const actorId = resolveUserId(user);
 		const sql = getSql();
 
@@ -105,11 +147,26 @@ export function listCommunicationLogs(fastify: FastifyInstance) {
 
 		const parsed = listLogsSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid query", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({
+					error: "Invalid query",
+					details: z.treeifyError(parsed.error)
+				});
 		}
 
-		const { customerId, jobId, channel, direction, followUpPending, limit, offset } = parsed.data;
-		const effectiveCompanyId = isDev ? (parsed.data.companyId ?? null) : (user.companyId ?? null);
+		const {
+			customerId,
+			jobId,
+			channel,
+			direction,
+			followUpPending,
+			limit,
+			offset
+		} = parsed.data;
+		const effectiveCompanyId = isDev
+			? (parsed.data.companyId ?? null)
+			: (user.companyId ?? null);
 		const sql = getSql();
 
 		const logs = await sql`
@@ -179,7 +236,9 @@ export function updateCommunicationLog(fastify: FastifyInstance) {
 
 		const parsed = updateLogSchema.safeParse(request.body);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
 		const d = parsed.data;

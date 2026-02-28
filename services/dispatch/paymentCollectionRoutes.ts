@@ -41,7 +41,7 @@ const closeJobSchema = z.object({
 	// Job completion
 	completionNotes: z.string().optional(),
 	firstTimeFix: z.boolean().default(true),
-	callbackRequired: z.boolean().default(false),   // Phase 3
+	callbackRequired: z.boolean().default(false), // Phase 3
 	customerRating: z.number().int().min(1).max(5).optional(),
 
 	// Duration
@@ -95,7 +95,6 @@ function deriveInvoiceStatus(
 // ============================================================
 
 export async function paymentCollectionRoutes(fastify: FastifyInstance) {
-
 	// ----------------------------------------------------------
 	// POST /jobs/:jobId/close
 	// ----------------------------------------------------------
@@ -129,8 +128,10 @@ export async function paymentCollectionRoutes(fastify: FastifyInstance) {
 			`) as JobRow[];
 
 			if (!job) return reply.code(404).send({ error: "Job not found" });
-			if (job.status === "completed") return reply.code(409).send({ error: "Job is already completed" });
-			if (job.status === "cancelled") return reply.code(409).send({ error: "Cannot close a cancelled job" });
+			if (job.status === "completed")
+				return reply.code(409).send({ error: "Job is already completed" });
+			if (job.status === "cancelled")
+				return reply.code(409).send({ error: "Cannot close a cancelled job" });
 
 			// 2. Compute actual duration
 			let actualDuration = body.actualDurationMinutes ?? null;
@@ -182,17 +183,19 @@ export async function paymentCollectionRoutes(fastify: FastifyInstance) {
 			const driveMinutes =
 				timeTracking?.departed_at && timeTracking?.arrived_at
 					? Math.round(
-						(new Date(timeTracking.arrived_at).getTime() -
-							new Date(timeTracking.departed_at).getTime()) / 60000
-					)
+							(new Date(timeTracking.arrived_at).getTime() -
+								new Date(timeTracking.departed_at).getTime()) /
+								60000
+						)
 					: null;
 
 			const wrenchMinutes =
 				timeTracking?.work_started_at && timeTracking?.work_ended_at
 					? Math.round(
-						(new Date(timeTracking.work_ended_at).getTime() -
-							new Date(timeTracking.work_started_at).getTime()) / 60000
-					)
+							(new Date(timeTracking.work_ended_at).getTime() -
+								new Date(timeTracking.work_started_at).getTime()) /
+								60000
+						)
 					: null;
 
 			await sql`
@@ -250,7 +253,10 @@ export async function paymentCollectionRoutes(fastify: FastifyInstance) {
 					ORDER BY created_at DESC
 					LIMIT 1
 				`) as InvoiceRow[];
-				if (found) { invoice = found; invoiceId = found.id; }
+				if (found) {
+					invoice = found;
+					invoiceId = found.id;
+				}
 			}
 
 			if (invoice && invoice.status === "draft") {
@@ -263,7 +269,8 @@ export async function paymentCollectionRoutes(fastify: FastifyInstance) {
 					message: "Job closed successfully. No invoice linked.",
 					jobStatus: "completed",
 					firstTimeFix: body.firstTimeFix,
-					callbackRequired: body.callbackRequired
+					callbackRequired: body.callbackRequired,
+					payment: { method: body.paymentMethod }
 				});
 			}
 
@@ -287,9 +294,16 @@ export async function paymentCollectionRoutes(fastify: FastifyInstance) {
 			}
 
 			if (method === "cash" || method === "check") {
-				const amountToCollect = body.amountToCollect ?? Number(invoice.balance_due);
-				const newAmountPaid = Math.round((Number(invoice.amount_paid) + amountToCollect) * 100) / 100;
-				const newStatus = deriveInvoiceStatus(Number(invoice.total), newAmountPaid, invoice.status);
+				const amountToCollect =
+					body.amountToCollect ?? Number(invoice.balance_due);
+				const newAmountPaid =
+					Math.round((Number(invoice.amount_paid) + amountToCollect) * 100) /
+					100;
+				const newStatus = deriveInvoiceStatus(
+					Number(invoice.total),
+					newAmountPaid,
+					invoice.status
+				);
 
 				const [updatedInvoice] = (await sql`
 					UPDATE invoices SET
@@ -312,7 +326,9 @@ export async function paymentCollectionRoutes(fastify: FastifyInstance) {
 					payment: {
 						method,
 						amountCollected: amountToCollect,
-						...(method === "check" && body.checkNumber ? { checkNumber: body.checkNumber } : {})
+						...(method === "check" && body.checkNumber
+							? { checkNumber: body.checkNumber }
+							: {})
 					}
 				});
 			}

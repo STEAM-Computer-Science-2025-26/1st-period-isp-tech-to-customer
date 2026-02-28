@@ -194,8 +194,16 @@ async function runIsolationTests() {
 	const suffix = Date.now();
 	const companyAId = await createTestCompany(sql, `Test Co A ${suffix}`);
 	const companyBId = await createTestCompany(sql, `Test Co B ${suffix}`);
-	const userAId = await createTestUser(sql, `usera_${suffix}@test.com`, companyAId);
-	const userBId = await createTestUser(sql, `userb_${suffix}@test.com`, companyBId);
+	const userAId = await createTestUser(
+		sql,
+		`usera_${suffix}@test.com`,
+		companyAId
+	);
+	const userBId = await createTestUser(
+		sql,
+		`userb_${suffix}@test.com`,
+		companyBId
+	);
 
 	try {
 		await testCustomerIsolation(sql, companyAId, companyBId);
@@ -208,7 +216,9 @@ async function runIsolationTests() {
 		await cleanup(sql, [companyAId, companyBId]);
 	}
 
-	console.log(`\n${passed + failed} tests — ✅ ${passed} passed, ❌ ${failed} failed`);
+	console.log(
+		`\n${passed + failed} tests — ✅ ${passed} passed, ❌ ${failed} failed`
+	);
 	if (failed > 0) process.exit(1);
 }
 

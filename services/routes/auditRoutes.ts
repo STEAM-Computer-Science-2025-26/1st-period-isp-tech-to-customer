@@ -30,8 +30,8 @@ export interface AuditEntry {
 	companyId: string;
 	actorUserId?: string | null;
 	actorRole?: string | null;
-	action: string;          // e.g. "job.status_changed", "invoice.created"
-	entityType: string;      // e.g. "job", "invoice", "customer"
+	action: string; // e.g. "job.status_changed", "invoice.created"
+	entityType: string; // e.g. "job", "invoice", "customer"
 	entityId?: string | null;
 	before?: Record<string, unknown> | null;
 	after?: Record<string, unknown> | null;
@@ -72,16 +72,34 @@ export function listAuditLogs(fastify: FastifyInstance) {
 
 		// Only admins and devs can read audit logs
 		if (!isDev && user.role !== "admin") {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const parsed = listAuditSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid query", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({
+					error: "Invalid query",
+					details: z.treeifyError(parsed.error)
+				});
 		}
 
-		const { actorUserId, entityType, entityId, action, fromDate, toDate, limit, offset } = parsed.data;
-		const effectiveCompanyId = isDev ? (parsed.data.companyId ?? null) : (user.companyId ?? null);
+		const {
+			actorUserId,
+			entityType,
+			entityId,
+			action,
+			fromDate,
+			toDate,
+			limit,
+			offset
+		} = parsed.data;
+		const effectiveCompanyId = isDev
+			? (parsed.data.companyId ?? null)
+			: (user.companyId ?? null);
 
 		const sql = getSql();
 
@@ -121,7 +139,9 @@ export function getAuditLog(fastify: FastifyInstance) {
 		const user = request.user as JWTPayload;
 		const isDev = user.role === "dev";
 		if (!isDev && user.role !== "admin") {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const { logId } = request.params as { logId: string };

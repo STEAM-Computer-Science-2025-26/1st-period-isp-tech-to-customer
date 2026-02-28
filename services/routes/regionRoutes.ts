@@ -29,7 +29,9 @@ const updateRegionSchema = z
 		notes: z.string().optional(),
 		isActive: z.boolean().optional()
 	})
-	.refine((d) => Object.keys(d).length > 0, { message: "At least one field required" });
+	.refine((d) => Object.keys(d).length > 0, {
+		message: "At least one field required"
+	});
 
 const assignBranchSchema = z.object({
 	branchId: z.string().uuid()
@@ -53,11 +55,18 @@ export function listRegions(fastify: FastifyInstance) {
 
 		const parsed = listRegionsSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid query", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({
+					error: "Invalid query",
+					details: z.treeifyError(parsed.error)
+				});
 		}
 
 		const { isActive, limit, offset } = parsed.data;
-		const effectiveCompanyId = isDev ? (parsed.data.companyId ?? null) : (user.companyId ?? null);
+		const effectiveCompanyId = isDev
+			? (parsed.data.companyId ?? null)
+			: (user.companyId ?? null);
 		const sql = getSql();
 
 		const regions = await sql`
@@ -124,17 +133,23 @@ export function createRegion(fastify: FastifyInstance) {
 	fastify.post("/regions", async (request, reply) => {
 		const user = request.user as JWTPayload;
 		if (user.role !== "admin" && user.role !== "dev") {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const parsed = createRegionSchema.safeParse(request.body);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
-		const { name, timezone, states, zipPrefixes, managerUserId, notes } = parsed.data;
+		const { name, timezone, states, zipPrefixes, managerUserId, notes } =
+			parsed.data;
 		const companyId = user.companyId;
-		if (!companyId) return reply.code(403).send({ error: "No company on token" });
+		if (!companyId)
+			return reply.code(403).send({ error: "No company on token" });
 
 		const sql = getSql();
 
@@ -158,14 +173,18 @@ export function updateRegion(fastify: FastifyInstance) {
 	fastify.patch("/regions/:regionId", async (request, reply) => {
 		const user = request.user as JWTPayload;
 		if (user.role !== "admin" && user.role !== "dev") {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const { regionId } = request.params as { regionId: string };
 
 		const parsed = updateRegionSchema.safeParse(request.body);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
 		const d = parsed.data;
@@ -195,14 +214,18 @@ export function assignBranchToRegion(fastify: FastifyInstance) {
 	fastify.post("/regions/:regionId/branches", async (request, reply) => {
 		const user = request.user as JWTPayload;
 		if (user.role !== "admin" && user.role !== "dev") {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
+			return reply
+				.code(403)
+				.send({ error: "Forbidden - Admin access required" });
 		}
 
 		const { regionId } = request.params as { regionId: string };
 
 		const parsed = assignBranchSchema.safeParse(request.body);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
 		const { branchId } = parsed.data;
@@ -222,16 +245,23 @@ export function assignBranchToRegion(fastify: FastifyInstance) {
 }
 
 export function removeBranchFromRegion(fastify: FastifyInstance) {
-	fastify.delete("/regions/:regionId/branches/:branchId", async (request, reply) => {
-		const user = request.user as JWTPayload;
-		if (user.role !== "admin" && user.role !== "dev") {
-			return reply.code(403).send({ error: "Forbidden - Admin access required" });
-		}
+	fastify.delete(
+		"/regions/:regionId/branches/:branchId",
+		async (request, reply) => {
+			const user = request.user as JWTPayload;
+			if (user.role !== "admin" && user.role !== "dev") {
+				return reply
+					.code(403)
+					.send({ error: "Forbidden - Admin access required" });
+			}
 
-		const { branchId } = request.params as { regionId: string; branchId: string };
-		const sql = getSql();
+			const { branchId } = request.params as {
+				regionId: string;
+				branchId: string;
+			};
+			const sql = getSql();
 
-		const [branch] = (await sql`
+			const [branch] = (await sql`
 			UPDATE branches
 			SET region_id = NULL, updated_at = NOW()
 			WHERE id = ${branchId}
@@ -239,9 +269,10 @@ export function removeBranchFromRegion(fastify: FastifyInstance) {
 			RETURNING id, name
 		`) as any[];
 
-		if (!branch) return reply.code(404).send({ error: "Branch not found" });
-		return { branch };
-	});
+			if (!branch) return reply.code(404).send({ error: "Branch not found" });
+			return { branch };
+		}
+	);
 }
 
 export async function regionRoutes(fastify: FastifyInstance) {

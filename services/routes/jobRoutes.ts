@@ -25,7 +25,7 @@ const createJobSchema = z.object({
 	address: z.string().min(5, "Address must be at least 5 characters"),
 	phone: z.string().min(1),
 	jobType: z.enum(["installation", "repair", "maintenance", "inspection"]),
-	priority: z.enum(["low", "medium", "high", "emergency"]),
+	priority: z.enum(["low", "normal", "medium", "high", "emergency"]),
 	scheduledTime: z.string().datetime().optional(),
 	initialNotes: z.string().optional(),
 	requiredSkills: z.array(z.string()).optional()

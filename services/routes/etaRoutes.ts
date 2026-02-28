@@ -35,11 +35,14 @@ export function generateEtaToken(fastify: FastifyInstance) {
 	fastify.post("/eta/token", async (request, reply) => {
 		const user = request.user as JWTPayload;
 		const companyId = user.companyId;
-		if (!companyId) return reply.code(403).send({ error: "No company on token" });
+		if (!companyId)
+			return reply.code(403).send({ error: "No company on token" });
 
 		const parsed = generateEtaTokenSchema.safeParse(request.body);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
 		const { jobId, expiresInMinutes } = parsed.data;
@@ -125,14 +128,17 @@ export function updateJobEta(fastify: FastifyInstance) {
 	fastify.patch("/jobs/:jobId/eta", async (request, reply) => {
 		const user = request.user as JWTPayload;
 		const companyId = user.companyId;
-		if (!companyId) return reply.code(403).send({ error: "No company on token" });
+		if (!companyId)
+			return reply.code(403).send({ error: "No company on token" });
 
 		const { jobId } = request.params as { jobId: string };
 
 		const body = (request.body as Record<string, unknown>) ?? {};
 		const parsed = updateEtaSchema.safeParse({ ...body, jobId });
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
 		const { etaMinutes, techLatitude, techLongitude, note } = parsed.data;

@@ -69,7 +69,9 @@ const listInvoicesSchema = z.object({
 });
 
 const recordPaymentSchema = z.object({
-	amountPaid: z.number().min(0.01),
+	amount: z.number().min(0.01),
+	method: z.enum(["cash", "check", "card", "card_present"]),
+	notes: z.string().optional(),
 	stripePaymentIntentId: z.string().optional()
 });
 
@@ -457,7 +459,7 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
 				});
 			}
 
-			const { amountPaid, stripePaymentIntentId } = parsed.data;
+			const { amount, stripePaymentIntentId } = parsed.data;
 			const companyId = resolveCompanyId(user);
 			const sql = getSql();
 
@@ -474,7 +476,7 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
 			}
 
 			const newAmountPaid =
-				Math.round((Number(existing.amount_paid) + amountPaid) * 100) / 100;
+				Math.round((Number(existing.amount_paid) + amount) * 100) / 100;
 			const newStatus = derivePaymentStatus(
 				Number(existing.total),
 				newAmountPaid,

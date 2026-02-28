@@ -296,12 +296,12 @@ export async function customerRoutes(fastify) {
             values.push(`%${q.search}%`);
         }
         const where = conditions.join(" AND ");
-        const countResult = (await sql(`SELECT COUNT(*)::int AS count FROM customers c WHERE ${where}`, values));
+        const countResult = Array.from(await sql(`SELECT COUNT(*)::int AS count FROM customers c WHERE ${where}`, values));
         const total = countResult[0].count;
         const limitIdx = values.length + 1;
         const offIdx = values.length + 2;
         values.push(q.limit, q.offset);
-        const customers = (await sql(`SELECT
+        const customers = Array.from(await sql(`SELECT
 				id,
 				company_id       AS "companyId",
 				branch_id        AS "branchId",
@@ -511,7 +511,7 @@ export async function customerRoutes(fastify) {
             whereValues.push(companyId);
             where += ` AND company_id = $${idx++}`;
         }
-        const result = (await sql(`UPDATE customers SET ${fullClause} ${where} RETURNING id`, whereValues));
+        const result = Array.from(await sql(`UPDATE customers SET ${fullClause} ${where} RETURNING id`, whereValues));
         if (!result[0])
             return reply.code(404).send({ error: "Customer not found" });
         return reply.send({

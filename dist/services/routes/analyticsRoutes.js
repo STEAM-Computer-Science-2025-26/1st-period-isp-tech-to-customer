@@ -9,74 +9,61 @@
 //   GET /analytics/first-time-fix
 //   GET /analytics/callback-rate
 //   GET /analytics/time-breakdown
-
-import { FastifyInstance } from "fastify";
 import { getSql } from "../../db";
-import { authenticate, JWTPayload } from "../middleware/auth";
-
+import { authenticate } from "../middleware/auth";
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-function getUser(request: any): JWTPayload {
-	return request.user as JWTPayload;
+function getUser(request) {
+    return request.user;
 }
-
-function resolveCompanyId(user: JWTPayload): string | null {
-	return user.companyId ?? null;
+function resolveCompanyId(user) {
+    return user.companyId ?? null;
 }
-
-function isDev(user: JWTPayload): boolean {
-	return user.role === "dev";
+function isDev(user) {
+    return user.role === "dev";
 }
-
 // Parse ?days=30 query param, default 30, max 365
-function parseLookback(query: any): number {
-	const d = parseInt(query?.days ?? "30", 10);
-	if (isNaN(d) || d < 1) return 30;
-	if (d > 365) return 365;
-	return d;
+function parseLookback(query) {
+    const d = parseInt(query?.days ?? "30", 10);
+    if (isNaN(d) || d < 1)
+        return 30;
+    if (d > 365)
+        return 365;
+    return d;
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Routes
 // ─────────────────────────────────────────────────────────────────────────────
-
-export async function analyticsRoutes(fastify: FastifyInstance) {
-	// -------------------------------------------------------------------------
-	// GET /analytics/revenue
-	// Revenue totals and trends. Breaks down by period (day/week/month).
-	// Query params: ?days=30&period=day|week|month
-	//
-	// FIX: DATE_TRUNC requires a literal string for its first argument — you
-	// cannot pass it as a parameterized value ($N) because Postgres won't accept
-	// a parameter there.  The old code did DATE_TRUNC(${truncFn}, ...) which
-	// the Neon tagged-template driver turned into a $N placeholder, causing a
-	// 500.  We now use a CASE expression so DATE_TRUNC always receives an
-	// inline string literal, while `period` is still safely parameterized in
-	// the CASE WHEN clause.
-	// -------------------------------------------------------------------------
-	fastify.get(
-		"/analytics/revenue",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user)) {
-				return reply.code(403).send({ error: "Forbidden" });
-			}
-
-			const query = request.query as any;
-			const days = parseLookback(query);
-			const period = ["day", "week", "month"].includes(query.period)
-				? query.period
-				: "day";
-
-			const sql = getSql();
-
-			// CASE-based DATE_TRUNC so the field name is always a literal, not a
-			// parameterized value (Postgres requires a string literal there).
-			const rows = (await sql`
+export async function analyticsRoutes(fastify) {
+    // -------------------------------------------------------------------------
+    // GET /analytics/revenue
+    // Revenue totals and trends. Breaks down by period (day/week/month).
+    // Query params: ?days=30&period=day|week|month
+    //
+    // FIX: DATE_TRUNC requires a literal string for its first argument — you
+    // cannot pass it as a parameterized value ($N) because Postgres won't accept
+    // a parameter there.  The old code did DATE_TRUNC(${truncFn}, ...) which
+    // the Neon tagged-template driver turned into a $N placeholder, causing a
+    // 500.  We now use a CASE expression so DATE_TRUNC always receives an
+    // inline string literal, while `period` is still safely parameterized in
+    // the CASE WHEN clause.
+    // -------------------------------------------------------------------------
+    fastify.get("/analytics/revenue", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        if (!companyId && !isDev(user)) {
+            return reply.code(403).send({ error: "Forbidden" });
+        }
+        const query = request.query;
+        const days = parseLookback(query);
+        const period = ["day", "week", "month"].includes(query.period)
+            ? query.period
+            : "day";
+        const sql = getSql();
+        // CASE-based DATE_TRUNC so the field name is always a literal, not a
+        // parameterized value (Postgres requires a string literal there).
+        const rows = (await sql `
 				SELECT
 					CASE
 						WHEN ${period} = 'week'  THEN DATE_TRUNC('week',  i.created_at)
@@ -93,9 +80,8 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 				  AND i.status != 'void'
 				GROUP BY 1
 				ORDER BY 1 ASC
-			`) as any[];
-
-			const totals = (await sql`
+			`);
+        const totals = (await sql `
 				SELECT
 					COUNT(*)           AS invoice_count,
 					SUM(i.total)       AS gross_revenue,
@@ -105,39 +91,30 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 				WHERE i.company_id = ${companyId}
 				  AND i.created_at >= NOW() - (${days} || ' days')::interval
 				  AND i.status != 'void'
-			`) as any[];
-
-			return {
-				period,
-				days,
-				totals: totals[0],
-				breakdown: rows
-			};
-		}
-	);
-
-	// -------------------------------------------------------------------------
-	// GET /analytics/tech-performance
-	// Per-tech: jobs completed, avg rating, first-time fix %, callback %, avg duration.
-	// Query params: ?days=30&techId=uuid (techId optional — returns all if omitted)
-	// -------------------------------------------------------------------------
-	fastify.get(
-		"/analytics/tech-performance",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user)) {
-				return reply.code(403).send({ error: "Forbidden" });
-			}
-
-			const query = request.query as any;
-			const days = parseLookback(query);
-			const techId = query.techId ?? null;
-
-			const sql = getSql();
-
-			const rows = (await sql`
+			`);
+        return {
+            period,
+            days,
+            totals: totals[0],
+            breakdown: rows
+        };
+    });
+    // -------------------------------------------------------------------------
+    // GET /analytics/tech-performance
+    // Per-tech: jobs completed, avg rating, first-time fix %, callback %, avg duration.
+    // Query params: ?days=30&techId=uuid (techId optional — returns all if omitted)
+    // -------------------------------------------------------------------------
+    fastify.get("/analytics/tech-performance", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        if (!companyId && !isDev(user)) {
+            return reply.code(403).send({ error: "Forbidden" });
+        }
+        const query = request.query;
+        const days = parseLookback(query);
+        const techId = query.techId ?? null;
+        const sql = getSql();
+        const rows = (await sql `
 				SELECT
 					e.id                                            AS tech_id,
 					e.name                                          AS tech_name,
@@ -162,31 +139,23 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 				  AND (${techId}::uuid IS NULL OR e.id = ${techId}::uuid)
 				GROUP BY e.id, e.name
 				ORDER BY jobs_completed DESC, avg_rating DESC
-			`) as any[];
-
-			return { days, techs: rows };
-		}
-	);
-
-	// -------------------------------------------------------------------------
-	// GET /analytics/job-kpis
-	// Company-level job KPIs: volume, completion rate, avg duration variance.
-	// Query params: ?days=30
-	// -------------------------------------------------------------------------
-	fastify.get(
-		"/analytics/job-kpis",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user)) {
-				return reply.code(403).send({ error: "Forbidden" });
-			}
-
-			const days = parseLookback(request.query);
-			const sql = getSql();
-
-			const kpis = (await sql`
+			`);
+        return { days, techs: rows };
+    });
+    // -------------------------------------------------------------------------
+    // GET /analytics/job-kpis
+    // Company-level job KPIs: volume, completion rate, avg duration variance.
+    // Query params: ?days=30
+    // -------------------------------------------------------------------------
+    fastify.get("/analytics/job-kpis", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        if (!companyId && !isDev(user)) {
+            return reply.code(403).send({ error: "Forbidden" });
+        }
+        const days = parseLookback(request.query);
+        const sql = getSql();
+        const kpis = (await sql `
 				SELECT
 					COUNT(*)                                                AS total_jobs,
 					COUNT(*) FILTER (WHERE status = 'completed')            AS completed,
@@ -204,9 +173,8 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 				FROM jobs
 				WHERE company_id = ${companyId}
 				  AND created_at >= NOW() - (${days} || ' days')::interval
-			`) as any[];
-
-			const byType = (await sql`
+			`);
+        const byType = (await sql `
 				SELECT
 					job_type,
 					COUNT(*)                                            AS total,
@@ -218,34 +186,26 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 				  AND job_type IS NOT NULL
 				GROUP BY job_type
 				ORDER BY total DESC
-			`) as any[];
-
-			return { days, kpis: kpis[0], byJobType: byType };
-		}
-	);
-
-	// -------------------------------------------------------------------------
-	// GET /analytics/first-time-fix
-	// First-time fix rate over time + per tech breakdown.
-	// Definition: job completed, no new repair job for same equipment within 30 days.
-	// We use the job_completions.first_time_fix boolean as the source of truth
-	// (set by the tech on job close).
-	// Query params: ?days=30
-	// -------------------------------------------------------------------------
-	fastify.get(
-		"/analytics/first-time-fix",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user)) {
-				return reply.code(403).send({ error: "Forbidden" });
-			}
-
-			const days = parseLookback(request.query);
-			const sql = getSql();
-
-			const overall = (await sql`
+			`);
+        return { days, kpis: kpis[0], byJobType: byType };
+    });
+    // -------------------------------------------------------------------------
+    // GET /analytics/first-time-fix
+    // First-time fix rate over time + per tech breakdown.
+    // Definition: job completed, no new repair job for same equipment within 30 days.
+    // We use the job_completions.first_time_fix boolean as the source of truth
+    // (set by the tech on job close).
+    // Query params: ?days=30
+    // -------------------------------------------------------------------------
+    fastify.get("/analytics/first-time-fix", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        if (!companyId && !isDev(user)) {
+            return reply.code(403).send({ error: "Forbidden" });
+        }
+        const days = parseLookback(request.query);
+        const sql = getSql();
+        const overall = (await sql `
 				SELECT
 					COUNT(*)                                                        AS total_completions,
 					COUNT(*) FILTER (WHERE jc.first_time_fix = TRUE)                AS first_time_fixes,
@@ -257,9 +217,8 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 				JOIN jobs j ON j.id = jc.job_id
 				WHERE j.company_id = ${companyId}
 				  AND jc.completed_at >= NOW() - (${days} || ' days')::interval
-			`) as any[];
-
-			const byTech = (await sql`
+			`);
+        const byTech = (await sql `
 				SELECT
 					e.id                                                            AS tech_id,
 					e.name                                                          AS tech_name,
@@ -276,36 +235,28 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 				  AND jc.completed_at >= NOW() - (${days} || ' days')::interval
 				GROUP BY e.id, e.name
 				ORDER BY first_time_fix_pct DESC
-			`) as any[];
-
-			return {
-				days,
-				overall: overall[0],
-				byTech
-			};
-		}
-	);
-
-	// -------------------------------------------------------------------------
-	// GET /analytics/callback-rate
-	// Callback rate: return visit for same customer within 30 days of a completed job.
-	// Uses job_completions.callback_required boolean.
-	// Query params: ?days=30
-	// -------------------------------------------------------------------------
-	fastify.get(
-		"/analytics/callback-rate",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user)) {
-				return reply.code(403).send({ error: "Forbidden" });
-			}
-
-			const days = parseLookback(request.query);
-			const sql = getSql();
-
-			const overall = (await sql`
+			`);
+        return {
+            days,
+            overall: overall[0],
+            byTech
+        };
+    });
+    // -------------------------------------------------------------------------
+    // GET /analytics/callback-rate
+    // Callback rate: return visit for same customer within 30 days of a completed job.
+    // Uses job_completions.callback_required boolean.
+    // Query params: ?days=30
+    // -------------------------------------------------------------------------
+    fastify.get("/analytics/callback-rate", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        if (!companyId && !isDev(user)) {
+            return reply.code(403).send({ error: "Forbidden" });
+        }
+        const days = parseLookback(request.query);
+        const sql = getSql();
+        const overall = (await sql `
 				SELECT
 					COUNT(*)                                                        AS total_completions,
 					COUNT(*) FILTER (WHERE jc.callback_required = TRUE)             AS callbacks,
@@ -317,9 +268,8 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 				JOIN jobs j ON j.id = jc.job_id
 				WHERE j.company_id = ${companyId}
 				  AND jc.completed_at >= NOW() - (${days} || ' days')::interval
-			`) as any[];
-
-			const byTech = (await sql`
+			`);
+        const byTech = (await sql `
 				SELECT
 					e.id                                                            AS tech_id,
 					e.name                                                          AS tech_name,
@@ -336,33 +286,25 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 				  AND jc.completed_at >= NOW() - (${days} || ' days')::interval
 				GROUP BY e.id, e.name
 				ORDER BY callback_rate_pct ASC
-			`) as any[];
-
-			return { days, overall: overall[0], byTech };
-		}
-	);
-
-	// -------------------------------------------------------------------------
-	// GET /analytics/time-breakdown
-	// Drive time vs wrench time per tech, from job_time_tracking.
-	// Query params: ?days=30&techId=uuid
-	// -------------------------------------------------------------------------
-	fastify.get(
-		"/analytics/time-breakdown",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user)) {
-				return reply.code(403).send({ error: "Forbidden" });
-			}
-
-			const query = request.query as any;
-			const days = parseLookback(query);
-			const techId = query.techId ?? null;
-			const sql = getSql();
-
-			const rows = (await sql`
+			`);
+        return { days, overall: overall[0], byTech };
+    });
+    // -------------------------------------------------------------------------
+    // GET /analytics/time-breakdown
+    // Drive time vs wrench time per tech, from job_time_tracking.
+    // Query params: ?days=30&techId=uuid
+    // -------------------------------------------------------------------------
+    fastify.get("/analytics/time-breakdown", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        if (!companyId && !isDev(user)) {
+            return reply.code(403).send({ error: "Forbidden" });
+        }
+        const query = request.query;
+        const days = parseLookback(query);
+        const techId = query.techId ?? null;
+        const sql = getSql();
+        const rows = (await sql `
 				SELECT
 					e.id                                                AS tech_id,
 					e.name                                              AS tech_name,
@@ -404,9 +346,7 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 				  AND (${techId}::uuid IS NULL OR e.id = ${techId}::uuid)
 				GROUP BY e.id, e.name
 				ORDER BY wrench_time_pct DESC
-			`) as any[];
-
-			return { days, techs: rows };
-		}
-	);
+			`);
+        return { days, techs: rows };
+    });
 }

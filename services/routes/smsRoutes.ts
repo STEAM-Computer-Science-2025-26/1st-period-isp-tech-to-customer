@@ -67,11 +67,14 @@ export function sendSms(fastify: FastifyInstance) {
 	fastify.post("/sms/send", async (request, reply) => {
 		const user = request.user as JWTPayload;
 		const companyId = user.companyId;
-		if (!companyId) return reply.code(403).send({ error: "No company on token" });
+		if (!companyId)
+			return reply.code(403).send({ error: "No company on token" });
 
 		const parsed = sendSmsSchema.safeParse(request.body);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({ error: "Invalid body", details: z.treeifyError(parsed.error) });
 		}
 
 		const { toPhone, body, jobId, customerId } = parsed.data;
@@ -88,14 +91,27 @@ export function sendSms(fastify: FastifyInstance) {
 		`) as { accountSid: string; authToken: string; fromPhone: string }[];
 
 		if (!creds?.accountSid) {
-			return reply.code(422).send({ error: "Twilio not configured for this company. Add credentials in settings." });
+			return reply
+				.code(422)
+				.send({
+					error:
+						"Twilio not configured for this company. Add credentials in settings."
+				});
 		}
 
 		let externalSid: string | null = null;
 		try {
-			externalSid = await sendViaTwilio(toPhone, body, creds.fromPhone, creds.accountSid, creds.authToken);
+			externalSid = await sendViaTwilio(
+				toPhone,
+				body,
+				creds.fromPhone,
+				creds.accountSid,
+				creds.authToken
+			);
 		} catch (err: any) {
-			return reply.code(502).send({ error: err.message ?? "Failed to send SMS" });
+			return reply
+				.code(502)
+				.send({ error: err.message ?? "Failed to send SMS" });
 		}
 
 		const sentById = resolveUserId(user);
@@ -168,7 +184,9 @@ export function inboundSmsWebhook(fastify: FastifyInstance) {
 
 		// Return TwiML — empty response tells Twilio we handled it
 		reply.header("Content-Type", "text/xml");
-		return reply.send(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`);
+		return reply.send(
+			`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`
+		);
 	});
 }
 
@@ -180,11 +198,18 @@ export function listSmsMessages(fastify: FastifyInstance) {
 
 		const parsed = listSmsSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply.code(400).send({ error: "Invalid query", details: z.treeifyError(parsed.error) });
+			return reply
+				.code(400)
+				.send({
+					error: "Invalid query",
+					details: z.treeifyError(parsed.error)
+				});
 		}
 
 		const { customerId, jobId, direction, limit, offset } = parsed.data;
-		const effectiveCompanyId = isDev ? (parsed.data.companyId ?? null) : companyId;
+		const effectiveCompanyId = isDev
+			? (parsed.data.companyId ?? null)
+			: companyId;
 
 		const sql = getSql();
 

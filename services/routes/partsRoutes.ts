@@ -249,7 +249,7 @@ export async function partsRoutes(fastify: FastifyInstance) {
 			);
 
 			return reply.send({
-				parts,
+				partsUsed: parts,
 				totalCost: Math.round(totalCost * 100) / 100
 			});
 		}
@@ -405,7 +405,7 @@ export async function partsRoutes(fastify: FastifyInstance) {
 					updated_at   AS "updatedAt"
 			`) as any[];
 
-			return reply.send({ item });
+			return reply.send({ inventory: item });
 		}
 	);
 
@@ -462,7 +462,7 @@ export async function partsRoutes(fastify: FastifyInstance) {
 
 			const isLow = item.quantity <= item.minQuantity;
 
-			return reply.send({ item, isLow });
+			return reply.send({ inventory: item, isLow });
 		}
 	);
 
@@ -509,7 +509,7 @@ export async function partsRoutes(fastify: FastifyInstance) {
 				LIMIT ${limit} OFFSET ${offset}
 			`;
 
-			return reply.send({ items, limit, offset });
+			return reply.send({ inventory: items, limit, offset });
 		}
 	);
 

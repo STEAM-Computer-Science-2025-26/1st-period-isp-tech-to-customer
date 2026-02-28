@@ -429,18 +429,21 @@ export async function customerRoutes(
 
 			const where = conditions.join(" AND ");
 
-			const countResult = (await (sql as any)(
-				`SELECT COUNT(*)::int AS count FROM customers c WHERE ${where}`,
-				values
-			)) as CountRow[];
+			const countResult = Array.from(
+				await (sql as any)(
+					`SELECT COUNT(*)::int AS count FROM customers c WHERE ${where}`,
+					values
+				)
+			) as CountRow[];
 
 			const total = countResult[0].count;
 			const limitIdx = values.length + 1;
 			const offIdx = values.length + 2;
 			values.push(q.limit, q.offset);
 
-			const customers = (await (sql as any)(
-				`SELECT
+			const customers = Array.from(
+				await (sql as any)(
+					`SELECT
 				id,
 				company_id       AS "companyId",
 				branch_id        AS "branchId",
@@ -463,8 +466,9 @@ export async function customerRoutes(
 			WHERE ${where}
 			ORDER BY c.created_at DESC
 			LIMIT $${limitIdx} OFFSET $${offIdx}`,
-				values
-			)) as CustomerListRow[];
+					values
+				)
+			) as CustomerListRow[];
 
 			return reply.send({ customers, total, limit: q.limit, offset: q.offset });
 		}
@@ -793,10 +797,12 @@ export async function customerRoutes(
 				where += ` AND company_id = $${idx++}`;
 			}
 
-			const result = (await (sql as any)(
-				`UPDATE customers SET ${fullClause} ${where} RETURNING id`,
-				whereValues
-			)) as CustomerRow[];
+			const result = Array.from(
+				await (sql as any)(
+					`UPDATE customers SET ${fullClause} ${where} RETURNING id`,
+					whereValues
+				)
+			) as any[];
 
 			if (!result[0])
 				return reply.code(404).send({ error: "Customer not found" });

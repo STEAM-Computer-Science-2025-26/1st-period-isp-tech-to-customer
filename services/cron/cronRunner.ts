@@ -472,17 +472,41 @@ export async function processCertExpirationAlerts(): Promise<{
 				label: string;
 			}[] = [];
 
-			if (!cert.alert_sent_90d && daysUntilExpiry <= 90 && daysUntilExpiry > 30) {
-				toFire.push({ flag: "alert_sent_90d", severity: "info", label: "90 days" });
+			if (
+				!cert.alert_sent_90d &&
+				daysUntilExpiry <= 90 &&
+				daysUntilExpiry > 30
+			) {
+				toFire.push({
+					flag: "alert_sent_90d",
+					severity: "info",
+					label: "90 days"
+				});
 			}
-			if (!cert.alert_sent_30d && daysUntilExpiry <= 30 && daysUntilExpiry > 7) {
-				toFire.push({ flag: "alert_sent_30d", severity: "warning", label: "30 days" });
+			if (
+				!cert.alert_sent_30d &&
+				daysUntilExpiry <= 30 &&
+				daysUntilExpiry > 7
+			) {
+				toFire.push({
+					flag: "alert_sent_30d",
+					severity: "warning",
+					label: "30 days"
+				});
 			}
 			if (!cert.alert_sent_7d && daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
-				toFire.push({ flag: "alert_sent_7d", severity: "critical", label: "7 days" });
+				toFire.push({
+					flag: "alert_sent_7d",
+					severity: "critical",
+					label: "7 days"
+				});
 			}
 			if (!cert.alert_sent_expired && daysUntilExpiry <= 0) {
-				toFire.push({ flag: "alert_sent_expired", severity: "critical", label: "EXPIRED" });
+				toFire.push({
+					flag: "alert_sent_expired",
+					severity: "critical",
+					label: "EXPIRED"
+				});
 			}
 
 			for (const alert of toFire) {

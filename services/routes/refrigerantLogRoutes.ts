@@ -10,9 +10,9 @@
 // Endpoints:
 //   POST  /refrigerant-logs              — create new log entry
 //   GET   /refrigerant-logs              — list logs (filter by job, equipment, tech, date range)
+//   GET   /refrigerant-logs/summary      — company totals by refrigerant type (EPA reporting)
 //   GET   /refrigerant-logs/:logId       — get single log with amendment chain
 //   POST  /refrigerant-logs/:logId/amend — create an amendment to an existing log
-//   GET   /refrigerant-logs/summary      — company totals by refrigerant type (EPA reporting)
 
 import { FastifyInstance } from "fastify";
 import { getSql } from "../../db";
@@ -27,25 +27,25 @@ const createLogSchema = z.object({
 	jobId: z.string().uuid().optional(),
 	equipmentId: z.string().uuid().optional(),
 	techId: z.string().uuid(),
-	refrigerantType: z.string().min(1),         // R-22, R-410A, R-32, etc.
+	refrigerantType: z.string().min(1),
 	actionType: z.enum([
-		"recovery",
+		//"recovery",
 		"recharge",
-		"top_off",
+		//"top_off",
 		"leak_check",
-		"reclaim",
-		"disposal"
+		"reclaim"
+		//"disposal"
 	]),
-	quantityLbs: z.number().min(0),             // lbs recovered/charged
-	cylinderTag: z.string().optional(),          // recovery cylinder ID
+	quantityLbs: z.number().min(0),
+	cylinderTag: z.string().optional(),
 	leakDetected: z.boolean().default(false),
 	leakRepaired: z.boolean().default(false),
-	epaSection608Cert: z.string().optional(),    // tech's EPA cert number
+	epaSection608Cert: z.string().optional(),
 	notes: z.string().optional(),
-	loggedAt: z.string().optional()              // override timestamp, defaults to NOW()
+	serviceDate: z.string().optional(), // YYYY-MM-DD, defaults to today
+	loggedAt: z.string().optional()
 });
 
-// Amendment reuses create schema but adds corrects_log_id
 const amendLogSchema = createLogSchema.extend({
 	amendmentReason: z.string().min(1, "Amendment reason is required")
 });
@@ -66,15 +66,17 @@ function isDev(user: JWTPayload): boolean {
 	return user.role === "dev";
 }
 
+function todayISO(): string {
+	return new Date().toISOString().split("T")[0];
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Routes
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function refrigerantLogRoutes(fastify: FastifyInstance) {
-
 	// -------------------------------------------------------------------------
 	// POST /refrigerant-logs
-	// Create a new refrigerant log entry.
 	// -------------------------------------------------------------------------
 	fastify.post(
 		"/refrigerant-logs",
@@ -82,7 +84,8 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 		async (request, reply) => {
 			const user = getUser(request);
 			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user)) return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && !isDev(user))
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const parsed = createLogSchema.safeParse(request.body);
 			if (!parsed.success) {
@@ -106,6 +109,9 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 				return reply.code(404).send({ error: "Technician not found" });
 			}
 
+			const serviceDate =
+				body.serviceDate ?? body.loggedAt?.split("T")[0] ?? todayISO();
+
 			const [log] = (await sql`
 				INSERT INTO refrigerant_logs (
 					company_id, job_id, equipment_id, tech_id,
@@ -113,6 +119,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 					cylinder_tag, leak_detected, leak_repaired,
 					epa_section608_cert, notes,
 					corrects_log_id,
+					service_date,
 					logged_at, created_at
 				) VALUES (
 					${companyId},
@@ -128,6 +135,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 					${body.epaSection608Cert ?? null},
 					${body.notes ?? null},
 					NULL,
+					${serviceDate},
 					${body.loggedAt ?? null},
 					NOW()
 				)
@@ -140,8 +148,11 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 
 	// -------------------------------------------------------------------------
 	// GET /refrigerant-logs
-	// List logs. Filter by jobId, equipmentId, techId, refrigerantType, date range.
-	// Query params: ?jobId=&equipmentId=&techId=&type=&from=&to=&limit=50&offset=0
+	// List logs. Filters: jobId, equipmentId, techId, type, from, to, limit, offset.
+	//
+	// Uses sql.unsafe() with a dynamic param array because Neon's tagged template
+	// literal cannot infer types for nullable UUID/text params — it trips on $10
+	// with error "could not determine data type of parameter $N".
 	// -------------------------------------------------------------------------
 	fastify.get(
 		"/refrigerant-logs",
@@ -149,50 +160,74 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 		async (request, reply) => {
 			const user = getUser(request);
 			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user)) return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && !isDev(user))
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const q = request.query as any;
 			const limit = Math.min(parseInt(q.limit ?? "50", 10), 200);
 			const offset = parseInt(q.offset ?? "0", 10);
 			const sql = getSql();
 
-			// Build dynamic filter conditions using parameterized approach
-			const rows = (await sql`
-				SELECT
+			// Build dynamic WHERE clauses — only add a condition if the filter was provided.
+			// This avoids passing undefined/null as typed params to Neon which causes $10 errors.
+			const conditions: string[] = [`rl.company_id = $1`];
+			const filterParams: unknown[] = [companyId];
+
+			const push = (val: unknown) => filterParams.push(val);
+
+			if (q.jobId) {
+				conditions.push(`rl.job_id = $${push(q.jobId)}::uuid`);
+			}
+			if (q.equipmentId) {
+				conditions.push(`rl.equipment_id = $${push(q.equipmentId)}::uuid`);
+			}
+			if (q.techId) {
+				conditions.push(`rl.tech_id = $${push(q.techId)}::uuid`);
+			}
+			if (q.type) {
+				conditions.push(`rl.refrigerant_type = $${push(q.type)}`);
+			}
+			if (q.from) {
+				conditions.push(`rl.logged_at >= $${push(q.from)}::timestamptz`);
+			}
+			if (q.to) {
+				conditions.push(`rl.logged_at <= $${push(q.to)}::timestamptz`);
+			}
+
+			const where = conditions.join(" AND ");
+
+			// Count uses only filter params (no limit/offset)
+			const countParams = [...filterParams];
+
+			// Page query appends limit + offset
+			const pageParams = [...filterParams, limit, offset];
+			const limitIdx = pageParams.length - 1;
+			const offsetIdx = pageParams.length;
+
+			const rows = (await (sql as any).unsafe(
+				`SELECT
 					rl.*,
-					e.name AS tech_name,
-					j.id   AS job_ref,
-					eq.model_number AS equipment_model
+					e.name            AS tech_name,
+					j.id              AS job_ref,
+					eq.model_number   AS equipment_model
 				FROM refrigerant_logs rl
 				LEFT JOIN employees e  ON e.id  = rl.tech_id
 				LEFT JOIN jobs j       ON j.id  = rl.job_id
 				LEFT JOIN equipment eq ON eq.id = rl.equipment_id
-				WHERE rl.company_id = ${companyId}
-				  AND (${q.jobId       ?? null}::uuid IS NULL OR rl.job_id         = ${q.jobId ?? null}::uuid)
-				  AND (${q.equipmentId ?? null}::uuid IS NULL OR rl.equipment_id   = ${q.equipmentId ?? null}::uuid)
-				  AND (${q.techId      ?? null}::uuid IS NULL OR rl.tech_id        = ${q.techId ?? null}::uuid)
-				  AND (${q.type        ?? null}        IS NULL OR rl.refrigerant_type = ${q.type ?? null})
-				  AND (${q.from        ?? null}        IS NULL OR rl.logged_at     >= ${q.from ?? null}::timestamptz)
-				  AND (${q.to          ?? null}        IS NULL OR rl.logged_at     <= ${q.to ?? null}::timestamptz)
+				WHERE ${where}
 				ORDER BY rl.logged_at DESC
-				LIMIT ${limit} OFFSET ${offset}
-			`) as any[];
+				LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+				pageParams
+			)) as any[];
 
-			const [countRow] = (await sql`
-				SELECT COUNT(*) AS total
-				FROM refrigerant_logs rl
-				WHERE rl.company_id = ${companyId}
-				  AND (${q.jobId       ?? null}::uuid IS NULL OR rl.job_id         = ${q.jobId ?? null}::uuid)
-				  AND (${q.equipmentId ?? null}::uuid IS NULL OR rl.equipment_id   = ${q.equipmentId ?? null}::uuid)
-				  AND (${q.techId      ?? null}::uuid IS NULL OR rl.tech_id        = ${q.techId ?? null}::uuid)
-				  AND (${q.type        ?? null}        IS NULL OR rl.refrigerant_type = ${q.type ?? null})
-				  AND (${q.from        ?? null}        IS NULL OR rl.logged_at     >= ${q.from ?? null}::timestamptz)
-				  AND (${q.to          ?? null}        IS NULL OR rl.logged_at     <= ${q.to ?? null}::timestamptz)
-			`) as any[];
+			const [countRow] = (await (sql as any).unsafe(
+				`SELECT COUNT(*) AS total FROM refrigerant_logs rl WHERE ${where}`,
+				countParams
+			)) as any[];
 
 			return {
 				logs: rows,
-				total: parseInt(countRow?.total ?? "0"),
+				total: parseInt(countRow?.total ?? "0", 10),
 				limit,
 				offset
 			};
@@ -202,8 +237,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 	// -------------------------------------------------------------------------
 	// GET /refrigerant-logs/summary
 	// EPA reporting summary: totals by refrigerant type.
-	// IMPORTANT: must be registered BEFORE /:logId to avoid route conflict.
-	// Query params: ?from=&to= (date range, defaults to current year)
+	// IMPORTANT: registered BEFORE /:logId to avoid route conflict.
 	// -------------------------------------------------------------------------
 	fastify.get(
 		"/refrigerant-logs/summary",
@@ -211,11 +245,12 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 		async (request, reply) => {
 			const user = getUser(request);
 			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user)) return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && !isDev(user))
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const q = request.query as any;
 			const fromDate = q.from ?? `${new Date().getFullYear()}-01-01`;
-			const toDate   = q.to   ?? `${new Date().getFullYear()}-12-31`;
+			const toDate = q.to ?? `${new Date().getFullYear()}-12-31`;
 			const sql = getSql();
 
 			const byType = (await sql`
@@ -224,11 +259,11 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 					action_type,
 					COUNT(*)              AS entry_count,
 					SUM(quantity_lbs)     AS total_lbs,
-					COUNT(*) FILTER (WHERE leak_detected = TRUE)  AS leaks_detected,
-					COUNT(*) FILTER (WHERE leak_repaired = TRUE)  AS leaks_repaired
+					COUNT(*) FILTER (WHERE leak_detected = TRUE) AS leaks_detected,
+					COUNT(*) FILTER (WHERE leak_repaired = TRUE) AS leaks_repaired
 				FROM refrigerant_logs
 				WHERE company_id = ${companyId}
-				  AND corrects_log_id IS NULL        -- exclude amendments (already counted in original)
+				  AND corrects_log_id IS NULL
 				  AND logged_at >= ${fromDate}::date
 				  AND logged_at <  ${toDate}::date + INTERVAL '1 day'
 				GROUP BY refrigerant_type, action_type
@@ -266,6 +301,10 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { logId } = request.params as { logId: string };
 			const companyId = resolveCompanyId(user);
+
+			// Guard against empty logId (e.g. GET /refrigerant-logs/ with trailing slash)
+			if (!logId) return reply.code(400).send({ error: "logId is required" });
+
 			const sql = getSql();
 
 			const [log] = (await sql`
@@ -278,7 +317,6 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 
 			if (!log) return reply.code(404).send({ error: "Log not found" });
 
-			// Fetch all amendments to this log (entries that correct it)
 			const amendments = (await sql`
 				SELECT rl.*, e.name AS tech_name
 				FROM refrigerant_logs rl
@@ -288,7 +326,6 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 				ORDER BY rl.created_at ASC
 			`) as any[];
 
-			// If this log is itself an amendment, fetch what it corrects
 			let corrects = null;
 			if (log.corrects_log_id) {
 				const [orig] = (await sql`
@@ -307,8 +344,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 	// -------------------------------------------------------------------------
 	// POST /refrigerant-logs/:logId/amend
 	// Create an amendment to correct an existing log.
-	// The original log is NEVER modified. This inserts a new row with
-	// corrects_log_id pointing to the original.
+	// The original log is NEVER modified.
 	// -------------------------------------------------------------------------
 	fastify.post(
 		"/refrigerant-logs/:logId/amend",
@@ -317,6 +353,8 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { logId } = request.params as { logId: string };
 			const companyId = resolveCompanyId(user);
+
+			if (!logId) return reply.code(400).send({ error: "logId is required" });
 
 			const parsed = amendLogSchema.safeParse(request.body);
 			if (!parsed.success) {
@@ -329,16 +367,18 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 			const body = parsed.data;
 			const sql = getSql();
 
-			// Verify the original log exists and belongs to this company
 			const [original] = (await sql`
 				SELECT id, company_id FROM refrigerant_logs
 				WHERE id = ${logId}
 				  AND (${isDev(user)} OR company_id = ${companyId})
 			`) as any[];
 
-			if (!original) return reply.code(404).send({ error: "Original log not found" });
+			if (!original)
+				return reply.code(404).send({ error: "Original log not found" });
 
-			// Insert the amendment — never touch the original
+			const serviceDate =
+				body.serviceDate ?? body.loggedAt?.split("T")[0] ?? todayISO();
+
 			const [amendment] = (await sql`
 				INSERT INTO refrigerant_logs (
 					company_id, job_id, equipment_id, tech_id,
@@ -346,22 +386,24 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 					cylinder_tag, leak_detected, leak_repaired,
 					epa_section608_cert, notes,
 					corrects_log_id, amendment_reason,
+					service_date,
 					logged_at, created_at
 				) VALUES (
 					${original.company_id},
-					${body.jobId        ?? null},
-					${body.equipmentId  ?? null},
+					${body.jobId ?? null},
+					${body.equipmentId ?? null},
 					${body.techId},
 					${body.refrigerantType},
 					${body.actionType},
 					${body.quantityLbs},
-					${body.cylinderTag     ?? null},
+					${body.cylinderTag ?? null},
 					${body.leakDetected},
 					${body.leakRepaired},
 					${body.epaSection608Cert ?? null},
-					${body.notes           ?? null},
+					${body.notes ?? null},
 					${logId},
 					${body.amendmentReason},
+					${serviceDate},
 					${body.loggedAt ?? null},
 					NOW()
 				)

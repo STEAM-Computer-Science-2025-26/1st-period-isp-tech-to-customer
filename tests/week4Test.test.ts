@@ -150,10 +150,7 @@ describe("Tech Certifications", () => {
 	});
 
 	test("GET /certifications/tech/:techId returns the cert", async () => {
-		const { status, body } = await get(
-			`/certifications/tech/${techId}`,
-			token
-		);
+		const { status, body } = await get(`/certifications/tech/${techId}`, token);
 		expect(status).toBe(200);
 		expect(Array.isArray(body.certifications)).toBe(true);
 		const found = body.certifications.find((c: any) => c.id === certId);
@@ -204,10 +201,7 @@ describe("Job Close — Phase 3", () => {
 	});
 
 	test("GET /jobs/:jobId/payment-summary shows completion fields", async () => {
-		const { status, body } = await get(
-			`/jobs/${jobId}/payment-summary`,
-			token
-		);
+		const { status, body } = await get(`/jobs/${jobId}/payment-summary`, token);
 		expect(status).toBe(200);
 		expect(body.job.status).toBe("completed");
 		expect(body.completion).not.toBeNull();
@@ -429,7 +423,9 @@ describe("KPI Thresholds", () => {
 		const { status, body } = await get("/kpi/thresholds", token);
 		expect(status).toBe(200);
 		expect(Array.isArray(body.thresholds)).toBe(true);
-		expect(body.thresholds.some((t: any) => t.id === kpiThresholdId)).toBe(true);
+		expect(body.thresholds.some((t: any) => t.id === kpiThresholdId)).toBe(
+			true
+		);
 	});
 
 	test("PATCH /kpi/thresholds/:id updates threshold values", async () => {
@@ -467,10 +463,7 @@ describe("KPI Thresholds", () => {
 	});
 
 	test("DELETE /kpi/thresholds/:id removes threshold", async () => {
-		const { status } = await del(
-			`/kpi/thresholds/${kpiThresholdId}`,
-			token
-		);
+		const { status } = await del(`/kpi/thresholds/${kpiThresholdId}`, token);
 		expect(status).toBe(200);
 	});
 
@@ -632,14 +625,10 @@ describe("Job Reassignment", () => {
 
 	test("POST /jobs/:jobId/reassign to same tech returns 400", async () => {
 		// Tech 3 is now assigned — reassigning to tech3 again should fail
-		const { status } = await post(
-			`/jobs/${reassignJobId}/reassign`,
-			token,
-			{
-				newTechId: tech3Id,
-				reason: "Trying to reassign to same tech"
-			}
-		);
+		const { status } = await post(`/jobs/${reassignJobId}/reassign`, token, {
+			newTechId: tech3Id,
+			reason: "Trying to reassign to same tech"
+		});
 		expect(status).toBe(400);
 	});
 
@@ -712,14 +701,11 @@ describe("Refrigerant Logs", () => {
 	});
 
 	test("GET /refrigerant-logs filters by refrigerant type", async () => {
-		const { status, body } = await get(
-			"/refrigerant-logs?type=R-410A",
-			token
-		);
+		const { status, body } = await get("/refrigerant-logs?type=R-410A", token);
 		expect(status).toBe(200);
-		expect(
-			body.logs.every((l: any) => l.refrigerant_type === "R-410A")
-		).toBe(true);
+		expect(body.logs.every((l: any) => l.refrigerant_type === "R-410A")).toBe(
+			true
+		);
 	});
 
 	test("GET /refrigerant-logs/summary returns EPA totals", async () => {
@@ -811,7 +797,7 @@ describe("Refrigerant Logs", () => {
 
 	test("POST /refrigerant-logs without required fields returns 400", async () => {
 		const { status } = await post("/refrigerant-logs", token, {
-			techId,
+			techId
 			// missing refrigerantType, actionType, quantityLbs
 		});
 		expect(status).toBe(400);
