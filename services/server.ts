@@ -26,22 +26,16 @@ import { durationRoutes } from "./routes/durationRoutes";
 import { pricebookRoutes } from "./routes/pricebookRoutes";
 import { estimateRoutes } from "./routes/estimateRoutes";
 import { invoiceRoutes } from "./routes/invoiceRoutes";
-
-// Week 4 routes
 import { analyticsRoutes } from "./routes/analyticsRoutes";
 import { jobTimeTrackingRoutes } from "./routes/jobTimeTrackingRoutes";
 import { kpiRoutes } from "./routes/kpiRoutes";
 import { dispatchAuditRoutes } from "./routes/dispatchAuditRoutes";
 import { refrigerantLogRoutes } from "./routes/refrigerantLogRoutes";
-
-// Existing workers
 import { getGeocodingWorker } from "./workers/geocodingWorker";
 import {
 	runCustomerGeocodingWorker,
 	retryFailedGeocoding
 } from "./workers/customerGeocodingWorker";
-
-// Middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
 // ============================================================
@@ -173,16 +167,12 @@ await fastify.register(durationRoutes);
 await fastify.register(stripeRoutes);
 await fastify.register(qbRoutes);
 await fastify.register(partsRoutes);
-
-// ============================================================
-// Routes — Week 4
-// ============================================================
-
 await fastify.register(analyticsRoutes);
 await fastify.register(jobTimeTrackingRoutes);
 await fastify.register(kpiRoutes);
 await fastify.register(dispatchAuditRoutes);
 await fastify.register(refrigerantLogRoutes);
+
 
 // ============================================================
 // Root
@@ -219,7 +209,7 @@ const start = async () => {
 		console.log("   POST /jobs/:id/assign");
 		console.log("   POST /jobs/:id/complete");
 
-		console.log("\n📊 Week 4 — Analytics:");
+		console.log("\n Analytics:");
 		console.log("   GET  /analytics/revenue");
 		console.log("   GET  /analytics/tech-performance");
 		console.log("   GET  /analytics/job-kpis");
@@ -227,7 +217,7 @@ const start = async () => {
 		console.log("   GET  /analytics/callback-rate");
 		console.log("   GET  /analytics/time-breakdown");
 
-		console.log("\n⏱️  Week 4 — Time Tracking:");
+		console.log("\n Time Tracking:");
 		console.log("   POST   /jobs/:jobId/time-tracking");
 		console.log("   PATCH  /jobs/:jobId/time-tracking/departed");
 		console.log("   PATCH  /jobs/:jobId/time-tracking/arrived");
@@ -236,7 +226,7 @@ const start = async () => {
 		console.log("   PATCH  /jobs/:jobId/time-tracking/departed-job");
 		console.log("   GET    /jobs/:jobId/time-tracking");
 
-		console.log("\n🚨 Week 4 — KPI Thresholds & Alerts:");
+		console.log("\n KPI Thresholds & Alerts:");
 		console.log("   GET    /kpi/thresholds");
 		console.log("   POST   /kpi/thresholds");
 		console.log("   PATCH  /kpi/thresholds/:id");
@@ -246,14 +236,14 @@ const start = async () => {
 		console.log("   PATCH  /kpi/alerts/:id/resolve");
 		console.log("   POST   /kpi/check");
 
-		console.log("\n🔄 Week 4 — Dispatch Audit:");
+		console.log("\n Dispatch Audit:");
 		console.log("   POST   /jobs/:jobId/dispatch-override");
 		console.log("   GET    /jobs/:jobId/dispatch-override");
 		console.log("   POST   /jobs/:jobId/reassign");
 		console.log("   GET    /jobs/:jobId/reassignments");
 		console.log("   GET    /analytics/dispatch-overrides");
 
-		console.log("\n🧪 Week 4 — Refrigerant Logs (EPA 608):");
+		console.log("\n Refrigerant Logs (EPA 608):");
 		console.log("   POST   /refrigerant-logs");
 		console.log("   GET    /refrigerant-logs");
 		console.log("   GET    /refrigerant-logs/summary");
