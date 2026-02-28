@@ -5,6 +5,7 @@
 //   2. Membership expiration checks + renewal reminders
 //   3. Auto-billing triggers for renewals
 //   4. Review request dispatch (post-job)
+//   5. Tech certification expiration alerts (Week 4)
 
 import { getSql } from "@/db/connection";
 
@@ -51,7 +52,6 @@ export async function processRecurringSchedules(): Promise<{
 	let created = 0;
 	let errors = 0;
 
-	// Find all due schedules
 	const schedules = (await sql`
 		SELECT
 			r.*,
@@ -68,7 +68,6 @@ export async function processRecurringSchedules(): Promise<{
 
 	for (const schedule of schedules) {
 		try {
-			// Create the job
 			const [job] = (await sql`
 				INSERT INTO jobs (
 					company_id, branch_id, customer_id,
@@ -102,7 +101,6 @@ export async function processRecurringSchedules(): Promise<{
 				RETURNING id
 			`) as any[];
 
-			// Advance next_run_at
 			const freq = schedule.frequency as string;
 			const days = FREQUENCY_DAYS[freq] ?? 30;
 			const nextRun = addDays(schedule.next_run_at, days);
@@ -145,7 +143,6 @@ export async function processMembershipRenewals(): Promise<{
 
 	const thirtyDaysOut = daysFromNow(30);
 
-	// Agreements expiring within 30 days that haven't been notified yet
 	const expiringSoon = (await sql`
 		SELECT a.*, t.name AS tier_name, c.email, c.phone,
 		       c.first_name || ' ' || c.last_name AS customer_name
@@ -158,23 +155,18 @@ export async function processMembershipRenewals(): Promise<{
 	`) as any[];
 
 	for (const agreement of expiringSoon) {
-		// TODO: Integrate SMS/email provider to send actual notification
-		// For now, log the notification and mark it sent
 		console.log(
 			`[cron] Renewal reminder: ${agreement.customer_name} — ${agreement.tier_name} expires ${agreement.expires_at}`
 		);
-
 		await sql`
 			UPDATE maintenance_agreements SET
 				renewal_notified_at = NOW(),
 				updated_at = NOW()
 			WHERE id = ${agreement.id}
 		`;
-
 		reminded++;
 	}
 
-	// Mark expired agreements
 	const expiredAgreements = (await sql`
 		UPDATE maintenance_agreements SET
 			status = 'expired',
@@ -186,10 +178,8 @@ export async function processMembershipRenewals(): Promise<{
 
 	expired = expiredAgreements.length;
 
-	// Auto-renew eligible agreements
 	for (const a of expiredAgreements) {
 		if (!a.auto_renew) continue;
-
 		try {
 			const newStart = today();
 			const newExpiry = daysFromNow(365);
@@ -208,7 +198,6 @@ export async function processMembershipRenewals(): Promise<{
 				RETURNING id
 			`) as any[];
 
-			// Queue a billing trigger for the renewal
 			await sql`
 				INSERT INTO billing_trigger_log (
 					company_id, agreement_id, trigger_type, status
@@ -251,7 +240,6 @@ export async function processBillingTriggers(): Promise<{
 
 	for (const trigger of pending) {
 		try {
-			// Generate invoice number: INV-YYYY-NNNNN
 			const year = new Date().getFullYear();
 			const seqResult =
 				(await sql`SELECT nextval('invoice_number_seq') AS seq`) as any[];
@@ -279,7 +267,6 @@ export async function processBillingTriggers(): Promise<{
 				RETURNING id
 			`) as any[];
 
-			// Insert the single line item into invoice_line_items
 			await sql`
 				INSERT INTO invoice_line_items (
 					invoice_id, item_type, name, quantity, unit_price, taxable, sort_order
@@ -320,15 +307,13 @@ export async function processBillingTriggers(): Promise<{
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. REVIEW REQUEST DISPATCH
+// 4. REVIEW REQUEST SCHEDULING
 //    Schedule review requests 2 hours after job completion.
-//    The actual send happens via SMS/email provider (stub here).
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function scheduleReviewRequests(): Promise<{ scheduled: number }> {
 	const sql = getSql();
 
-	// Find completed jobs in last 24h that don't have a review request yet
 	const completedJobs = (await sql`
 		SELECT j.id, j.company_id, j.customer_id, j.completed_at,
 		       c.phone, c.email
@@ -360,6 +345,10 @@ export async function scheduleReviewRequests(): Promise<{ scheduled: number }> {
 	return { scheduled: completedJobs.length };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. REVIEW REQUEST DISPATCH
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function dispatchPendingReviewRequests(): Promise<{
 	sent: number;
 	failed: number;
@@ -383,8 +372,6 @@ export async function dispatchPendingReviewRequests(): Promise<{
 	for (const req of due) {
 		try {
 			// TODO: Integrate Twilio / SendGrid here
-			// const message = buildReviewMessage(req);
-			// await sendSms(req.phone, message) or sendEmail(req.email, message)
 			console.log(
 				`[review] Sending ${req.channel} review request to customer ${req.customer_id} for job ${req.job_id}`
 			);
@@ -411,6 +398,147 @@ export async function dispatchPendingReviewRequests(): Promise<{
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 6. CERT EXPIRATION ALERTS (Week 4)
+//    Fires at 90 / 30 / 7 days before expiry, and on day of expiry.
+//    Each threshold flag is flipped once — never re-fires.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function processCertExpirationAlerts(): Promise<{
+	alerts_fired: number;
+	errors: number;
+}> {
+	const sql = getSql();
+	let alerts_fired = 0;
+	let errors = 0;
+
+	const certs = (await sql`
+		SELECT
+			tc.id,
+			tc.tech_id,
+			tc.company_id,
+			tc.cert_type,
+			tc.cert_number,
+			tc.expiry_date,
+			tc.alert_sent_90d,
+			tc.alert_sent_30d,
+			tc.alert_sent_7d,
+			tc.alert_sent_expired,
+			e.name  AS tech_name,
+			e.email AS tech_email
+		FROM tech_certifications tc
+		JOIN employees e ON e.id = tc.tech_id
+		WHERE tc.is_active = TRUE
+		  AND tc.expiry_date IS NOT NULL
+		  AND (
+		      tc.alert_sent_90d     = FALSE
+		   OR tc.alert_sent_30d     = FALSE
+		   OR tc.alert_sent_7d      = FALSE
+		   OR tc.alert_sent_expired = FALSE
+		  )
+		ORDER BY tc.expiry_date ASC
+	`) as {
+		id: string;
+		tech_id: string;
+		company_id: string;
+		cert_type: string;
+		cert_number: string | null;
+		expiry_date: string;
+		alert_sent_90d: boolean;
+		alert_sent_30d: boolean;
+		alert_sent_7d: boolean;
+		alert_sent_expired: boolean;
+		tech_name: string;
+		tech_email: string;
+	}[];
+
+	const todayMs = Date.now();
+
+	for (const cert of certs) {
+		try {
+			const expiryMs = new Date(cert.expiry_date).getTime();
+			const daysUntilExpiry = Math.ceil(
+				(expiryMs - todayMs) / (1000 * 60 * 60 * 24)
+			);
+
+			type AlertFlag =
+				| "alert_sent_90d"
+				| "alert_sent_30d"
+				| "alert_sent_7d"
+				| "alert_sent_expired";
+
+			const toFire: {
+				flag: AlertFlag;
+				severity: "info" | "warning" | "critical";
+				label: string;
+			}[] = [];
+
+			if (!cert.alert_sent_90d && daysUntilExpiry <= 90 && daysUntilExpiry > 30) {
+				toFire.push({ flag: "alert_sent_90d", severity: "info", label: "90 days" });
+			}
+			if (!cert.alert_sent_30d && daysUntilExpiry <= 30 && daysUntilExpiry > 7) {
+				toFire.push({ flag: "alert_sent_30d", severity: "warning", label: "30 days" });
+			}
+			if (!cert.alert_sent_7d && daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
+				toFire.push({ flag: "alert_sent_7d", severity: "critical", label: "7 days" });
+			}
+			if (!cert.alert_sent_expired && daysUntilExpiry <= 0) {
+				toFire.push({ flag: "alert_sent_expired", severity: "critical", label: "EXPIRED" });
+			}
+
+			for (const alert of toFire) {
+				const title = `${cert.cert_type} expiring in ${alert.label}`;
+				const message =
+					daysUntilExpiry <= 0
+						? `${cert.tech_name}'s ${cert.cert_type}${cert.cert_number ? ` (${cert.cert_number})` : ""} expired on ${cert.expiry_date}. Renew immediately — tech may not legally perform work requiring this cert.`
+						: `${cert.tech_name}'s ${cert.cert_type}${cert.cert_number ? ` (${cert.cert_number})` : ""} expires on ${cert.expiry_date}. ${daysUntilExpiry} days remaining.`;
+
+				await sql`
+					INSERT INTO kpi_alerts (
+						company_id, alert_type, severity,
+						title, message,
+						entity_type, entity_id,
+						is_read, is_resolved,
+						created_at
+					) VALUES (
+						${cert.company_id}, 'cert_expiration', ${alert.severity},
+						${title}, ${message},
+						'employee', ${cert.tech_id},
+						FALSE, FALSE,
+						NOW()
+					)
+				`;
+
+				// Flip the specific flag — use a switch to avoid dynamic identifier issues
+				switch (alert.flag) {
+					case "alert_sent_90d":
+						await sql`UPDATE tech_certifications SET alert_sent_90d = TRUE, updated_at = NOW() WHERE id = ${cert.id}`;
+						break;
+					case "alert_sent_30d":
+						await sql`UPDATE tech_certifications SET alert_sent_30d = TRUE, updated_at = NOW() WHERE id = ${cert.id}`;
+						break;
+					case "alert_sent_7d":
+						await sql`UPDATE tech_certifications SET alert_sent_7d = TRUE, updated_at = NOW() WHERE id = ${cert.id}`;
+						break;
+					case "alert_sent_expired":
+						await sql`UPDATE tech_certifications SET alert_sent_expired = TRUE, updated_at = NOW() WHERE id = ${cert.id}`;
+						break;
+				}
+
+				console.log(
+					`[cron] cert alert fired: ${cert.tech_name} — ${cert.cert_type} — ${alert.label}`
+				);
+				alerts_fired++;
+			}
+		} catch (err) {
+			console.error(`[cron] cert alert failed for cert ${cert.id}:`, err);
+			errors++;
+		}
+	}
+
+	return { alerts_fired, errors };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MASTER RUNNER — called by /api/cron/run
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -433,6 +561,9 @@ export async function runAllCronJobs() {
 
 	results.reviewDispatch = await dispatchPendingReviewRequests();
 	console.log("[cron] Review dispatch:", results.reviewDispatch);
+
+	results.certAlerts = await processCertExpirationAlerts();
+	console.log("[cron] Cert alerts:", results.certAlerts);
 
 	console.log("[cron] Run complete.");
 	return results;

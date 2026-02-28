@@ -26,9 +26,16 @@ import { durationRoutes } from "./routes/durationRoutes";
 import { pricebookRoutes } from "./routes/pricebookRoutes";
 import { estimateRoutes } from "./routes/estimateRoutes";
 import { invoiceRoutes } from "./routes/invoiceRoutes";
+
+// Week 4 routes
+import { analyticsRoutes } from "./routes/analyticsRoutes";
+import { jobTimeTrackingRoutes } from "./routes/jobTimeTrackingRoutes";
+import { kpiRoutes } from "./routes/kpiRoutes";
+import { dispatchAuditRoutes } from "./routes/dispatchAuditRoutes";
+import { refrigerantLogRoutes } from "./routes/refrigerantLogRoutes";
+
 // Existing workers
 import { getGeocodingWorker } from "./workers/geocodingWorker";
-
 import {
 	runCustomerGeocodingWorker,
 	retryFailedGeocoding
@@ -59,7 +66,6 @@ validateEnvironment();
 // Workers
 // ============================================================
 
-// Existing job geocoding worker
 const geocodingWorker = getGeocodingWorker();
 try {
 	await geocodingWorker.start();
@@ -70,12 +76,10 @@ try {
 	);
 }
 
-// Customer + location geocoding — runs every 30 seconds
 const customerGeocodingInterval = setInterval(async () => {
 	await runCustomerGeocodingWorker();
 }, 30_000);
 
-// Retry failed geocoding once per hour
 const retryGeocodingInterval = setInterval(async () => {
 	await retryFailedGeocoding();
 }, 60 * 60_000);
@@ -110,12 +114,14 @@ const fastify = Fastify({
 // ============================================================
 // Plugins
 // ============================================================
+
 await fastify.register(fastifyRawBody, {
 	field: "rawBody",
 	global: false,
-	encoding: false, // keep as Buffer, not string
+	encoding: false,
 	runFirst: true
 });
+
 await fastify.register(fastifyCors, {
 	origin: (origin, cb) => {
 		if (!origin) return cb(null, true);
@@ -146,6 +152,7 @@ fastify.setNotFoundHandler(notFoundHandler);
 // ============================================================
 // Routes — existing
 // ============================================================
+
 await fastify.register(paymentCollectionRoutes);
 await healthRoutes(fastify);
 await jobRoutes(fastify);
@@ -166,6 +173,16 @@ await fastify.register(durationRoutes);
 await fastify.register(stripeRoutes);
 await fastify.register(qbRoutes);
 await fastify.register(partsRoutes);
+
+// ============================================================
+// Routes — Week 4
+// ============================================================
+
+await fastify.register(analyticsRoutes);
+await fastify.register(jobTimeTrackingRoutes);
+await fastify.register(kpiRoutes);
+await fastify.register(dispatchAuditRoutes);
+await fastify.register(refrigerantLogRoutes);
 
 // ============================================================
 // Root
@@ -195,7 +212,6 @@ const start = async () => {
 
 		console.log("\n📍 Existing Endpoints:");
 		console.log("   GET  /health");
-		console.log("   GET  /health/ready");
 		console.log("   POST /login");
 		console.log("   GET  /jobs");
 		console.log("   POST /jobs");
@@ -203,54 +219,52 @@ const start = async () => {
 		console.log("   POST /jobs/:id/assign");
 		console.log("   POST /jobs/:id/complete");
 
-		console.log("\n Customer Endpoints:");
-		console.log("   POST   /customers");
-		console.log("   GET    /customers");
-		console.log("   GET    /customers/:customerId");
-		console.log("   PATCH  /customers/:customerId");
-		console.log("   DELETE /customers/:customerId");
-		console.log("   POST   /customers/:customerId/locations");
-		console.log("   GET    /customers/:customerId/locations");
-		console.log("   PATCH  /customers/:customerId/locations/:locationId");
-		console.log("   DELETE /customers/:customerId/locations/:locationId");
-		console.log("   POST   /customers/:customerId/equipment");
-		console.log("   GET    /customers/:customerId/equipment");
-		console.log("   PATCH  /customers/:customerId/equipment/:equipmentId");
-		console.log("   DELETE /customers/:customerId/equipment/:equipmentId");
-		console.log("   POST   /customers/:customerId/communications");
-		console.log("   GET    /customers/:customerId/communications");
-		console.log("   POST   /customers/:customerId/no-shows");
-		console.log("   GET    /customers/:customerId/no-shows");
+		console.log("\n📊 Week 4 — Analytics:");
+		console.log("   GET  /analytics/revenue");
+		console.log("   GET  /analytics/tech-performance");
+		console.log("   GET  /analytics/job-kpis");
+		console.log("   GET  /analytics/first-time-fix");
+		console.log("   GET  /analytics/callback-rate");
+		console.log("   GET  /analytics/time-breakdown");
 
-		console.log("\n🏢 Branch Endpoints:");
-		console.log("   POST   /branches");
-		console.log("   GET    /branches");
-		console.log("   GET    /branches/:branchId");
-		console.log("   PATCH  /branches/:branchId");
-		console.log("   DELETE /branches/:branchId");
+		console.log("\n⏱️  Week 4 — Time Tracking:");
+		console.log("   POST   /jobs/:jobId/time-tracking");
+		console.log("   PATCH  /jobs/:jobId/time-tracking/departed");
+		console.log("   PATCH  /jobs/:jobId/time-tracking/arrived");
+		console.log("   PATCH  /jobs/:jobId/time-tracking/work-started");
+		console.log("   PATCH  /jobs/:jobId/time-tracking/work-ended");
+		console.log("   PATCH  /jobs/:jobId/time-tracking/departed-job");
+		console.log("   GET    /jobs/:jobId/time-tracking");
 
-		console.log("\n🚀 Onboarding Endpoints:");
-		console.log("   POST   /onboard");
-		console.log("   GET    /onboard/check-email");
-		console.log("   GET    /onboard/status/:companyId");
+		console.log("\n🚨 Week 4 — KPI Thresholds & Alerts:");
+		console.log("   GET    /kpi/thresholds");
+		console.log("   POST   /kpi/thresholds");
+		console.log("   PATCH  /kpi/thresholds/:id");
+		console.log("   DELETE /kpi/thresholds/:id");
+		console.log("   GET    /kpi/alerts");
+		console.log("   PATCH  /kpi/alerts/:id/read");
+		console.log("   PATCH  /kpi/alerts/:id/resolve");
+		console.log("   POST   /kpi/check");
 
-		console.log("\n📜 Certification Endpoints:");
-		console.log("   POST   /certifications");
-		console.log("   GET    /certifications/tech/:techId");
-		console.log("   GET    /certifications/expiring");
-		console.log("   PATCH  /certifications/:certId");
-		console.log("   DELETE /certifications/:certId");
-		console.log("   POST   /certifications/check-alerts");
+		console.log("\n🔄 Week 4 — Dispatch Audit:");
+		console.log("   POST   /jobs/:jobId/dispatch-override");
+		console.log("   GET    /jobs/:jobId/dispatch-override");
+		console.log("   POST   /jobs/:jobId/reassign");
+		console.log("   GET    /jobs/:jobId/reassignments");
+		console.log("   GET    /analytics/dispatch-overrides");
 
-		console.log("\n⏱️ Duration Endpoints:");
-		console.log("   PATCH  /jobs/:jobId/estimated-duration");
-		console.log("   PATCH  /jobs/:jobId/actual-duration");
-		console.log("   GET    /analytics/duration");
+		console.log("\n🧪 Week 4 — Refrigerant Logs (EPA 608):");
+		console.log("   POST   /refrigerant-logs");
+		console.log("   GET    /refrigerant-logs");
+		console.log("   GET    /refrigerant-logs/summary");
+		console.log("   GET    /refrigerant-logs/:logId");
+		console.log("   POST   /refrigerant-logs/:logId/amend");
 
 		console.log("\n📍 Workers running:");
 		console.log("   Job geocoding        — existing");
 		console.log("   Customer geocoding   — every 30s");
 		console.log("   Geocoding retry      — every 1h");
+		console.log("   Cert expiration      — via cron endpoint");
 		console.log("\n");
 	} catch (err) {
 		fastify.log.error(err);
