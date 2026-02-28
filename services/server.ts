@@ -37,6 +37,9 @@ import {
 	retryFailedGeocoding
 } from "./workers/customerGeocodingWorker";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
+import { replacementRoutes } from "./routes/replacementRoutes";
+import { forecastRoutes } from "./routes/forecastRoutes";
+
 
 // ============================================================
 // Environment validation
@@ -172,6 +175,8 @@ await fastify.register(jobTimeTrackingRoutes);
 await fastify.register(kpiRoutes);
 await fastify.register(dispatchAuditRoutes);
 await fastify.register(refrigerantLogRoutes);
+await fastify.register(replacementRoutes);
+await fastify.register(forecastRoutes);
 
 // ============================================================
 // Root
