@@ -91,12 +91,10 @@ export function sendSms(fastify: FastifyInstance) {
 		`) as { accountSid: string; authToken: string; fromPhone: string }[];
 
 		if (!creds?.accountSid) {
-			return reply
-				.code(422)
-				.send({
-					error:
-						"Twilio not configured for this company. Add credentials in settings."
-				});
+			return reply.code(422).send({
+				error:
+					"Twilio not configured for this company. Add credentials in settings."
+			});
 		}
 
 		let externalSid: string | null = null;
@@ -198,12 +196,10 @@ export function listSmsMessages(fastify: FastifyInstance) {
 
 		const parsed = listSmsSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply
-				.code(400)
-				.send({
-					error: "Invalid query",
-					details: z.treeifyError(parsed.error)
-				});
+			return reply.code(400).send({
+				error: "Invalid query",
+				details: z.treeifyError(parsed.error)
+			});
 		}
 
 		const { customerId, jobId, direction, limit, offset } = parsed.data;

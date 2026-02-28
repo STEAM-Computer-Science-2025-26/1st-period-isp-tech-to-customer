@@ -112,11 +112,9 @@ export function triggerReviewRequest(fastify: FastifyInstance) {
 		`) as any[];
 
 		if (!settings?.googlePlaceId) {
-			return reply
-				.code(422)
-				.send({
-					error: "Google Place ID not configured. Add it in company settings."
-				});
+			return reply.code(422).send({
+				error: "Google Place ID not configured. Add it in company settings."
+			});
 		}
 
 		const reviewUrl = buildGoogleReviewUrl(settings.googlePlaceId);
@@ -211,12 +209,10 @@ export function listReviewRequests(fastify: FastifyInstance) {
 
 		const parsed = listReviewRequestsSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply
-				.code(400)
-				.send({
-					error: "Invalid query",
-					details: z.treeifyError(parsed.error)
-				});
+			return reply.code(400).send({
+				error: "Invalid query",
+				details: z.treeifyError(parsed.error)
+			});
 		}
 
 		const { status, limit, offset } = parsed.data;

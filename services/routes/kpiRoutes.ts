@@ -221,12 +221,10 @@ export async function kpiRoutes(fastify: FastifyInstance) {
 
 			const parsed = createThresholdSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid request body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid request body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 
 			const body = parsed.data;
@@ -279,12 +277,10 @@ export async function kpiRoutes(fastify: FastifyInstance) {
 
 			const parsed = updateThresholdSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid request body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid request body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 
 			const body = parsed.data;

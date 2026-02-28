@@ -87,7 +87,6 @@ function requireCompanyId(user: AuthUser): string | null {
 	return user.companyId ?? null;
 }
 
-
 /**
  * Background geocoding — doesn't block the HTTP response.
  * Failures are logged and marked in the DB for retry.
@@ -102,7 +101,7 @@ async function geocodeJobAsync(jobId: string, address: string): Promise<void> {
 			[geo.latitude, geo.longitude, geo.geocodingStatus, jobId]
 		);
 		console.log(`✅ Geocoded job ${jobId}: ${geo.geocodingStatus}`);
-		} catch (error) {
+	} catch (error) {
 		console.error(`❌ Geocoding failed for job ${jobId}:`, error);
 		await runQuery(
 			`UPDATE jobs SET geocoding_status = 'failed', updated_at = NOW() WHERE id = $1`,
@@ -402,10 +401,7 @@ export function deleteJob(fastify: FastifyInstance) {
 		const { jobId } = request.params as { jobId: string };
 
 		const result = dev
-			? await runQuery(
-					"DELETE FROM jobs WHERE id = $1 RETURNING id",
-					[jobId]
-				)
+			? await runQuery("DELETE FROM jobs WHERE id = $1 RETURNING id", [jobId])
 			: await runQuery(
 					"DELETE FROM jobs WHERE id = $1 AND company_id = $2 RETURNING id",
 					[jobId, companyId]

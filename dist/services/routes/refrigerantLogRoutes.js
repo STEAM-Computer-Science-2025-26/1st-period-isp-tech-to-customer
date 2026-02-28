@@ -25,12 +25,12 @@ const createLogSchema = z.object({
     techId: z.string().uuid(),
     refrigerantType: z.string().min(1),
     actionType: z.enum([
-        //"recovery",
+        "recovery",
         "recharge",
-        //"top_off",
+        "top_off",
         "leak_check",
-        "reclaim"
-        //"disposal"
+        "reclaim",
+        "disposal"
     ]),
     quantityLbs: z.number().min(0),
     cylinderTag: z.string().optional(),

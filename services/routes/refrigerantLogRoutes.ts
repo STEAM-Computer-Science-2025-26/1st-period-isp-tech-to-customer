@@ -24,9 +24,9 @@ import { authenticate, JWTPayload } from "../middleware/auth";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const createLogSchema = z.object({
-	jobId: z.string().uuid().optional(),
-	equipmentId: z.string().uuid().optional(),
-	techId: z.string().uuid(),
+	jobId: z.uuid().optional(),
+	equipmentId: z.uuid().optional(),
+	techId: z.uuid(),
 	refrigerantType: z.string().min(1),
 	actionType: z.enum([
 		"recovery",

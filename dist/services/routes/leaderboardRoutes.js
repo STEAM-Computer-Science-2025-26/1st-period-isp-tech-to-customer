@@ -7,64 +7,62 @@ import { authenticate } from "../middleware/auth";
 // Schemas
 // ============================================================
 const leaderboardSchema = z.object({
-    companyId: z.string().uuid().optional(),
-    branchId: z.string().uuid().optional(),
-    period: z
-        .enum(["today", "week", "month", "quarter", "year", "all"])
-        .default("month"),
-    limit: z.coerce.number().int().min(1).max(50).default(20),
-    metric: z
-        .enum([
-        "revenue",
-        "jobs_completed",
-        "rating",
-        "first_time_fix",
-        "callback_rate"
-    ])
-        .default("revenue")
+	companyId: z.string().uuid().optional(),
+	branchId: z.string().uuid().optional(),
+	period: z
+		.enum(["today", "week", "month", "quarter", "year", "all"])
+		.default("month"),
+	limit: z.coerce.number().int().min(1).max(50).default(20),
+	metric: z
+		.enum([
+			"revenue",
+			"jobs_completed",
+			"rating",
+			"first_time_fix",
+			"callback_rate"
+		])
+		.default("revenue")
 });
 // ============================================================
 // Helpers
 // ============================================================
 function periodToInterval(period) {
-    switch (period) {
-        case "today":
-            return "1 day";
-        case "week":
-            return "7 days";
-        case "month":
-            return "30 days";
-        case "quarter":
-            return "90 days";
-        case "year":
-            return "365 days";
-        default:
-            return "3650 days"; // "all" ~10 years
-    }
+	switch (period) {
+		case "today":
+			return "1 day";
+		case "week":
+			return "7 days";
+		case "month":
+			return "30 days";
+		case "quarter":
+			return "90 days";
+		case "year":
+			return "365 days";
+		default:
+			return "3650 days"; // "all" ~10 years
+	}
 }
 // ============================================================
 // Route handlers
 // ============================================================
 export function getTechLeaderboard(fastify) {
-    fastify.get("/leaderboard/techs", async (request, reply) => {
-        const user = request.user;
-        const isDev = user.role === "dev";
-        const parsed = leaderboardSchema.safeParse(request.query);
-        if (!parsed.success) {
-            return reply
-                .code(400)
-                .send({
-                error: "Invalid query",
-                details: z.treeifyError(parsed.error)
-            });
-        }
-        const { branchId, period, limit, metric } = parsed.data;
-        const effectiveCompanyId = isDev
-            ? (parsed.data.companyId ?? null)
-            : (user.companyId ?? null);
-        const interval = periodToInterval(period);
-        const sql = getSql();
-        const leaderboard = await sql `
+	fastify.get("/leaderboard/techs", async (request, reply) => {
+		const user = request.user;
+		const isDev = user.role === "dev";
+		const parsed = leaderboardSchema.safeParse(request.query);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid query",
+				details: z.treeifyError(parsed.error)
+			});
+		}
+		const { branchId, period, limit, metric } = parsed.data;
+		const effectiveCompanyId = isDev
+			? (parsed.data.companyId ?? null)
+			: (user.companyId ?? null);
+		const interval = periodToInterval(period);
+		const sql = getSql();
+		const leaderboard = await sql`
 			SELECT
 				e.id                                    AS "employeeId",
 				e.name                                  AS "techName",
@@ -121,19 +119,19 @@ export function getTechLeaderboard(fastify) {
 				END DESC
 			LIMIT ${limit}
 		`;
-        return {
-            period,
-            metric,
-            leaderboard: leaderboard.map((row, i) => ({
-                rank: i + 1,
-                ...row
-            }))
-        };
-    });
+		return {
+			period,
+			metric,
+			leaderboard: leaderboard.map((row, i) => ({
+				rank: i + 1,
+				...row
+			}))
+		};
+	});
 }
 export async function leaderboardRoutes(fastify) {
-    fastify.register(async (authed) => {
-        authed.addHook("onRequest", authenticate);
-        getTechLeaderboard(authed);
-    });
+	fastify.register(async (authed) => {
+		authed.addHook("onRequest", authenticate);
+		getTechLeaderboard(authed);
+	});
 }

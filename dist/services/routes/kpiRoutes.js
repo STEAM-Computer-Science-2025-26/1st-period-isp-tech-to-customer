@@ -7,51 +7,54 @@ import { authenticate } from "../middleware/auth";
 // Schemas
 // ─────────────────────────────────────────────────────────────────────────────
 const createThresholdSchema = z
-    .object({
-    metricKey: z.string().min(1),
-    warnBelow: z.number().optional(),
-    critBelow: z.number().optional(),
-    warnAbove: z.number().optional(),
-    critAbove: z.number().optional()
-})
-    .refine((d) => d.warnBelow != null ||
-    d.critBelow != null ||
-    d.warnAbove != null ||
-    d.critAbove != null, { message: "At least one threshold value required" });
+	.object({
+		metricKey: z.string().min(1),
+		warnBelow: z.number().optional(),
+		critBelow: z.number().optional(),
+		warnAbove: z.number().optional(),
+		critAbove: z.number().optional()
+	})
+	.refine(
+		(d) =>
+			d.warnBelow != null ||
+			d.critBelow != null ||
+			d.warnAbove != null ||
+			d.critAbove != null,
+		{ message: "At least one threshold value required" }
+	);
 const updateThresholdSchema = z
-    .object({
-    warnBelow: z.number().optional(),
-    critBelow: z.number().optional(),
-    warnAbove: z.number().optional(),
-    critAbove: z.number().optional()
-})
-    .refine((d) => Object.keys(d).length > 0, {
-    message: "At least one field required"
-});
+	.object({
+		warnBelow: z.number().optional(),
+		critBelow: z.number().optional(),
+		warnAbove: z.number().optional(),
+		critAbove: z.number().optional()
+	})
+	.refine((d) => Object.keys(d).length > 0, {
+		message: "At least one field required"
+	});
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function getUser(request) {
-    return request.user;
+	return request.user;
 }
 function resolveCompanyId(user) {
-    return user.companyId ?? null;
+	return user.companyId ?? null;
 }
 function isDev(user) {
-    return user.role === "dev";
+	return user.role === "dev";
 }
 // ─────────────────────────────────────────────────────────────────────────────
 // Core KPI evaluation
 // ─────────────────────────────────────────────────────────────────────────────
 export async function evaluateKpiThresholds(companyId) {
-    const sql = getSql();
-    const thresholds = (await sql `
+	const sql = getSql();
+	const thresholds = await sql`
     SELECT * FROM kpi_thresholds
     WHERE company_id = ${companyId}
-  `);
-    if (thresholds.length === 0)
-        return { evaluated: 0, fired: 0 };
-    const [metrics] = (await sql `
+  `;
+	if (thresholds.length === 0) return { evaluated: 0, fired: 0 };
+	const [metrics] = await sql`
     SELECT
       ROUND(
         100.0 * COUNT(*) FILTER (WHERE jc.first_time_fix = TRUE)
@@ -67,47 +70,49 @@ export async function evaluateKpiThresholds(companyId) {
     JOIN jobs j ON j.id = jc.job_id
     WHERE j.company_id = ${companyId}
       AND jc.completed_at >= NOW() - INTERVAL '30 days'
-  `);
-    const metricValues = {
-        first_time_fix_rate: metrics?.first_time_fix_rate != null
-            ? parseFloat(metrics.first_time_fix_rate)
-            : null,
-        callback_rate: metrics?.callback_rate != null ? parseFloat(metrics.callback_rate) : null,
-        avg_customer_rating: metrics?.avg_customer_rating != null
-            ? parseFloat(metrics.avg_customer_rating)
-            : null,
-        jobs_completed_30d: metrics?.jobs_completed_30d != null
-            ? parseInt(metrics.jobs_completed_30d)
-            : null
-    };
-    let fired = 0;
-    for (const threshold of thresholds) {
-        const value = metricValues[threshold.metric_key];
-        if (value === null || value === undefined)
-            continue;
-        const checks = [
-            {
-                level: "warning",
-                breach: threshold.warn_below != null && value < threshold.warn_below
-            },
-            {
-                level: "critical",
-                breach: threshold.crit_below != null && value < threshold.crit_below
-            },
-            {
-                level: "warning",
-                breach: threshold.warn_above != null && value > threshold.warn_above
-            },
-            {
-                level: "critical",
-                breach: threshold.crit_above != null && value > threshold.crit_above
-            }
-        ];
-        for (const check of checks) {
-            if (!check.breach)
-                continue;
-            // Suppress duplicate — skip if same unresolved alert fired in last hour
-            const existing = (await sql `
+  `;
+	const metricValues = {
+		first_time_fix_rate:
+			metrics?.first_time_fix_rate != null
+				? parseFloat(metrics.first_time_fix_rate)
+				: null,
+		callback_rate:
+			metrics?.callback_rate != null ? parseFloat(metrics.callback_rate) : null,
+		avg_customer_rating:
+			metrics?.avg_customer_rating != null
+				? parseFloat(metrics.avg_customer_rating)
+				: null,
+		jobs_completed_30d:
+			metrics?.jobs_completed_30d != null
+				? parseInt(metrics.jobs_completed_30d)
+				: null
+	};
+	let fired = 0;
+	for (const threshold of thresholds) {
+		const value = metricValues[threshold.metric_key];
+		if (value === null || value === undefined) continue;
+		const checks = [
+			{
+				level: "warning",
+				breach: threshold.warn_below != null && value < threshold.warn_below
+			},
+			{
+				level: "critical",
+				breach: threshold.crit_below != null && value < threshold.crit_below
+			},
+			{
+				level: "warning",
+				breach: threshold.warn_above != null && value > threshold.warn_above
+			},
+			{
+				level: "critical",
+				breach: threshold.crit_above != null && value > threshold.crit_above
+			}
+		];
+		for (const check of checks) {
+			if (!check.breach) continue;
+			// Suppress duplicate — skip if same unresolved alert fired in last hour
+			const existing = await sql`
         SELECT id FROM kpi_alerts
         WHERE company_id  = ${companyId}
           AND alert_type  = ${threshold.metric_key}
@@ -115,14 +120,14 @@ export async function evaluateKpiThresholds(companyId) {
           AND is_resolved = FALSE
           AND created_at  > NOW() - INTERVAL '1 hour'
         LIMIT 1
-      `);
-            if (existing[0])
-                continue;
-            const thresholdValue = threshold.warn_below ??
-                threshold.crit_below ??
-                threshold.warn_above ??
-                threshold.crit_above;
-            await sql `
+      `;
+			if (existing[0]) continue;
+			const thresholdValue =
+				threshold.warn_below ??
+				threshold.crit_below ??
+				threshold.warn_above ??
+				threshold.crit_above;
+			await sql`
         INSERT INTO kpi_alerts (
           company_id, alert_type, severity,
           title, message,
@@ -141,53 +146,58 @@ export async function evaluateKpiThresholds(companyId) {
           NOW()
         )
       `;
-            fired++;
-        }
-    }
-    return { evaluated: thresholds.length, fired };
+			fired++;
+		}
+	}
+	return { evaluated: thresholds.length, fired };
 }
 // ─────────────────────────────────────────────────────────────────────────────
 // Route registration
 // ─────────────────────────────────────────────────────────────────────────────
 export async function kpiRoutes(fastify) {
-    fastify.get("/kpi/thresholds", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        if (!companyId && !isDev(user))
-            return reply.code(403).send({ error: "Forbidden" });
-        const sql = getSql();
-        const rows = (await sql `
+	fastify.get(
+		"/kpi/thresholds",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			if (!companyId && !isDev(user))
+				return reply.code(403).send({ error: "Forbidden" });
+			const sql = getSql();
+			const rows = await sql`
       SELECT * FROM kpi_thresholds
       WHERE company_id = ${companyId}
       ORDER BY metric_key
-    `);
-        // Cast numeric fields
-        const thresholds = rows.map((row) => ({
-            ...row,
-            warn_below: row.warn_below != null ? parseFloat(row.warn_below) : null,
-            crit_below: row.crit_below != null ? parseFloat(row.crit_below) : null,
-            warn_above: row.warn_above != null ? parseFloat(row.warn_above) : null,
-            crit_above: row.crit_above != null ? parseFloat(row.crit_above) : null
-        }));
-        return { thresholds };
-    });
-    fastify.post("/kpi/thresholds", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        if (!companyId && !isDev(user))
-            return reply.code(403).send({ error: "Forbidden" });
-        const parsed = createThresholdSchema.safeParse(request.body);
-        if (!parsed.success) {
-            return reply
-                .code(400)
-                .send({
-                error: "Invalid request body",
-                details: parsed.error.flatten().fieldErrors
-            });
-        }
-        const body = parsed.data;
-        const sql = getSql();
-        const [row] = (await sql `
+    `;
+			// Cast numeric fields
+			const thresholds = rows.map((row) => ({
+				...row,
+				warn_below: row.warn_below != null ? parseFloat(row.warn_below) : null,
+				crit_below: row.crit_below != null ? parseFloat(row.crit_below) : null,
+				warn_above: row.warn_above != null ? parseFloat(row.warn_above) : null,
+				crit_above: row.crit_above != null ? parseFloat(row.crit_above) : null
+			}));
+			return { thresholds };
+		}
+	);
+	fastify.post(
+		"/kpi/thresholds",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			if (!companyId && !isDev(user))
+				return reply.code(403).send({ error: "Forbidden" });
+			const parsed = createThresholdSchema.safeParse(request.body);
+			if (!parsed.success) {
+				return reply.code(400).send({
+					error: "Invalid request body",
+					details: parsed.error.flatten().fieldErrors
+				});
+			}
+			const body = parsed.data;
+			const sql = getSql();
+			const [row] = await sql`
       INSERT INTO kpi_thresholds (
         company_id, metric_key,
         warn_below, crit_below,
@@ -207,33 +217,38 @@ export async function kpiRoutes(fastify) {
         crit_above = EXCLUDED.crit_above,
         updated_at = NOW()
       RETURNING *
-    `);
-        return reply.code(201).send({
-            threshold: {
-                ...row,
-                warn_below: row.warn_below != null ? parseFloat(row.warn_below) : null,
-                crit_below: row.crit_below != null ? parseFloat(row.crit_below) : null,
-                warn_above: row.warn_above != null ? parseFloat(row.warn_above) : null,
-                crit_above: row.crit_above != null ? parseFloat(row.crit_above) : null
-            }
-        });
-    });
-    fastify.patch("/kpi/thresholds/:id", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        const { id } = request.params;
-        const parsed = updateThresholdSchema.safeParse(request.body);
-        if (!parsed.success) {
-            return reply
-                .code(400)
-                .send({
-                error: "Invalid request body",
-                details: parsed.error.flatten().fieldErrors
-            });
-        }
-        const body = parsed.data;
-        const sql = getSql();
-        const [row] = (await sql `
+    `;
+			return reply.code(201).send({
+				threshold: {
+					...row,
+					warn_below:
+						row.warn_below != null ? parseFloat(row.warn_below) : null,
+					crit_below:
+						row.crit_below != null ? parseFloat(row.crit_below) : null,
+					warn_above:
+						row.warn_above != null ? parseFloat(row.warn_above) : null,
+					crit_above: row.crit_above != null ? parseFloat(row.crit_above) : null
+				}
+			});
+		}
+	);
+	fastify.patch(
+		"/kpi/thresholds/:id",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			const { id } = request.params;
+			const parsed = updateThresholdSchema.safeParse(request.body);
+			if (!parsed.success) {
+				return reply.code(400).send({
+					error: "Invalid request body",
+					details: parsed.error.flatten().fieldErrors
+				});
+			}
+			const body = parsed.data;
+			const sql = getSql();
+			const [row] = await sql`
       UPDATE kpi_thresholds SET
         warn_below = COALESCE(${body.warnBelow ?? null}, warn_below),
         crit_below = COALESCE(${body.critBelow ?? null}, crit_below),
@@ -242,96 +257,116 @@ export async function kpiRoutes(fastify) {
         updated_at = NOW()
       WHERE id = ${id} AND company_id = ${companyId}
       RETURNING *
-    `);
-        if (!row)
-            return reply.code(404).send({ error: "Threshold not found" });
-        return reply.send({
-            threshold: {
-                ...row,
-                warn_below: row.warn_below != null ? parseFloat(row.warn_below) : null,
-                crit_below: row.crit_below != null ? parseFloat(row.crit_below) : null,
-                warn_above: row.warn_above != null ? parseFloat(row.warn_above) : null,
-                crit_above: row.crit_above != null ? parseFloat(row.crit_above) : null
-            }
-        });
-    });
-    fastify.delete("/kpi/thresholds/:id", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        const { id } = request.params;
-        const sql = getSql();
-        const [row] = (await sql `
+    `;
+			if (!row) return reply.code(404).send({ error: "Threshold not found" });
+			return reply.send({
+				threshold: {
+					...row,
+					warn_below:
+						row.warn_below != null ? parseFloat(row.warn_below) : null,
+					crit_below:
+						row.crit_below != null ? parseFloat(row.crit_below) : null,
+					warn_above:
+						row.warn_above != null ? parseFloat(row.warn_above) : null,
+					crit_above: row.crit_above != null ? parseFloat(row.crit_above) : null
+				}
+			});
+		}
+	);
+	fastify.delete(
+		"/kpi/thresholds/:id",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			const { id } = request.params;
+			const sql = getSql();
+			const [row] = await sql`
       DELETE FROM kpi_thresholds
       WHERE id = ${id} AND company_id = ${companyId}
       RETURNING id
-    `);
-        if (!row)
-            return reply.code(404).send({ error: "Threshold not found" });
-        return { deleted: true, id: row.id };
-    });
-    fastify.get("/kpi/alerts", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        if (!companyId && !isDev(user))
-            return reply.code(403).send({ error: "Forbidden" });
-        const query = request.query;
-        const unreadOnly = query.unreadOnly === "true";
-        const limit = Math.min(parseInt(query.limit ?? "50", 10), 200);
-        const sql = getSql();
-        const rows = (await sql `
+    `;
+			if (!row) return reply.code(404).send({ error: "Threshold not found" });
+			return { deleted: true, id: row.id };
+		}
+	);
+	fastify.get(
+		"/kpi/alerts",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			if (!companyId && !isDev(user))
+				return reply.code(403).send({ error: "Forbidden" });
+			const query = request.query;
+			const unreadOnly = query.unreadOnly === "true";
+			const limit = Math.min(parseInt(query.limit ?? "50", 10), 200);
+			const sql = getSql();
+			const rows = await sql`
       SELECT * FROM kpi_alerts
       WHERE company_id = ${companyId}
         AND (${!unreadOnly} OR is_read = FALSE)
       ORDER BY is_read ASC, created_at DESC
       LIMIT ${limit}
-    `);
-        const [countRow] = (await sql `
+    `;
+			const [countRow] = await sql`
       SELECT COUNT(*) AS count FROM kpi_alerts
       WHERE company_id = ${companyId}
         AND is_read = FALSE AND is_resolved = FALSE
-    `);
-        return {
-            alerts: rows,
-            unreadCount: parseInt(countRow?.count ?? "0")
-        };
-    });
-    fastify.patch("/kpi/alerts/:id/read", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        const { id } = request.params;
-        const sql = getSql();
-        const [row] = (await sql `
+    `;
+			return {
+				alerts: rows,
+				unreadCount: parseInt(countRow?.count ?? "0")
+			};
+		}
+	);
+	fastify.patch(
+		"/kpi/alerts/:id/read",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			const { id } = request.params;
+			const sql = getSql();
+			const [row] = await sql`
       UPDATE kpi_alerts SET is_read = TRUE
       WHERE id = ${id} AND company_id = ${companyId}
       RETURNING id
-    `);
-        if (!row)
-            return reply.code(404).send({ error: "Alert not found" });
-        return { updated: true };
-    });
-    fastify.patch("/kpi/alerts/:id/resolve", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        const { id } = request.params;
-        const sql = getSql();
-        const [row] = (await sql `
+    `;
+			if (!row) return reply.code(404).send({ error: "Alert not found" });
+			return { updated: true };
+		}
+	);
+	fastify.patch(
+		"/kpi/alerts/:id/resolve",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			const { id } = request.params;
+			const sql = getSql();
+			const [row] = await sql`
       UPDATE kpi_alerts SET
         is_read = TRUE,
         is_resolved = TRUE,
         resolved_at = NOW()
       WHERE id = ${id} AND company_id = ${companyId}
       RETURNING id
-    `);
-        if (!row)
-            return reply.code(404).send({ error: "Alert not found" });
-        return { resolved: true };
-    });
-    fastify.post("/kpi/check", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        if (!companyId && !isDev(user))
-            return reply.code(403).send({ error: "Forbidden" });
-        const result = await evaluateKpiThresholds(companyId);
-        return { ok: true, ...result };
-    });
+    `;
+			if (!row) return reply.code(404).send({ error: "Alert not found" });
+			return { resolved: true };
+		}
+	);
+	fastify.post(
+		"/kpi/check",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			if (!companyId && !isDev(user))
+				return reply.code(403).send({ error: "Forbidden" });
+			const result = await evaluateKpiThresholds(companyId);
+			return { ok: true, ...result };
+		}
+	);
 }

@@ -60,12 +60,10 @@ export function getTechLeaderboard(fastify: FastifyInstance) {
 
 		const parsed = leaderboardSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply
-				.code(400)
-				.send({
-					error: "Invalid query",
-					details: z.treeifyError(parsed.error)
-				});
+			return reply.code(400).send({
+				error: "Invalid query",
+				details: z.treeifyError(parsed.error)
+			});
 		}
 
 		const { branchId, period, limit, metric } = parsed.data;

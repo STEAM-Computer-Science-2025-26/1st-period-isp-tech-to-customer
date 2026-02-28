@@ -19,8 +19,8 @@ const createCustomerSchema = z.object({
     state: z.string().min(2).max(2),
     zip: z.string().min(5),
     notes: z.string().optional(),
-    branchId: z.uuid().optional(),
-    companyId: z.uuid().optional() // dev only
+    branchId: z.string().uuid().optional(),
+    companyId: z.string().uuid().optional() // dev only
 });
 const updateCustomerSchema = z
     .object({
@@ -28,7 +28,7 @@ const updateCustomerSchema = z
     lastName: z.string().min(1).optional(),
     companyName: z.string().optional(),
     customerType: z.enum(["residential", "commercial"]).optional(),
-    email: z.email().optional(),
+    email: z.string().email().optional(),
     phone: z.string().min(1).optional(),
     altPhone: z.string().optional(),
     address: z.string().min(1).optional(),
@@ -37,14 +37,14 @@ const updateCustomerSchema = z
     zip: z.string().min(5).optional(),
     notes: z.string().optional(),
     isActive: z.boolean().optional(),
-    branchId: z.uuid().optional()
+    branchId: z.string().uuid().optional()
 })
     .refine((d) => Object.keys(d).length > 0, {
     message: "At least one field must be provided"
 });
 const listCustomersSchema = z.object({
-    companyId: z.uuid().optional(),
-    branchId: z.uuid().optional(),
+    companyId: z.string().uuid().optional(),
+    branchId: z.string().uuid().optional(),
     customerType: z.enum(["residential", "commercial"]).optional(),
     zip: z.string().optional(),
     isActive: z.coerce.boolean().optional(),
@@ -80,7 +80,7 @@ const updateLocationSchema = z
     message: "At least one field must be provided"
 });
 const createEquipmentSchema = z.object({
-    locationId: z.uuid().optional(),
+    locationId: z.string().uuid().optional(),
     equipmentType: z.enum([
         "furnace",
         "ac",
@@ -110,7 +110,7 @@ const createEquipmentSchema = z.object({
 });
 const updateEquipmentSchema = z
     .object({
-    locationId: z.uuid().optional(),
+    locationId: z.string().uuid().optional(),
     equipmentType: z
         .enum([
         "furnace",
@@ -142,7 +142,7 @@ const updateEquipmentSchema = z
     message: "At least one field must be provided"
 });
 const createCommunicationSchema = z.object({
-    jobId: z.uuid().optional(),
+    jobId: z.string().uuid().optional(),
     direction: z.enum(["inbound", "outbound"]),
     channel: z.enum(["phone", "sms", "email", "in_person"]).optional(),
     type: z.string().optional(),
@@ -151,7 +151,7 @@ const createCommunicationSchema = z.object({
     notes: z.string().optional()
 });
 const createNoShowSchema = z.object({
-    jobId: z.uuid(),
+    jobId: z.string().uuid(),
     notes: z.string().optional()
 });
 // ============================================================
@@ -163,15 +163,11 @@ function getUser(request) {
 function isDev(user) {
     return user.role === "dev";
 }
-// Dev: use bodyCompanyId if provided, else fall back to their own companyId from token
-// Non-dev: always their own companyId from token — body value ignored
 function resolveCompanyId(user, bodyCompanyId) {
     if (isDev(user))
         return bodyCompanyId ?? user.companyId ?? null;
     return user.companyId ?? null;
 }
-// Builds a dynamic SET clause from a field map.
-// Returns { clause: "col = $1, col2 = $2", values: [...] }
 function buildSetClause(fields, startIdx = 1) {
     const parts = [];
     const values = [];
@@ -184,19 +180,22 @@ function buildSetClause(fields, startIdx = 1) {
     }
     return { clause: parts.join(", "), values, nextIdx: idx };
 }
+// Safely unwrap a Neon .unsafe() or sql-as-function result into a plain array
+function toRows(raw) {
+    if (Array.isArray(raw))
+        return raw;
+    if (raw && typeof raw === "object" && Array.isArray(raw.rows))
+        return raw.rows;
+    return [];
+}
 // ============================================================
 // Route Registration
 // ============================================================
 export async function customerRoutes(fastify) {
     // ----------------------------------------------------------
     // POST /customers
-    // Creates a customer. Address queued for geocoding — the
-    // existing geocoding worker picks up 'pending' status automatically.
-    // No new geocoding code needed.
     // ----------------------------------------------------------
-    fastify.post("/customers", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.post("/customers", { preHandler: [authenticate] }, async (request, reply) => {
         const parsed = createCustomerSchema.safeParse(request.body);
         if (!parsed.success) {
             return reply.code(400).send({
@@ -212,43 +211,38 @@ export async function customerRoutes(fastify) {
         const userId = resolveUserId(user) ?? null;
         const sql = getSql();
         const result = (await sql `
-            INSERT INTO customers (
-                company_id, branch_id, first_name, last_name, company_name,
-                customer_type, email, phone, alt_phone,
-                address, city, state, zip,
-                notes, created_by_user_id, geocoding_status
-            ) VALUES (
-                ${companyId},
-                ${body.branchId ?? null},
-                ${body.firstName},
-                ${body.lastName},
-                ${body.companyName ?? null},
-                ${body.customerType},
-                ${body.email ?? null},
-                ${body.phone},
-                ${body.altPhone ?? null},
-                ${body.address},
-                ${body.city},
-                ${body.state},
-                ${body.zip},
-                ${body.notes ?? null},
-                ${userId ?? null},
-                'pending'
-            )
-            RETURNING id
-        `);
+				INSERT INTO customers (
+					company_id, branch_id, first_name, last_name, company_name,
+					customer_type, email, phone, alt_phone,
+					address, city, state, zip,
+					notes, created_by_user_id, geocoding_status
+				) VALUES (
+					${companyId},
+					${body.branchId ?? null},
+					${body.firstName},
+					${body.lastName},
+					${body.companyName ?? null},
+					${body.customerType},
+					${body.email ?? null},
+					${body.phone},
+					${body.altPhone ?? null},
+					${body.address},
+					${body.city},
+					${body.state},
+					${body.zip},
+					${body.notes ?? null},
+					${userId ?? null},
+					'pending'
+				)
+				RETURNING id
+			`);
         console.log(`📍 Customer ${result[0].id} queued for geocoding`);
         return reply.code(201).send({ customer: result[0] });
     });
     // ----------------------------------------------------------
     // GET /customers
-    // Filtered + paginated list. Search hits: first_name,
-    // last_name, company_name, phone, alt_phone, email.
-    // Returns total count so frontend can paginate properly.
     // ----------------------------------------------------------
-    fastify.get("/customers", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.get("/customers", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const parsed = listCustomersSchema.safeParse(request.query);
         if (!parsed.success) {
@@ -262,9 +256,6 @@ export async function customerRoutes(fastify) {
         if (!companyId)
             return reply.code(403).send({ error: "Forbidden - Missing company" });
         const sql = getSql();
-        // Neon tagged templates don't support dynamic WHERE — build conditions
-        // manually and call sql() as a function with $N params.
-        // This is the correct Neon pattern for dynamic queries.
         const conditions = ["c.company_id = $1"];
         const values = [companyId];
         if (q.branchId) {
@@ -286,170 +277,165 @@ export async function customerRoutes(fastify) {
         if (q.search) {
             const p = `$${values.length + 1}`;
             conditions.push(`(
-                c.first_name   ILIKE ${p} OR
-                c.last_name    ILIKE ${p} OR
-                c.company_name ILIKE ${p} OR
-                c.phone        ILIKE ${p} OR
-                c.alt_phone    ILIKE ${p} OR
-                c.email        ILIKE ${p}
-            )`);
+					c.first_name   ILIKE ${p} OR
+					c.last_name    ILIKE ${p} OR
+					c.company_name ILIKE ${p} OR
+					c.phone        ILIKE ${p} OR
+					c.alt_phone    ILIKE ${p} OR
+					c.email        ILIKE ${p}
+				)`);
             values.push(`%${q.search}%`);
         }
         const where = conditions.join(" AND ");
-        const countResult = Array.from(await sql(`SELECT COUNT(*)::int AS count FROM customers c WHERE ${where}`, values));
-        const total = countResult[0].count;
+        const countRaw = await sql(`SELECT COUNT(*)::int AS count FROM customers c WHERE ${where}`, values);
+        const countRows = toRows(countRaw);
+        const total = countRows[0]?.count ?? 0;
         const limitIdx = values.length + 1;
         const offIdx = values.length + 2;
         values.push(q.limit, q.offset);
-        const customers = Array.from(await sql(`SELECT
-				id,
-				company_id       AS "companyId",
-				branch_id        AS "branchId",
-				first_name       AS "firstName",
-				last_name        AS "lastName",
-				company_name     AS "companyName",
-				customer_type    AS "customerType",
-				email,
-				phone,
-				alt_phone        AS "altPhone",
-				address, city, state, zip,
-				latitude, longitude,
-				geocoding_status AS "geocodingStatus",
-				notes,
-				is_active        AS "isActive",
-				no_show_count    AS "noShowCount",
-				created_at       AS "createdAt",
-				updated_at       AS "updatedAt"
-			FROM customers c
-			WHERE ${where}
-			ORDER BY c.created_at DESC
-			LIMIT $${limitIdx} OFFSET $${offIdx}`, values));
+        const customersRaw = await sql(`SELECT
+					id,
+					company_id       AS "companyId",
+					branch_id        AS "branchId",
+					first_name       AS "firstName",
+					last_name        AS "lastName",
+					company_name     AS "companyName",
+					customer_type    AS "customerType",
+					email,
+					phone,
+					alt_phone        AS "altPhone",
+					address, city, state, zip,
+					latitude, longitude,
+					geocoding_status AS "geocodingStatus",
+					notes,
+					is_active        AS "isActive",
+					no_show_count    AS "noShowCount",
+					created_at       AS "createdAt",
+					updated_at       AS "updatedAt"
+				FROM customers c
+				WHERE ${where}
+				ORDER BY c.created_at DESC
+				LIMIT $${limitIdx} OFFSET $${offIdx}`, values);
+        const customers = toRows(customersRaw);
         return reply.send({ customers, total, limit: q.limit, offset: q.offset });
     });
     // ----------------------------------------------------------
     // GET /customers/:customerId
-    // Screen pop — full context in one response:
-    // customer + locations + equipment + last 10 jobs + last 10 comms.
-    // Everything a tech or CSR needs before touching a job.
-    // ageYears computed in SQL. Oldest equipment first = replacement priority.
     // ----------------------------------------------------------
-    fastify.get("/customers/:customerId", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.get("/customers/:customerId", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId } = request.params;
         const companyId = resolveCompanyId(user);
         const sql = getSql();
-        // Tagged templates work fine for fixed queries with known params
         const customerResult = isDev(user)
             ? (await sql `
-                SELECT
-                    id,
-                    company_id       AS "companyId",
-                    branch_id        AS "branchId",
-                    first_name       AS "firstName",
-                    last_name        AS "lastName",
-                    company_name     AS "companyName",
-                    customer_type    AS "customerType",
-                    email, phone,
-                    alt_phone        AS "altPhone",
-                    address, city, state, zip,
-                    latitude, longitude,
-                    geocoding_status AS "geocodingStatus",
-                    notes,
-                    is_active        AS "isActive",
-                    no_show_count    AS "noShowCount",
-                    created_at       AS "createdAt",
-                    updated_at       AS "updatedAt"
-                FROM customers c
-                WHERE c.id = ${customerId}
-            `)
+					SELECT
+						id,
+						company_id       AS "companyId",
+						branch_id        AS "branchId",
+						first_name       AS "firstName",
+						last_name        AS "lastName",
+						company_name     AS "companyName",
+						customer_type    AS "customerType",
+						email, phone,
+						alt_phone        AS "altPhone",
+						address, city, state, zip,
+						latitude, longitude,
+						geocoding_status AS "geocodingStatus",
+						notes,
+						is_active        AS "isActive",
+						no_show_count    AS "noShowCount",
+						created_at       AS "createdAt",
+						updated_at       AS "updatedAt"
+					FROM customers c
+					WHERE c.id = ${customerId}
+				`)
             : (await sql `
-                SELECT
-                    id,
-                    company_id       AS "companyId",
-                    branch_id        AS "branchId",
-                    first_name       AS "firstName",
-                    last_name        AS "lastName",
-                    company_name     AS "companyName",
-                    customer_type    AS "customerType",
-                    email, phone,
-                    alt_phone        AS "altPhone",
-                    address, city, state, zip,
-                    latitude, longitude,
-                    geocoding_status AS "geocodingStatus",
-                    notes,
-                    is_active        AS "isActive",
-                    no_show_count    AS "noShowCount",
-                    created_at       AS "createdAt",
-                    updated_at       AS "updatedAt"
-                FROM customers c
-                WHERE c.id = ${customerId} AND c.company_id = ${companyId}
-            `);
+					SELECT
+						id,
+						company_id       AS "companyId",
+						branch_id        AS "branchId",
+						first_name       AS "firstName",
+						last_name        AS "lastName",
+						company_name     AS "companyName",
+						customer_type    AS "customerType",
+						email, phone,
+						alt_phone        AS "altPhone",
+						address, city, state, zip,
+						latitude, longitude,
+						geocoding_status AS "geocodingStatus",
+						notes,
+						is_active        AS "isActive",
+						no_show_count    AS "noShowCount",
+						created_at       AS "createdAt",
+						updated_at       AS "updatedAt"
+					FROM customers c
+					WHERE c.id = ${customerId} AND c.company_id = ${companyId}
+				`);
         if (!customerResult[0]) {
             return reply.code(404).send({ error: "Customer not found" });
         }
         const locations = (await sql `
-            SELECT
-                id, label, address, city, state, zip,
-                latitude, longitude,
-                geocoding_status AS "geocodingStatus",
-                access_notes     AS "accessNotes",
-                gate_code        AS "gateCode",
-                has_pets         AS "hasPets",
-                is_primary       AS "isPrimary",
-                is_active        AS "isActive",
-                created_at       AS "createdAt"
-            FROM customer_locations
-            WHERE customer_id = ${customerId} AND is_active = true
-            ORDER BY is_primary DESC, created_at ASC
-        `);
+				SELECT
+					id, label, address, city, state, zip,
+					latitude, longitude,
+					geocoding_status AS "geocodingStatus",
+					access_notes     AS "accessNotes",
+					gate_code        AS "gateCode",
+					has_pets         AS "hasPets",
+					is_primary       AS "isPrimary",
+					is_active        AS "isActive",
+					created_at       AS "createdAt"
+				FROM customer_locations
+				WHERE customer_id = ${customerId} AND is_active = true
+				ORDER BY is_primary DESC, created_at ASC
+			`);
         const equipment = (await sql `
-            SELECT
-                id,
-                location_id       AS "locationId",
-                equipment_type    AS "equipmentType",
-                manufacturer,
-                model_number      AS "modelNumber",
-                serial_number     AS "serialNumber",
-                install_date      AS "installDate",
-                warranty_expiry   AS "warrantyExpiry",
-                last_service_date AS "lastServiceDate",
-                condition,
-                refrigerant_type  AS "refrigerantType",
-                notes,
-                is_active         AS "isActive",
-                created_at        AS "createdAt",
-                EXTRACT(YEAR FROM AGE(NOW(), install_date))::int AS "ageYears"
-            FROM equipment
-            WHERE customer_id = ${customerId} AND is_active = true
-            ORDER BY install_date ASC NULLS LAST
-        `);
+				SELECT
+					id,
+					location_id       AS "locationId",
+					equipment_type    AS "equipmentType",
+					manufacturer,
+					model_number      AS "modelNumber",
+					serial_number     AS "serialNumber",
+					install_date      AS "installDate",
+					warranty_expiry   AS "warrantyExpiry",
+					last_service_date AS "lastServiceDate",
+					condition,
+					refrigerant_type  AS "refrigerantType",
+					notes,
+					is_active         AS "isActive",
+					created_at        AS "createdAt",
+					EXTRACT(YEAR FROM AGE(NOW(), install_date))::int AS "ageYears"
+				FROM equipment
+				WHERE customer_id = ${customerId} AND is_active = true
+				ORDER BY install_date ASC NULLS LAST
+			`);
         const jobs = (await sql `
-            SELECT
-                id, status, priority,
-                job_type         AS "jobType",
-                address,
-                scheduled_time   AS "scheduledTime",
-                assigned_tech_id AS "assignedTechId",
-                created_at       AS "createdAt",
-                completed_at     AS "completedAt"
-            FROM jobs
-            WHERE customer_id = ${customerId}
-            ORDER BY created_at DESC
-            LIMIT 10
-        `);
+				SELECT
+					id, status, priority,
+					job_type         AS "jobType",
+					address,
+					scheduled_time   AS "scheduledTime",
+					assigned_tech_id AS "assignedTechId",
+					created_at       AS "createdAt",
+					completed_at     AS "completedAt"
+				FROM jobs
+				WHERE customer_id = ${customerId}
+				ORDER BY created_at DESC
+				LIMIT 10
+			`);
         const communications = (await sql `
-            SELECT
-                id, direction, channel, summary,
-                job_id       AS "jobId",
-                performed_by AS "performedBy",
-                created_at   AS "createdAt"
-            FROM customer_communications
-            WHERE customer_id = ${customerId}
-            ORDER BY created_at DESC
-            LIMIT 10
-        `);
+				SELECT
+					id, direction, channel, summary,
+					job_id       AS "jobId",
+					performed_by AS "performedBy",
+					created_at   AS "createdAt"
+				FROM customer_communications
+				WHERE customer_id = ${customerId}
+				ORDER BY created_at DESC
+				LIMIT 10
+			`);
         return reply.send({
             customer: customerResult[0],
             locations,
@@ -460,13 +446,8 @@ export async function customerRoutes(fastify) {
     });
     // ----------------------------------------------------------
     // PATCH /customers/:customerId
-    // Partial update. Only provided fields change.
-    // Address change clears lat/lng and re-queues geocoding once —
-    // no double-apply from the old code.
     // ----------------------------------------------------------
-    fastify.patch("/customers/:customerId", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.patch("/customers/:customerId", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId } = request.params;
         const parsed = updateCustomerSchema.safeParse(request.body);
@@ -496,7 +477,6 @@ export async function customerRoutes(fastify) {
             ["branch_id", body.branchId]
         ]);
         const extraSets = ["updated_at = NOW()"];
-        // Reset geocoding once — only if any address field actually changed
         if (body.address || body.city || body.state || body.zip) {
             extraSets.push(`geocoding_status = 'pending'`, `latitude = NULL`, `longitude = NULL`);
         }
@@ -511,7 +491,8 @@ export async function customerRoutes(fastify) {
             whereValues.push(companyId);
             where += ` AND company_id = $${idx++}`;
         }
-        const result = Array.from(await sql(`UPDATE customers SET ${fullClause} ${where} RETURNING id`, whereValues));
+        const raw = await sql(`UPDATE customers SET ${fullClause} ${where} RETURNING id`, whereValues);
+        const result = Array.isArray(raw) ? raw : (raw?.rows ?? []);
         if (!result[0])
             return reply.code(404).send({ error: "Customer not found" });
         return reply.send({
@@ -519,9 +500,10 @@ export async function customerRoutes(fastify) {
             customerId: result[0].id
         });
     });
-    fastify.delete("/customers/:customerId", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    // ----------------------------------------------------------
+    // DELETE /customers/:customerId
+    // ----------------------------------------------------------
+    fastify.delete("/customers/:customerId", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId } = request.params;
         const companyId = resolveCompanyId(user);
@@ -531,17 +513,17 @@ export async function customerRoutes(fastify) {
         }
         const result = isDev(user)
             ? (await sql `
-                UPDATE customers
-                SET is_active = false, updated_at = NOW()
-                WHERE id = ${customerId}
-                RETURNING id
-            `)
+					UPDATE customers
+					SET is_active = false, updated_at = NOW()
+					WHERE id = ${customerId}
+					RETURNING id
+				`)
             : (await sql `
-                UPDATE customers
-                SET is_active = false, updated_at = NOW()
-                WHERE id = ${customerId} AND company_id = ${companyId}
-                RETURNING id
-            `);
+					UPDATE customers
+					SET is_active = false, updated_at = NOW()
+					WHERE id = ${customerId} AND company_id = ${companyId}
+					RETURNING id
+				`);
         if (!result[0])
             return reply.code(404).send({ error: "Customer not found" });
         return reply.send({
@@ -551,15 +533,8 @@ export async function customerRoutes(fastify) {
     });
     // ----------------------------------------------------------
     // POST /customers/:customerId/locations
-    // Adds a service address. isPrimary demotion + insert run
-    // sequentially — Neon HTTP has no true transactions, so we
-    // do demote first, then insert. Worst case: demote succeeds,
-    // insert fails → no primaries. Acceptable for this use case.
-    // For true ACID, swap to Neon WebSocket driver.
     // ----------------------------------------------------------
-    fastify.post("/customers/:customerId/locations", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.post("/customers/:customerId/locations", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId } = request.params;
         const parsed = createLocationSchema.safeParse(request.body);
@@ -573,9 +548,9 @@ export async function customerRoutes(fastify) {
         const companyId = resolveCompanyId(user);
         const sql = getSql();
         const existing = (await sql `
-            SELECT company_id FROM customers
-            WHERE id = ${customerId} AND is_active = true
-        `);
+				SELECT company_id FROM customers
+				WHERE id = ${customerId} AND is_active = true
+			`);
         if (!existing[0])
             return reply.code(404).send({ error: "Customer not found" });
         if (!isDev(user) && existing[0].company_id !== companyId) {
@@ -583,10 +558,10 @@ export async function customerRoutes(fastify) {
         }
         if (body.isPrimary) {
             await sql `
-                UPDATE customer_locations
-                SET is_primary = false
-                WHERE customer_id = ${customerId}
-            `;
+					UPDATE customer_locations
+					SET is_primary = false
+					WHERE customer_id = ${customerId}
+				`;
         }
         const [location] = (await sql `
 				INSERT INTO customer_locations (
@@ -612,61 +587,52 @@ export async function customerRoutes(fastify) {
     });
     // ----------------------------------------------------------
     // GET /customers/:customerId/locations
-    // All active locations. Primary always first.
-    // Dev bypass skips company check.
     // ----------------------------------------------------------
-    fastify.get("/customers/:customerId/locations", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.get("/customers/:customerId/locations", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId } = request.params;
         const companyId = resolveCompanyId(user);
         const sql = getSql();
-        // Two separate tagged queries — avoids dynamic SQL for company check
         const locations = isDev(user)
             ? (await sql `
-                SELECT
-                    cl.id, cl.label, cl.address, cl.city, cl.state, cl.zip,
-                    cl.latitude, cl.longitude,
-                    cl.geocoding_status AS "geocodingStatus",
-                    cl.access_notes     AS "accessNotes",
-                    cl.gate_code        AS "gateCode",
-                    cl.has_pets         AS "hasPets",
-                    cl.is_primary       AS "isPrimary",
-                    cl.is_active        AS "isActive",
-                    cl.created_at       AS "createdAt"
-                FROM customer_locations cl
-                WHERE cl.customer_id = ${customerId} AND cl.is_active = true
-                ORDER BY cl.is_primary DESC, cl.created_at ASC
-            `)
+					SELECT
+						cl.id, cl.label, cl.address, cl.city, cl.state, cl.zip,
+						cl.latitude, cl.longitude,
+						cl.geocoding_status AS "geocodingStatus",
+						cl.access_notes     AS "accessNotes",
+						cl.gate_code        AS "gateCode",
+						cl.has_pets         AS "hasPets",
+						cl.is_primary       AS "isPrimary",
+						cl.is_active        AS "isActive",
+						cl.created_at       AS "createdAt"
+					FROM customer_locations cl
+					WHERE cl.customer_id = ${customerId} AND cl.is_active = true
+					ORDER BY cl.is_primary DESC, cl.created_at ASC
+				`)
             : (await sql `
-                SELECT
-                    cl.id, cl.label, cl.address, cl.city, cl.state, cl.zip,
-                    cl.latitude, cl.longitude,
-                    cl.geocoding_status AS "geocodingStatus",
-                    cl.access_notes     AS "accessNotes",
-                    cl.gate_code        AS "gateCode",
-                    cl.has_pets         AS "hasPets",
-                    cl.is_primary       AS "isPrimary",
-                    cl.is_active        AS "isActive",
-                    cl.created_at       AS "createdAt"
-                FROM customer_locations cl
-                JOIN customers c ON c.id = cl.customer_id
-                WHERE cl.customer_id = ${customerId}
-                  AND cl.is_active = true
-                  AND c.company_id = ${companyId}
-                ORDER BY cl.is_primary DESC, cl.created_at ASC
-            `);
+					SELECT
+						cl.id, cl.label, cl.address, cl.city, cl.state, cl.zip,
+						cl.latitude, cl.longitude,
+						cl.geocoding_status AS "geocodingStatus",
+						cl.access_notes     AS "accessNotes",
+						cl.gate_code        AS "gateCode",
+						cl.has_pets         AS "hasPets",
+						cl.is_primary       AS "isPrimary",
+						cl.is_active        AS "isActive",
+						cl.created_at       AS "createdAt"
+					FROM customer_locations cl
+					JOIN customers c ON c.id = cl.customer_id
+					WHERE cl.customer_id = ${customerId}
+					  AND cl.is_active = true
+					  AND c.company_id = ${companyId}
+					ORDER BY cl.is_primary DESC, cl.created_at ASC
+				`);
         return reply.send({ locations });
     });
     // ----------------------------------------------------------
     // PATCH /customers/:customerId/locations/:locationId
-    // Partial update. isPrimary demotion runs first (same
-    // sequential pattern as POST). Address change re-queues geocoding.
     // ----------------------------------------------------------
-    fastify.patch("/customers/:customerId/locations/:locationId", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.patch("/customers/:customerId/locations/:locationId", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId, locationId } = request.params;
         const parsed = updateLocationSchema.safeParse(request.body);
@@ -710,17 +676,17 @@ export async function customerRoutes(fastify) {
             whereParts.push(`company_id = $${idx++}`);
             whereValues.push(companyId);
         }
-        // Demote other primaries first if needed
         if (body.isPrimary) {
             await sql `
-                UPDATE customer_locations SET is_primary = false
-                WHERE customer_id = ${customerId} AND id != ${locationId}
-            `;
+					UPDATE customer_locations SET is_primary = false
+					WHERE customer_id = ${customerId} AND id != ${locationId}
+				`;
         }
-        const result = (await sql(`UPDATE customer_locations
-             SET ${fullClause}
-             WHERE ${whereParts.join(" AND ")}
-             RETURNING id`, whereValues));
+        const resultRaw = await sql(`UPDATE customer_locations
+				 SET ${fullClause}
+				 WHERE ${whereParts.join(" AND ")}
+				 RETURNING id`, whereValues);
+        const result = toRows(resultRaw);
         if (!result[0])
             return reply.code(404).send({ error: "Location not found" });
         return reply.send({
@@ -728,9 +694,10 @@ export async function customerRoutes(fastify) {
             locationId: result[0].id
         });
     });
-    fastify.delete("/customers/:customerId/locations/:locationId", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    // ----------------------------------------------------------
+    // DELETE /customers/:customerId/locations/:locationId
+    // ----------------------------------------------------------
+    fastify.delete("/customers/:customerId/locations/:locationId", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId, locationId } = request.params;
         const companyId = resolveCompanyId(user);
@@ -740,19 +707,19 @@ export async function customerRoutes(fastify) {
         }
         const result = isDev(user)
             ? (await sql `
-                UPDATE customer_locations
-                SET is_active = false, updated_at = NOW()
-                WHERE id = ${locationId} AND customer_id = ${customerId}
-                RETURNING id
-            `)
+					UPDATE customer_locations
+					SET is_active = false, updated_at = NOW()
+					WHERE id = ${locationId} AND customer_id = ${customerId}
+					RETURNING id
+				`)
             : (await sql `
-                UPDATE customer_locations
-                SET is_active = false, updated_at = NOW()
-                WHERE id = ${locationId}
-                  AND customer_id = ${customerId}
-                  AND company_id = ${companyId}
-                RETURNING id
-            `);
+					UPDATE customer_locations
+					SET is_active = false, updated_at = NOW()
+					WHERE id = ${locationId}
+					  AND customer_id = ${customerId}
+					  AND company_id = ${companyId}
+					RETURNING id
+				`);
         if (!result[0])
             return reply.code(404).send({ error: "Location not found" });
         return reply.send({
@@ -762,12 +729,8 @@ export async function customerRoutes(fastify) {
     });
     // ----------------------------------------------------------
     // POST /customers/:customerId/equipment
-    // Adds HVAC equipment to a customer, optionally at a location.
-    // refrigerantType stored now — feeds EPA compliance log
     // ----------------------------------------------------------
-    fastify.post("/customers/:customerId/equipment", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.post("/customers/:customerId/equipment", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId } = request.params;
         const parsed = createEquipmentSchema.safeParse(request.body);
@@ -781,56 +744,51 @@ export async function customerRoutes(fastify) {
         const companyId = resolveCompanyId(user);
         const sql = getSql();
         const existing = (await sql `
-            SELECT company_id FROM customers
-            WHERE id = ${customerId} AND is_active = true
-        `);
+				SELECT company_id FROM customers
+				WHERE id = ${customerId} AND is_active = true
+			`);
         if (!existing[0])
             return reply.code(404).send({ error: "Customer not found" });
         if (!isDev(user) && existing[0].company_id !== companyId) {
             return reply.code(403).send({ error: "Forbidden" });
         }
         const result = (await sql `
-            INSERT INTO equipment (
-                customer_id, location_id, company_id, equipment_type,
-                manufacturer, model_number, serial_number,
-                install_date, warranty_expiry, last_service_date,
-                condition, refrigerant_type, notes
-            ) VALUES (
-                ${customerId},
-                ${body.locationId ?? null},
-                ${existing[0].company_id},
-                ${body.equipmentType},
-                ${body.manufacturer ?? body.brand ?? null},
-                ${body.modelNumber ?? body.model ?? null},
-                ${body.serialNumber ?? null},
-                ${body.installDate ?? null},
-                ${body.warrantyExpiry ?? null},
-                ${body.lastServiceDate ?? null},
-                ${body.condition},
-                ${body.refrigerantType ?? null},
-                ${body.notes ?? null}
-            )
-            RETURNING id, equipment_type AS "equipmentType", manufacturer, model_number AS "modelNumber", created_at AS "createdAt"
-        `);
+				INSERT INTO equipment (
+					customer_id, location_id, company_id, equipment_type,
+					manufacturer, model_number, serial_number,
+					install_date, warranty_expiry, last_service_date,
+					condition, refrigerant_type, notes
+				) VALUES (
+					${customerId},
+					${body.locationId ?? null},
+					${existing[0].company_id},
+					${body.equipmentType},
+					${body.manufacturer ?? body.brand ?? null},
+					${body.modelNumber ?? body.model ?? null},
+					${body.serialNumber ?? null},
+					${body.installDate ?? null},
+					${body.warrantyExpiry ?? null},
+					${body.lastServiceDate ?? null},
+					${body.condition},
+					${body.refrigerantType ?? null},
+					${body.notes ?? null}
+				)
+				RETURNING id, equipment_type AS "equipmentType", manufacturer, model_number AS "modelNumber", created_at AS "createdAt"
+			`);
         return reply.code(201).send({ equipment: result[0] });
     });
     // ----------------------------------------------------------
     // GET /customers/:customerId/equipment
-    // All active equipment. Filter by locationId if needed.
-    // ageYears computed in SQL. Oldest first = replacement priority.
     // ----------------------------------------------------------
-    fastify.get("/customers/:customerId/equipment", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
-        const { customerId } = request.params;
+    fastify.get("/customers/:customerId/equipment", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
+        const { customerId } = request.params;
         const companyId = resolveCompanyId(user);
         const { locationId } = request.query;
         const sql = getSql();
         if (!isDev(user) && !companyId) {
             return reply.code(403).send({ error: "Forbidden" });
         }
-        // Dynamic because locationId filter is optional
         const conditions = ["e.customer_id = $1", "e.is_active = true"];
         const values = [customerId];
         if (!isDev(user)) {
@@ -841,29 +799,31 @@ export async function customerRoutes(fastify) {
             conditions.push(`e.location_id = $${values.length + 1}`);
             values.push(locationId);
         }
-        const equipment = (await sql(`SELECT
-                e.id,
-                e.location_id       AS "locationId",
-                e.equipment_type    AS "equipmentType",
-                e.manufacturer,
-                e.model_number      AS "modelNumber",
-                e.serial_number     AS "serialNumber",
-                e.install_date      AS "installDate",
-                e.warranty_expiry   AS "warrantyExpiry",
-                e.last_service_date AS "lastServiceDate",
-                e.condition,
-                e.refrigerant_type  AS "refrigerantType",
-                e.notes,
-                e.created_at        AS "createdAt",
-                EXTRACT(YEAR FROM AGE(NOW(), e.install_date))::int AS "ageYears"
-            FROM equipment e
-            WHERE ${conditions.join(" AND ")}
-            ORDER BY e.install_date ASC NULLS LAST`, values));
+        const raw = await sql(`SELECT
+					e.id,
+					e.location_id       AS "locationId",
+					e.equipment_type    AS "equipmentType",
+					e.manufacturer,
+					e.model_number      AS "modelNumber",
+					e.serial_number     AS "serialNumber",
+					e.install_date      AS "installDate",
+					e.warranty_expiry   AS "warrantyExpiry",
+					e.last_service_date AS "lastServiceDate",
+					e.condition,
+					e.refrigerant_type  AS "refrigerantType",
+					e.notes,
+					e.created_at        AS "createdAt",
+					EXTRACT(YEAR FROM AGE(NOW(), e.install_date))::int AS "ageYears"
+				FROM equipment e
+				WHERE ${conditions.join(" AND ")}
+				ORDER BY e.install_date ASC NULLS LAST`, values);
+        const equipment = toRows(raw);
         return reply.send({ equipment });
     });
-    fastify.patch("/customers/:customerId/equipment/:equipmentId", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    // ----------------------------------------------------------
+    // PATCH /customers/:customerId/equipment/:equipmentId
+    // ----------------------------------------------------------
+    fastify.patch("/customers/:customerId/equipment/:equipmentId", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId, equipmentId } = request.params;
         const parsed = updateEquipmentSchema.safeParse(request.body);
@@ -904,7 +864,8 @@ export async function customerRoutes(fastify) {
             whereParts.push(`company_id = $${idx++}`);
             whereValues.push(companyId);
         }
-        const result = (await sql(`UPDATE equipment SET ${fullClause} WHERE ${whereParts.join(" AND ")} RETURNING id`, whereValues));
+        const resultRaw = await sql(`UPDATE equipment SET ${fullClause} WHERE ${whereParts.join(" AND ")} RETURNING id`, whereValues);
+        const result = toRows(resultRaw);
         if (!result[0])
             return reply.code(404).send({ error: "Equipment not found" });
         return reply.send({
@@ -914,11 +875,8 @@ export async function customerRoutes(fastify) {
     });
     // ----------------------------------------------------------
     // DELETE /customers/:customerId/equipment/:equipmentId
-    // Soft delete. Equipment history never goes away.
     // ----------------------------------------------------------
-    fastify.delete("/customers/:customerId/equipment/:equipmentId", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.delete("/customers/:customerId/equipment/:equipmentId", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId, equipmentId } = request.params;
         const companyId = resolveCompanyId(user);
@@ -928,30 +886,25 @@ export async function customerRoutes(fastify) {
         }
         const result = isDev(user)
             ? (await sql `
-                UPDATE equipment SET is_active = false, updated_at = NOW()
-                WHERE id = ${equipmentId} AND customer_id = ${customerId}
-                RETURNING id
-            `)
+					UPDATE equipment SET is_active = false, updated_at = NOW()
+					WHERE id = ${equipmentId} AND customer_id = ${customerId}
+					RETURNING id
+				`)
             : (await sql `
-                UPDATE equipment SET is_active = false, updated_at = NOW()
-                WHERE id = ${equipmentId}
-                  AND customer_id = ${customerId}
-                  AND company_id = ${companyId}
-                RETURNING id
-            `);
+					UPDATE equipment SET is_active = false, updated_at = NOW()
+					WHERE id = ${equipmentId}
+					  AND customer_id = ${customerId}
+					  AND company_id = ${companyId}
+					RETURNING id
+				`);
         if (!result[0])
             return reply.code(404).send({ error: "Equipment not found" });
         return reply.send({ message: "Equipment deactivated" });
     });
     // ----------------------------------------------------------
     // POST /customers/:customerId/communications
-    // Logs a call, SMS, email, or in-person interaction.
-    // Ties to a job if relevant. CSR logs the call →
-    // dispatcher sees it instantly on the customer screen pop.
     // ----------------------------------------------------------
-    fastify.post("/customers/:customerId/communications", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.post("/customers/:customerId/communications", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId } = request.params;
         const parsed = createCommunicationSchema.safeParse(request.body);
@@ -966,37 +919,34 @@ export async function customerRoutes(fastify) {
         const userId = resolveUserId(user) ?? null;
         const sql = getSql();
         const existing = (await sql `
-            SELECT company_id FROM customers
-            WHERE id = ${customerId} AND is_active = true
-        `);
+				SELECT company_id FROM customers
+				WHERE id = ${customerId} AND is_active = true
+			`);
         if (!existing[0])
             return reply.code(404).send({ error: "Customer not found" });
         if (!isDev(user) && existing[0].company_id !== companyId) {
             return reply.code(403).send({ error: "Forbidden" });
         }
         await sql `
-            INSERT INTO customer_communications (
-                customer_id, company_id, job_id,
-                direction, channel, summary, performed_by
-            ) VALUES (
-                ${customerId},
-                ${existing[0].company_id},
-                ${body.jobId ?? null},
-                ${body.direction},
-                ${body.channel ?? body.type ?? "phone"},
-                 ${body.summary ?? body.subject ?? body.notes ?? ""},
-                ${userId ?? null}
-            )
-        `;
+				INSERT INTO customer_communications (
+					customer_id, company_id, job_id,
+					direction, channel, summary, performed_by
+				) VALUES (
+					${customerId},
+					${existing[0].company_id},
+					${body.jobId ?? null},
+					${body.direction},
+					${body.channel ?? body.type ?? "phone"},
+					${body.summary ?? body.subject ?? body.notes ?? ""},
+					${userId ?? null}
+				)
+			`;
         return reply.code(201).send({ message: "Communication logged" });
     });
     // ----------------------------------------------------------
     // GET /customers/:customerId/communications
-    // Full interaction history. Most recent first. Paginated.
     // ----------------------------------------------------------
-    fastify.get("/customers/:customerId/communications", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    fastify.get("/customers/:customerId/communications", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId } = request.params;
         const { limit = "50", offset = "0" } = request.query;
@@ -1006,38 +956,39 @@ export async function customerRoutes(fastify) {
         const offsetN = Math.max(parseInt(offset, 10) || 0, 0);
         const communications = isDev(user)
             ? (await sql `
-                SELECT
-                    cc.id, cc.direction, cc.channel, cc.summary,
-                    cc.job_id       AS "jobId",
-                    cc.performed_by AS "performedBy",
-                    u.name          AS "performedByName",
-                    cc.created_at   AS "createdAt"
-                FROM customer_communications cc
-                LEFT JOIN users u ON u.id = cc.performed_by
-                WHERE cc.customer_id = ${customerId}
-                ORDER BY cc.created_at DESC
-                LIMIT ${limitN} OFFSET ${offsetN}
-            `)
+					SELECT
+						cc.id, cc.direction, cc.channel, cc.summary,
+						cc.job_id       AS "jobId",
+						cc.performed_by AS "performedBy",
+						u.name          AS "performedByName",
+						cc.created_at   AS "createdAt"
+					FROM customer_communications cc
+					LEFT JOIN users u ON u.id = cc.performed_by
+					WHERE cc.customer_id = ${customerId}
+					ORDER BY cc.created_at DESC
+					LIMIT ${limitN} OFFSET ${offsetN}
+				`)
             : (await sql `
-                SELECT
-                    cc.id, cc.direction, cc.channel, cc.summary,
-                    cc.job_id       AS "jobId",
-                    cc.performed_by AS "performedBy",
-                    u.name          AS "performedByName",
-                    cc.created_at   AS "createdAt"
-                FROM customer_communications cc
-                LEFT JOIN users u ON u.id = cc.performed_by
-                JOIN customers c ON c.id = cc.customer_id
-                WHERE cc.customer_id = ${customerId}
-                  AND c.company_id = ${companyId}
-                ORDER BY cc.created_at DESC
-                LIMIT ${limitN} OFFSET ${offsetN}
-            `);
+					SELECT
+						cc.id, cc.direction, cc.channel, cc.summary,
+						cc.job_id       AS "jobId",
+						cc.performed_by AS "performedBy",
+						u.name          AS "performedByName",
+						cc.created_at   AS "createdAt"
+					FROM customer_communications cc
+					LEFT JOIN users u ON u.id = cc.performed_by
+					JOIN customers c ON c.id = cc.customer_id
+					WHERE cc.customer_id = ${customerId}
+					  AND c.company_id = ${companyId}
+					ORDER BY cc.created_at DESC
+					LIMIT ${limitN} OFFSET ${offsetN}
+				`);
         return reply.send({ communications });
     });
-    fastify.post("/customers/:customerId/no-shows", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    // ----------------------------------------------------------
+    // POST /customers/:customerId/no-shows
+    // ----------------------------------------------------------
+    fastify.post("/customers/:customerId/no-shows", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId } = request.params;
         const parsed = createNoShowSchema.safeParse(request.body);
@@ -1051,46 +1002,47 @@ export async function customerRoutes(fastify) {
         const companyId = resolveCompanyId(user);
         const sql = getSql();
         const existing = (await sql `
-            SELECT company_id FROM customers WHERE id = ${customerId}
-        `);
+				SELECT company_id FROM customers WHERE id = ${customerId}
+			`);
         if (!existing[0])
             return reply.code(404).send({ error: "Customer not found" });
         if (!isDev(user) && existing[0].company_id !== companyId) {
             return reply.code(403).send({ error: "Forbidden" });
         }
         await sql `
-            INSERT INTO customer_no_shows (customer_id, job_id, company_id, notes)
-            VALUES (${customerId}, ${body.jobId}, ${existing[0].company_id}, ${body.notes ?? null})
-        `;
+				INSERT INTO customer_no_shows (customer_id, job_id, company_id, notes)
+				VALUES (${customerId}, ${body.jobId}, ${existing[0].company_id}, ${body.notes ?? null})
+			`;
         await sql `
-            UPDATE customers
-            SET no_show_count = no_show_count + 1, updated_at = NOW()
-            WHERE id = ${customerId}
-        `;
+				UPDATE customers
+				SET no_show_count = no_show_count + 1, updated_at = NOW()
+				WHERE id = ${customerId}
+			`;
         return reply.code(201).send({ message: "No-show logged" });
     });
-    fastify.get("/customers/:customerId/no-shows", {
-        preHandler: [authenticate]
-    }, async (request, reply) => {
+    // ----------------------------------------------------------
+    // GET /customers/:customerId/no-shows
+    // ----------------------------------------------------------
+    fastify.get("/customers/:customerId/no-shows", { preHandler: [authenticate] }, async (request, reply) => {
         const user = getUser(request);
         const { customerId } = request.params;
         const companyId = resolveCompanyId(user);
         const sql = getSql();
         const noShows = isDev(user)
             ? (await sql `
-                    SELECT id, job_id AS "jobId", notes, created_at AS "createdAt"
-                    FROM customer_no_shows
-                    WHERE customer_id = ${customerId}
-                    ORDER BY created_at DESC
-                `)
+					SELECT id, job_id AS "jobId", notes, created_at AS "createdAt"
+					FROM customer_no_shows
+					WHERE customer_id = ${customerId}
+					ORDER BY created_at DESC
+				`)
             : (await sql `
-                    SELECT ns.id, ns.job_id AS "jobId", ns.notes, ns.created_at AS "createdAt"
-                    FROM customer_no_shows ns
-                    JOIN customers c ON c.id = ns.customer_id
-                    WHERE ns.customer_id = ${customerId}
-                      AND c.company_id = ${companyId}
-                    ORDER BY ns.created_at DESC
-                `);
+					SELECT ns.id, ns.job_id AS "jobId", ns.notes, ns.created_at AS "createdAt"
+					FROM customer_no_shows ns
+					JOIN customers c ON c.id = ns.customer_id
+					WHERE ns.customer_id = ${customerId}
+					  AND c.company_id = ${companyId}
+					ORDER BY ns.created_at DESC
+				`);
         return reply.send({ noShows });
     });
 }

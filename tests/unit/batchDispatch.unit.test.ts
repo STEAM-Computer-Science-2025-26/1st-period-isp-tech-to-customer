@@ -1,10 +1,30 @@
 import { batchDispatch } from "../../services/dispatch/batchDispatch";
 import { randomUUID } from "crypto";
+const { sql } = require("../../lib/utils/index"); // adjust path if needed
 
 describe("Batch Dispatch – unit tests", () => {
+	let companyId: string;
+
+	beforeAll(async () => {
+		// Create a test company and RETURN its id
+		const companyResult = (await sql`
+			INSERT INTO companies (name, settings)
+			VALUES ('BatchTest Co', '{}')
+			RETURNING id
+		`) as unknown as { id: string }[];
+
+		companyId = companyResult[0].id;
+	});
+
+	afterAll(async () => {
+		// Clean up test data
+		await sql`
+			DELETE FROM companies
+			WHERE id = ${companyId}
+		`;
+	});
+
 	test("dispatches jobs without crashing", async () => {
-		// Test with empty array since batchDispatch queries database
-		const companyId = randomUUID();
 		const results = await batchDispatch([], companyId);
 
 		expect(results).toBeDefined();
@@ -14,8 +34,8 @@ describe("Batch Dispatch – unit tests", () => {
 	});
 
 	test("handles empty job list gracefully", async () => {
-		const companyId = randomUUID();
 		const results = await batchDispatch([], companyId);
+
 		expect(results.assignments).toHaveLength(0);
 		expect(results.stats.totalJobs).toBe(0);
 	});

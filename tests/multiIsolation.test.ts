@@ -85,7 +85,7 @@ async function testJobIsolation(
 	console.log("\n🔧 Job isolation");
 
 	// REPLACE testJobIsolation's INSERT:
-    const [jobA] = (await sql`
+	const [jobA] = (await sql`
         INSERT INTO jobs (company_id, created_by_user_id, address, job_type, status, phone, customer_name)
         VALUES (${companyAId}, ${userAId}, '123 Main Dallas TX 75001', 'repair', 'unassigned', '5550001111', 'Test Customer')
         RETURNING id
@@ -222,8 +222,8 @@ async function runIsolationTests() {
 	);
 	if (failed > 0) process.exit(1);
 }
+test("Multi-tenant isolation", async () => {
+	await runIsolationTests();
+}, 30000);
 
-runIsolationTests().catch((err) => {
-	console.error("Test runner crashed:", err);
-	process.exit(1);
-});
+if (failed > 0) throw new Error(`${failed} isolation test(s) failed`);

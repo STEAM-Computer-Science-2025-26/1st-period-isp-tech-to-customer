@@ -288,10 +288,11 @@ export async function branchRoutes(fastify: FastifyInstance) {
 				where += ` AND company_id = $${idx++}`;
 			}
 
-			const result = (await (sql as any)(
+			const raw = await (sql as any)(
 				`UPDATE branches SET ${fullClause} ${where} RETURNING id`,
 				whereValues
-			)) as BranchRow[];
+			);
+			const result: BranchRow[] = Array.isArray(raw) ? raw : (raw?.rows ?? []);
 
 			if (!result[0])
 				return reply.code(404).send({ error: "Branch not found" });

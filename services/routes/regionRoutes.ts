@@ -55,12 +55,10 @@ export function listRegions(fastify: FastifyInstance) {
 
 		const parsed = listRegionsSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply
-				.code(400)
-				.send({
-					error: "Invalid query",
-					details: z.treeifyError(parsed.error)
-				});
+			return reply.code(400).send({
+				error: "Invalid query",
+				details: z.treeifyError(parsed.error)
+			});
 		}
 
 		const { isActive, limit, offset } = parsed.data;

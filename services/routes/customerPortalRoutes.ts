@@ -145,12 +145,10 @@ export function getPortalInvoices(fastify: FastifyInstance) {
 
 		const parsed = listPortalInvoicesSchema.safeParse(request.query);
 		if (!parsed.success) {
-			return reply
-				.code(400)
-				.send({
-					error: "Invalid query",
-					details: z.treeifyError(parsed.error)
-				});
+			return reply.code(400).send({
+				error: "Invalid query",
+				details: z.treeifyError(parsed.error)
+			});
 		}
 
 		const { status, limit, offset } = parsed.data;
