@@ -39,7 +39,13 @@ import {
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { replacementRoutes } from "./routes/replacementRoutes";
 import { forecastRoutes } from "./routes/forecastRoutes";
-
+import { auditRoutes } from "./routes/auditRoutes";
+import { etaRoutes } from "./routes/etaRoutes";
+import { leaderboardRoutes } from "./routes/leaderboardRoutes";
+import { smsRoutes } from "./routes/smsRoutes";
+import { competitorPricingRoutes } from "./routes/competitorPricingRoutes";
+import { preStaffingAlertRoutes } from "./routes/preStaffingAlertRoutes";
+import { multiRegionRoutes } from "./routes/multiRegionRoutes";
 
 // ============================================================
 // Environment validation
@@ -177,7 +183,13 @@ await fastify.register(dispatchAuditRoutes);
 await fastify.register(refrigerantLogRoutes);
 await fastify.register(replacementRoutes);
 await fastify.register(forecastRoutes);
-
+await fastify.register(auditRoutes);
+await fastify.register(etaRoutes);
+await fastify.register(leaderboardRoutes);
+await fastify.register(smsRoutes);
+await fastify.register(competitorPricingRoutes);
+await fastify.register(preStaffingAlertRoutes);
+await fastify.register(multiRegionRoutes);
 // ============================================================
 // Root
 // ============================================================

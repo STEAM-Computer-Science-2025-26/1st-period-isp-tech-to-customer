@@ -14,17 +14,20 @@ import { authenticate, JWTPayload } from "../middleware/auth";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 // Age thresholds in years by equipment type
-const REPLACEMENT_THRESHOLDS: Record<string, { warn: number; critical: number }> = {
-	furnace:      { warn: 15, critical: 20 },
-	ac:           { warn: 12, critical: 15 },
-	heat_pump:    { warn: 12, critical: 15 },
-	air_handler:  { warn: 15, critical: 20 },
-	water_heater: { warn: 8,  critical: 12 },
-	boiler:       { warn: 15, critical: 25 },
-	mini_split:   { warn: 12, critical: 15 },
+const REPLACEMENT_THRESHOLDS: Record<
+	string,
+	{ warn: number; critical: number }
+> = {
+	furnace: { warn: 15, critical: 20 },
+	ac: { warn: 12, critical: 15 },
+	heat_pump: { warn: 12, critical: 15 },
+	air_handler: { warn: 15, critical: 20 },
+	water_heater: { warn: 8, critical: 12 },
+	boiler: { warn: 15, critical: 25 },
+	mini_split: { warn: 12, critical: 15 },
 	package_unit: { warn: 12, critical: 15 },
-	thermostat:   { warn: 10, critical: 15 },
-	other:        { warn: 15, critical: 20 },
+	thermostat: { warn: 10, critical: 15 },
+	other: { warn: 15, critical: 20 }
 };
 
 const DEFAULT_THRESHOLD = { warn: 12, critical: 15 };
@@ -32,24 +35,24 @@ const DEFAULT_THRESHOLD = { warn: 12, critical: 15 };
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const listAlertsSchema = z.object({
-	companyId:     z.string().uuid().optional(),
-	customerId:    z.string().uuid().optional(),
-	urgency:       z.enum(["warning", "critical", "all"]).default("all"),
+	companyId: z.string().uuid().optional(),
+	customerId: z.string().uuid().optional(),
+	urgency: z.enum(["warning", "critical", "all"]).default("all"),
 	equipmentType: z.string().optional(),
-	limit:         z.coerce.number().int().min(1).max(200).default(50),
-	offset:        z.coerce.number().int().min(0).default(0),
+	limit: z.coerce.number().int().min(1).max(200).default(50),
+	offset: z.coerce.number().int().min(0).default(0)
 });
 
 const dismissSchema = z.object({
 	snoozeDays: z.number().int().min(1).max(365).default(90),
-	notes:      z.string().max(500).optional(),
+	notes: z.string().max(500).optional()
 });
 
 const triggerJobSchema = z.object({
 	scheduledTime: z.string().datetime().optional(),
-	priority:      z.enum(["low", "medium", "high", "emergency"]).default("medium"),
-	notes:         z.string().max(1000).optional(),
-	assignedTechId: z.string().uuid().optional(),
+	priority: z.enum(["low", "medium", "high", "emergency"]).default("medium"),
+	notes: z.string().max(1000).optional(),
+	assignedTechId: z.string().uuid().optional()
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -58,15 +61,21 @@ function getUser(request: any): JWTPayload {
 	return request.user as JWTPayload;
 }
 
-function resolveCompanyId(user: JWTPayload, bodyCompanyId?: string): string | null {
+function resolveCompanyId(
+	user: JWTPayload,
+	bodyCompanyId?: string
+): string | null {
 	if (user.role === "dev") return bodyCompanyId ?? user.companyId ?? null;
 	return user.companyId ?? null;
 }
 
-function getUrgency(ageYears: number, equipmentType: string): "warning" | "critical" | null {
+function getUrgency(
+	ageYears: number,
+	equipmentType: string
+): "warning" | "critical" | null {
 	const thresholds = REPLACEMENT_THRESHOLDS[equipmentType] ?? DEFAULT_THRESHOLD;
 	if (ageYears >= thresholds.critical) return "critical";
-	if (ageYears >= thresholds.warn)     return "warning";
+	if (ageYears >= thresholds.warn) return "warning";
 	return null;
 }
 
@@ -91,14 +100,13 @@ export async function replacementRoutes(fastify: FastifyInstance) {
 			if (!parsed.success) {
 				return reply.code(400).send({
 					error: "Invalid query",
-					details: parsed.error.flatten().fieldErrors,
+					details: parsed.error.flatten().fieldErrors
 				});
 			}
 
 			const { customerId, urgency, equipmentType, limit, offset } = parsed.data;
-			const effectiveCompanyId = user.role === "dev"
-				? (parsed.data.companyId ?? companyId)
-				: companyId;
+			const effectiveCompanyId =
+				user.role === "dev" ? (parsed.data.companyId ?? companyId) : companyId;
 
 			const sql = getSql();
 
@@ -144,30 +152,31 @@ export async function replacementRoutes(fastify: FastifyInstance) {
 				.map((row: any) => {
 					const age = row.ageYears ?? 0;
 					const u = getUrgency(age, row.equipmentType);
-					const thresholds = REPLACEMENT_THRESHOLDS[row.equipmentType] ?? DEFAULT_THRESHOLD;
+					const thresholds =
+						REPLACEMENT_THRESHOLDS[row.equipmentType] ?? DEFAULT_THRESHOLD;
 					return {
 						...row,
 						urgency: u,
 						isSnoozed: !!row.snoozedUntil,
 						thresholds,
-						yearsOverWarn:     Math.max(0, age - thresholds.warn),
-						yearsToCritical:   Math.max(0, thresholds.critical - age),
+						yearsOverWarn: Math.max(0, age - thresholds.warn),
+						yearsToCritical: Math.max(0, thresholds.critical - age)
 					};
 				})
 				.filter((row: any) => {
 					if (!row.urgency) return false; // below warn threshold
-					if (row.isSnoozed)  return false; // snoozed
-					if (urgency === "all")      return true;
+					if (row.isSnoozed) return false; // snoozed
+					if (urgency === "all") return true;
 					return row.urgency === urgency;
 				});
 
 			const paginated = alerts.slice(offset, offset + limit);
 
 			return {
-				total:  alerts.length,
+				total: alerts.length,
 				limit,
 				offset,
-				alerts: paginated,
+				alerts: paginated
 			};
 		});
 
@@ -203,18 +212,19 @@ export async function replacementRoutes(fastify: FastifyInstance) {
 			for (const row of rows) {
 				const u = getUrgency(row.ageYears ?? 0, row.equipmentType);
 				if (!u) continue;
-				if (u === "warning")  warning++;
+				if (u === "warning") warning++;
 				if (u === "critical") critical++;
-				if (!byType[row.equipmentType]) byType[row.equipmentType] = { warning: 0, critical: 0 };
+				if (!byType[row.equipmentType])
+					byType[row.equipmentType] = { warning: 0, critical: 0 };
 				byType[row.equipmentType][u]++;
 			}
 
 			return {
-				total:    warning + critical,
+				total: warning + critical,
 				warning,
 				critical,
 				byType,
-				thresholds: REPLACEMENT_THRESHOLDS,
+				thresholds: REPLACEMENT_THRESHOLDS
 			};
 		});
 
@@ -222,35 +232,37 @@ export async function replacementRoutes(fastify: FastifyInstance) {
 		// POST /equipment/replacement-alerts/:equipmentId/dismiss
 		// Snooze an alert for N days
 		// ──────────────────────────────────────────────────────────────────────
-		r.post("/equipment/replacement-alerts/:equipmentId/dismiss", async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			const { equipmentId } = request.params as { equipmentId: string };
+		r.post(
+			"/equipment/replacement-alerts/:equipmentId/dismiss",
+			async (request, reply) => {
+				const user = getUser(request);
+				const companyId = resolveCompanyId(user);
+				const { equipmentId } = request.params as { equipmentId: string };
 
-			const parsed = dismissSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({
-					error: "Invalid body",
-					details: parsed.error.flatten().fieldErrors,
-				});
-			}
+				const parsed = dismissSchema.safeParse(request.body);
+				if (!parsed.success) {
+					return reply.code(400).send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
+				}
 
-			const { snoozeDays, notes } = parsed.data;
-			const sql = getSql();
+				const { snoozeDays, notes } = parsed.data;
+				const sql = getSql();
 
-			// Verify equipment belongs to this company
-			const [eq] = (await sql`
+				// Verify equipment belongs to this company
+				const [eq] = (await sql`
 				SELECT id FROM equipment
 				WHERE id = ${equipmentId}
 					AND (${companyId}::uuid IS NULL OR company_id = ${companyId})
 					AND is_active = TRUE
 			`) as any[];
 
-			if (!eq) return reply.code(404).send({ error: "Equipment not found" });
+				if (!eq) return reply.code(404).send({ error: "Equipment not found" });
 
-			const snoozedUntil = new Date(Date.now() + snoozeDays * 86_400_000);
+				const snoozedUntil = new Date(Date.now() + snoozeDays * 86_400_000);
 
-			await sql`
+				await sql`
 				INSERT INTO equipment_replacement_snoozes
 					(equipment_id, company_id, snoozed_until, snooze_notes)
 				VALUES
@@ -261,35 +273,38 @@ export async function replacementRoutes(fastify: FastifyInstance) {
 						updated_at    = NOW()
 			`;
 
-			return {
-				equipmentId,
-				snoozedUntil: snoozedUntil.toISOString(),
-				snoozeDays,
-			};
-		});
+				return {
+					equipmentId,
+					snoozedUntil: snoozedUntil.toISOString(),
+					snoozeDays
+				};
+			}
+		);
 
 		// ──────────────────────────────────────────────────────────────────────
 		// POST /equipment/replacement-alerts/:equipmentId/trigger-job
 		// Create a replacement job from an alert
 		// ──────────────────────────────────────────────────────────────────────
-		r.post("/equipment/replacement-alerts/:equipmentId/trigger-job", async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			const { equipmentId } = request.params as { equipmentId: string };
+		r.post(
+			"/equipment/replacement-alerts/:equipmentId/trigger-job",
+			async (request, reply) => {
+				const user = getUser(request);
+				const companyId = resolveCompanyId(user);
+				const { equipmentId } = request.params as { equipmentId: string };
 
-			const parsed = triggerJobSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({
-					error: "Invalid body",
-					details: parsed.error.flatten().fieldErrors,
-				});
-			}
+				const parsed = triggerJobSchema.safeParse(request.body);
+				if (!parsed.success) {
+					return reply.code(400).send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
+				}
 
-			const { scheduledTime, priority, notes, assignedTechId } = parsed.data;
-			const sql = getSql();
+				const { scheduledTime, priority, notes, assignedTechId } = parsed.data;
+				const sql = getSql();
 
-			// Get equipment + customer info
-			const [eq] = (await sql`
+				// Get equipment + customer info
+				const [eq] = (await sql`
 				SELECT
 					e.id, e.equipment_type AS "equipmentType",
 					e.manufacturer, e.model_number AS "modelNumber",
@@ -304,17 +319,20 @@ export async function replacementRoutes(fastify: FastifyInstance) {
 					AND e.is_active = TRUE
 			`) as any[];
 
-			if (!eq) return reply.code(404).send({ error: "Equipment not found" });
+				if (!eq) return reply.code(404).send({ error: "Equipment not found" });
 
-			const jobNotes = [
-				`Replacement job triggered for ${eq.equipmentType.replace("_", " ")} — ${eq.manufacturer ?? ""} ${eq.modelNumber ?? ""}`.trim(),
-				notes,
-			].filter(Boolean).join("\n");
+				const jobNotes = [
+					`Replacement job triggered for ${eq.equipmentType.replace("_", " ")} — ${eq.manufacturer ?? ""} ${eq.modelNumber ?? ""}`.trim(),
+					notes
+				]
+					.filter(Boolean)
+					.join("\n");
 
-			const fullAddress = [eq.address, eq.city, eq.state, eq.zip]
-				.filter(Boolean).join(", ");
+				const fullAddress = [eq.address, eq.city, eq.state, eq.zip]
+					.filter(Boolean)
+					.join(", ");
 
-			const [job] = (await sql`
+				const [job] = (await sql`
 				INSERT INTO jobs (
 					company_id, customer_id, customer_name,
 					address, phone, job_type, priority, status,
@@ -330,13 +348,14 @@ export async function replacementRoutes(fastify: FastifyInstance) {
 				RETURNING id, status, created_at AS "createdAt"
 			`) as any[];
 
-			return {
-				jobId:       job.id,
-				status:      job.status,
-				createdAt:   job.createdAt,
-				equipmentId,
-				customerName: eq.customerName,
-			};
-		});
+				return {
+					jobId: job.id,
+					status: job.status,
+					createdAt: job.createdAt,
+					equipmentId,
+					customerName: eq.customerName
+				};
+			}
+		);
 	});
 }

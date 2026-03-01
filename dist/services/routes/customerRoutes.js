@@ -287,13 +287,13 @@ export async function customerRoutes(fastify) {
             values.push(`%${q.search}%`);
         }
         const where = conditions.join(" AND ");
-        const countRaw = await sql(`SELECT COUNT(*)::int AS count FROM customers c WHERE ${where}`, values);
+        const countRaw = await sql.unsafe(`SELECT COUNT(*)::int AS count FROM customers c WHERE ${where}`, ...values);
         const countRows = toRows(countRaw);
         const total = countRows[0]?.count ?? 0;
         const limitIdx = values.length + 1;
         const offIdx = values.length + 2;
         values.push(q.limit, q.offset);
-        const customersRaw = await sql(`SELECT
+        const customersRaw = await sql.unsafe(`SELECT
 					id,
 					company_id       AS "companyId",
 					branch_id        AS "branchId",
@@ -315,7 +315,7 @@ export async function customerRoutes(fastify) {
 				FROM customers c
 				WHERE ${where}
 				ORDER BY c.created_at DESC
-				LIMIT $${limitIdx} OFFSET $${offIdx}`, values);
+				LIMIT $${limitIdx} OFFSET $${offIdx}`, ...values);
         const customers = toRows(customersRaw);
         return reply.send({ customers, total, limit: q.limit, offset: q.offset });
     });
@@ -491,7 +491,7 @@ export async function customerRoutes(fastify) {
             whereValues.push(companyId);
             where += ` AND company_id = $${idx++}`;
         }
-        const raw = await sql(`UPDATE customers SET ${fullClause} ${where} RETURNING id`, whereValues);
+        const raw = await sql.unsafe(`UPDATE customers SET ${fullClause} ${where} RETURNING id`, whereValues);
         const result = Array.isArray(raw) ? raw : (raw?.rows ?? []);
         if (!result[0])
             return reply.code(404).send({ error: "Customer not found" });
@@ -682,7 +682,7 @@ export async function customerRoutes(fastify) {
 					WHERE customer_id = ${customerId} AND id != ${locationId}
 				`;
         }
-        const resultRaw = await sql(`UPDATE customer_locations
+        const resultRaw = await sql.unsafe(`UPDATE customer_locations
 				 SET ${fullClause}
 				 WHERE ${whereParts.join(" AND ")}
 				 RETURNING id`, whereValues);
@@ -799,7 +799,7 @@ export async function customerRoutes(fastify) {
             conditions.push(`e.location_id = $${values.length + 1}`);
             values.push(locationId);
         }
-        const raw = await sql(`SELECT
+        const raw = await sql.unsafe(`SELECT
 					e.id,
 					e.location_id       AS "locationId",
 					e.equipment_type    AS "equipmentType",
@@ -816,7 +816,7 @@ export async function customerRoutes(fastify) {
 					EXTRACT(YEAR FROM AGE(NOW(), e.install_date))::int AS "ageYears"
 				FROM equipment e
 				WHERE ${conditions.join(" AND ")}
-				ORDER BY e.install_date ASC NULLS LAST`, values);
+				ORDER BY e.install_date ASC NULLS LAST`, ...values);
         const equipment = toRows(raw);
         return reply.send({ equipment });
     });
@@ -864,7 +864,7 @@ export async function customerRoutes(fastify) {
             whereParts.push(`company_id = $${idx++}`);
             whereValues.push(companyId);
         }
-        const resultRaw = await sql(`UPDATE equipment SET ${fullClause} WHERE ${whereParts.join(" AND ")} RETURNING id`, whereValues);
+        const resultRaw = await sql.unsafe(`UPDATE equipment SET ${fullClause} WHERE ${whereParts.join(" AND ")} RETURNING id`, ...whereValues);
         const result = toRows(resultRaw);
         if (!result[0])
             return reply.code(404).send({ error: "Equipment not found" });

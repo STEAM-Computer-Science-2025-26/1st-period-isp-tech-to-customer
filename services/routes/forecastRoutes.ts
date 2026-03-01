@@ -16,28 +16,28 @@ import { authenticate, JWTPayload } from "../middleware/auth";
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const demandSchema = z.object({
-	companyId:  z.string().uuid().optional(),
-	branchId:   z.string().uuid().optional(),
-	horizon:    z.coerce.number().int().min(1).max(24).default(6), // months ahead
+	companyId: z.string().uuid().optional(),
+	branchId: z.string().uuid().optional(),
+	horizon: z.coerce.number().int().min(1).max(24).default(6), // months ahead
 	granularity: z.enum(["week", "month"]).default("month"),
-	jobType:    z.string().optional(),
+	jobType: z.string().optional()
 });
 
 const trendsSchema = z.object({
 	companyId: z.string().uuid().optional(),
-	years:     z.coerce.number().int().min(1).max(5).default(2),
-	jobType:   z.string().optional(),
+	years: z.coerce.number().int().min(1).max(5).default(2),
+	jobType: z.string().optional()
 });
 
 const staffingSchema = z.object({
-	companyId:       z.string().uuid().optional(),
-	horizon:         z.coerce.number().int().min(1).max(12).default(3),
-	jobsPerTechPerDay: z.coerce.number().min(1).max(20).default(4),
+	companyId: z.string().uuid().optional(),
+	horizon: z.coerce.number().int().min(1).max(12).default(3),
+	jobsPerTechPerDay: z.coerce.number().min(1).max(20).default(4)
 });
 
 const partsDemandSchema = z.object({
 	companyId: z.string().uuid().optional(),
-	horizon:   z.coerce.number().int().min(1).max(6).default(3),
+	horizon: z.coerce.number().int().min(1).max(6).default(3)
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -46,32 +46,45 @@ function getUser(request: any): JWTPayload {
 	return request.user as JWTPayload;
 }
 
-function resolveCompanyId(user: JWTPayload, bodyCompanyId?: string): string | null {
+function resolveCompanyId(
+	user: JWTPayload,
+	bodyCompanyId?: string
+): string | null {
 	if (user.role === "dev") return bodyCompanyId ?? user.companyId ?? null;
 	return user.companyId ?? null;
 }
 
 // Month names for output
 const MONTH_NAMES = [
-	"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec"
 ];
 
 // HVAC seasonal multipliers by month (index 0 = Jan)
 // Summer (AC) and winter (heating) are peak seasons
 const SEASONAL_MULTIPLIERS = [
 	0.85, // Jan — moderate heating demand
-	0.80, // Feb — low (shoulder)
-	0.90, // Mar — spring ramp-up
+	0.8, // Feb — low (shoulder)
+	0.9, // Mar — spring ramp-up
 	1.05, // Apr — pre-summer checks
-	1.20, // May — AC season starts
-	1.40, // Jun — peak AC
-	1.50, // Jul — peak AC
+	1.2, // May — AC season starts
+	1.4, // Jun — peak AC
+	1.5, // Jul — peak AC
 	1.45, // Aug — peak AC
 	1.15, // Sep — post-summer
 	0.95, // Oct — fall ramp-up
-	1.10, // Nov — heating season
-	1.00, // Dec — holiday dip
+	1.1, // Nov — heating season
+	1.0 // Dec — holiday dip
 ];
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -96,14 +109,13 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 			if (!parsed.success) {
 				return reply.code(400).send({
 					error: "Invalid query",
-					details: parsed.error.flatten().fieldErrors,
+					details: parsed.error.flatten().fieldErrors
 				});
 			}
 
 			const { horizon, granularity, jobType } = parsed.data;
-			const effectiveCompanyId = user.role === "dev"
-				? (parsed.data.companyId ?? companyId)
-				: companyId;
+			const effectiveCompanyId =
+				user.role === "dev" ? (parsed.data.companyId ?? companyId) : companyId;
 
 			const sql = getSql();
 
@@ -136,7 +148,8 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 			// Overall average jobs/month (fallback for months with no history)
 			const allCounts = historical.map((r: any) => Number(r.job_count));
 			const overallAvg = allCounts.length
-				? allCounts.reduce((a: number, b: number) => a + b, 0) / allCounts.length
+				? allCounts.reduce((a: number, b: number) => a + b, 0) /
+					allCounts.length
 				: 10; // default if no history
 
 			for (let m = 1; m <= 12; m++) {
@@ -154,20 +167,25 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 				for (let i = 0; i < horizon; i++) {
 					const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
 					const month = d.getMonth() + 1; // 1-12
-					const year  = d.getFullYear();
-					const base  = monthlyAvg[month] ?? overallAvg;
+					const year = d.getFullYear();
+					const base = monthlyAvg[month] ?? overallAvg;
 					const multiplier = SEASONAL_MULTIPLIERS[month - 1] ?? 1;
 					const predicted = Math.round(base * multiplier);
 					const historicalAvg = Math.round(monthlyAvg[month] ?? overallAvg);
 
 					forecast.push({
-						period:        `${MONTH_NAMES[month - 1]} ${year}`,
+						period: `${MONTH_NAMES[month - 1]} ${year}`,
 						year,
 						month,
 						predictedJobs: predicted,
 						historicalAvg,
 						multiplier,
-						trend:         predicted > historicalAvg ? "above_average" : predicted < historicalAvg ? "below_average" : "average",
+						trend:
+							predicted > historicalAvg
+								? "above_average"
+								: predicted < historicalAvg
+									? "below_average"
+									: "average"
 					});
 				}
 			} else {
@@ -176,19 +194,23 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 					const d = new Date(now);
 					d.setDate(d.getDate() + (i + 1) * 7);
 					const month = d.getMonth() + 1;
-					const weekOfYear = Math.ceil((d.getDate() + new Date(d.getFullYear(), d.getMonth(), 1).getDay()) / 7);
+					const weekOfYear = Math.ceil(
+						(d.getDate() +
+							new Date(d.getFullYear(), d.getMonth(), 1).getDay()) /
+							7
+					);
 					const monthlyBase = monthlyAvg[month] ?? overallAvg;
-					const weeklyBase  = monthlyBase / 4.3;
-					const multiplier  = SEASONAL_MULTIPLIERS[month - 1] ?? 1;
-					const predicted   = Math.round(weeklyBase * multiplier);
+					const weeklyBase = monthlyBase / 4.3;
+					const multiplier = SEASONAL_MULTIPLIERS[month - 1] ?? 1;
+					const predicted = Math.round(weeklyBase * multiplier);
 
 					forecast.push({
-						period:        `Week of ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
-						year:          d.getFullYear(),
+						period: `Week of ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+						year: d.getFullYear(),
 						month,
-						week:          weekOfYear,
+						week: weekOfYear,
 						predictedJobs: predicted,
-						multiplier,
+						multiplier
 					});
 				}
 			}
@@ -207,10 +229,10 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 				granularity,
 				horizon,
 				historicalDataPoints: historical.length,
-				totalHistoricalJobs:  Number(totals?.total_jobs ?? 0),
-				earliestJob:          totals?.earliest_job ?? null,
+				totalHistoricalJobs: Number(totals?.total_jobs ?? 0),
+				earliestJob: totals?.earliest_job ?? null,
 				overallMonthlyAverage: Math.round(overallAvg),
-				forecast,
+				forecast
 			};
 		});
 
@@ -231,9 +253,8 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 			}
 
 			const { years, jobType } = parsed.data;
-			const effectiveCompanyId = user.role === "dev"
-				? (parsed.data.companyId ?? companyId)
-				: companyId;
+			const effectiveCompanyId =
+				user.role === "dev" ? (parsed.data.companyId ?? companyId) : companyId;
 
 			const sql = getSql();
 
@@ -260,36 +281,59 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 				const y = Number(row.year);
 				if (!byYear[y]) byYear[y] = [];
 				byYear[y].push({
-					month:            Number(row.month),
-					monthName:        MONTH_NAMES[Number(row.month) - 1],
-					jobCount:         Number(row.job_count),
-					completed:        Number(row.completed),
-					cancelled:        Number(row.cancelled),
-					avgDurationHours: row.avg_duration_hours ? Number(row.avg_duration_hours) : null,
+					month: Number(row.month),
+					monthName: MONTH_NAMES[Number(row.month) - 1],
+					jobCount: Number(row.job_count),
+					completed: Number(row.completed),
+					cancelled: Number(row.cancelled),
+					avgDurationHours: row.avg_duration_hours
+						? Number(row.avg_duration_hours)
+						: null
 				});
 			}
 
 			// Find peak months
-			const allMonthly = rows.map((r: any) => ({ month: Number(r.month), count: Number(r.job_count) }));
+			const allMonthly = rows.map((r: any) => ({
+				month: Number(r.month),
+				count: Number(r.job_count)
+			}));
 			const peakMonth = allMonthly.length
-				? allMonthly.reduce((best: any, cur: any) => cur.count > best.count ? cur : best, allMonthly[0])
+				? allMonthly.reduce(
+						(best: any, cur: any) => (cur.count > best.count ? cur : best),
+						allMonthly[0]
+					)
 				: null;
 			const slowMonth = allMonthly.length
-				? allMonthly.reduce((best: any, cur: any) => cur.count < best.count ? cur : best, allMonthly[0])
+				? allMonthly.reduce(
+						(best: any, cur: any) => (cur.count < best.count ? cur : best),
+						allMonthly[0]
+					)
 				: null;
 
 			return {
 				years,
 				byYear,
 				insights: {
-					peakMonth:  peakMonth ? { month: peakMonth.month, name: MONTH_NAMES[peakMonth.month - 1], avgJobs: peakMonth.count } : null,
-					slowMonth:  slowMonth ? { month: slowMonth.month, name: MONTH_NAMES[slowMonth.month - 1], avgJobs: slowMonth.count } : null,
+					peakMonth: peakMonth
+						? {
+								month: peakMonth.month,
+								name: MONTH_NAMES[peakMonth.month - 1],
+								avgJobs: peakMonth.count
+							}
+						: null,
+					slowMonth: slowMonth
+						? {
+								month: slowMonth.month,
+								name: MONTH_NAMES[slowMonth.month - 1],
+								avgJobs: slowMonth.count
+							}
+						: null,
 					seasonalMultipliers: SEASONAL_MULTIPLIERS.map((m, i) => ({
 						month: i + 1,
-						name:  MONTH_NAMES[i],
-						multiplier: m,
-					})),
-				},
+						name: MONTH_NAMES[i],
+						multiplier: m
+					}))
+				}
 			};
 		});
 
@@ -310,9 +354,8 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 			}
 
 			const { horizon, jobsPerTechPerDay } = parsed.data;
-			const effectiveCompanyId = user.role === "dev"
-				? (parsed.data.companyId ?? companyId)
-				: companyId;
+			const effectiveCompanyId =
+				user.role === "dev" ? (parsed.data.companyId ?? companyId) : companyId;
 
 			const sql = getSql();
 
@@ -345,7 +388,8 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 				monthlyAvg[Number(row.month)] = Number(row.job_count);
 			}
 			const overallAvg = historical.length
-				? historical.reduce((s: number, r: any) => s + Number(r.job_count), 0) / historical.length
+				? historical.reduce((s: number, r: any) => s + Number(r.job_count), 0) /
+					historical.length
 				: 10;
 
 			const WORK_DAYS_PER_MONTH = 21.5;
@@ -356,27 +400,34 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 			for (let i = 0; i < horizon; i++) {
 				const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
 				const month = d.getMonth() + 1;
-				const year  = d.getFullYear();
-				const base  = monthlyAvg[month] ?? overallAvg;
+				const year = d.getFullYear();
+				const base = monthlyAvg[month] ?? overallAvg;
 				const multiplier = SEASONAL_MULTIPLIERS[month - 1] ?? 1;
 				const predictedJobs = Math.round(base * multiplier);
-				const techsNeeded = Math.ceil(predictedJobs / (jobsPerTechPerDay * WORK_DAYS_PER_MONTH));
+				const techsNeeded = Math.ceil(
+					predictedJobs / (jobsPerTechPerDay * WORK_DAYS_PER_MONTH)
+				);
 				const delta = techsNeeded - currentTechs;
 
 				staffing.push({
-					period:        `${MONTH_NAMES[month - 1]} ${year}`,
+					period: `${MONTH_NAMES[month - 1]} ${year}`,
 					month,
 					year,
 					predictedJobs,
 					techsNeeded,
 					currentTechs,
 					delta,
-					recommendation: delta > 0
-						? `Hire ${delta} more tech${delta > 1 ? "s" : ""}`
-						: delta < 0
-							? `${Math.abs(delta)} tech${Math.abs(delta) > 1 ? "s" : ""} may be underutilized`
-							: "Staffing looks good",
-					utilizationPct: Math.round((predictedJobs / (currentTechs * jobsPerTechPerDay * WORK_DAYS_PER_MONTH)) * 100),
+					recommendation:
+						delta > 0
+							? `Hire ${delta} more tech${delta > 1 ? "s" : ""}`
+							: delta < 0
+								? `${Math.abs(delta)} tech${Math.abs(delta) > 1 ? "s" : ""} may be underutilized`
+								: "Staffing looks good",
+					utilizationPct: Math.round(
+						(predictedJobs /
+							(currentTechs * jobsPerTechPerDay * WORK_DAYS_PER_MONTH)) *
+							100
+					)
 				});
 			}
 
@@ -385,7 +436,7 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 				currentTechs,
 				jobsPerTechPerDay,
 				workDaysPerMonth: WORK_DAYS_PER_MONTH,
-				staffing,
+				staffing
 			};
 		});
 
@@ -406,9 +457,8 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 			}
 
 			const { horizon } = parsed.data;
-			const effectiveCompanyId = user.role === "dev"
-				? (parsed.data.companyId ?? companyId)
-				: companyId;
+			const effectiveCompanyId =
+				user.role === "dev" ? (parsed.data.companyId ?? companyId) : companyId;
 
 			const sql = getSql();
 
@@ -437,55 +487,66 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 				const key = row.partNumber ?? row.partName;
 				if (!partMap[key]) {
 					partMap[key] = {
-						partName:   row.partName,
+						partName: row.partName,
 						partNumber: row.partNumber,
-						unitCost:   Number(row.unitCost ?? 0),
-						monthlyData: {} as Record<number, number>,
+						unitCost: Number(row.unitCost ?? 0),
+						monthlyData: {} as Record<number, number>
 					};
 				}
 				const m = Number(row.month);
-				partMap[key].monthlyData[m] = (partMap[key].monthlyData[m] ?? 0) + Number(row.totalUsed);
+				partMap[key].monthlyData[m] =
+					(partMap[key].monthlyData[m] ?? 0) + Number(row.totalUsed);
 			}
 
 			const now = new Date();
-			const predictions = Object.values(partMap).map((part: any) => {
-				const counts = Object.values(part.monthlyData) as number[];
-				const avgMonthly = counts.length
-					? counts.reduce((a, b) => a + b, 0) / counts.length
-					: 0;
+			const predictions = Object.values(partMap)
+				.map((part: any) => {
+					const counts = Object.values(part.monthlyData) as number[];
+					const avgMonthly = counts.length
+						? counts.reduce((a, b) => a + b, 0) / counts.length
+						: 0;
 
-				const forecastMonths = [];
-				for (let i = 0; i < horizon; i++) {
-					const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
-					const month = d.getMonth() + 1;
-					const multiplier = SEASONAL_MULTIPLIERS[month - 1] ?? 1;
-					const predicted = Math.round(avgMonthly * multiplier);
-					forecastMonths.push({
-						period:         `${MONTH_NAMES[month - 1]} ${d.getFullYear()}`,
-						month,
-						predictedUnits: predicted,
-						estimatedCost:  Math.round(predicted * part.unitCost * 100) / 100,
-					});
-				}
+					const forecastMonths = [];
+					for (let i = 0; i < horizon; i++) {
+						const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
+						const month = d.getMonth() + 1;
+						const multiplier = SEASONAL_MULTIPLIERS[month - 1] ?? 1;
+						const predicted = Math.round(avgMonthly * multiplier);
+						forecastMonths.push({
+							period: `${MONTH_NAMES[month - 1]} ${d.getFullYear()}`,
+							month,
+							predictedUnits: predicted,
+							estimatedCost: Math.round(predicted * part.unitCost * 100) / 100
+						});
+					}
 
-				const totalPredictedUnits = forecastMonths.reduce((s, m) => s + m.predictedUnits, 0);
-				const totalPredictedCost  = forecastMonths.reduce((s, m) => s + m.estimatedCost, 0);
+					const totalPredictedUnits = forecastMonths.reduce(
+						(s, m) => s + m.predictedUnits,
+						0
+					);
+					const totalPredictedCost = forecastMonths.reduce(
+						(s, m) => s + m.estimatedCost,
+						0
+					);
 
-				return {
-					partName:            part.partName,
-					partNumber:          part.partNumber,
-					unitCost:            part.unitCost,
-					avgMonthlyUsage:     Math.round(avgMonthly * 10) / 10,
-					forecast:            forecastMonths,
-					totalPredictedUnits,
-					totalPredictedCost:  Math.round(totalPredictedCost * 100) / 100,
-				};
-			}).sort((a: any, b: any) => b.totalPredictedUnits - a.totalPredictedUnits);
+					return {
+						partName: part.partName,
+						partNumber: part.partNumber,
+						unitCost: part.unitCost,
+						avgMonthlyUsage: Math.round(avgMonthly * 10) / 10,
+						forecast: forecastMonths,
+						totalPredictedUnits,
+						totalPredictedCost: Math.round(totalPredictedCost * 100) / 100
+					};
+				})
+				.sort(
+					(a: any, b: any) => b.totalPredictedUnits - a.totalPredictedUnits
+				);
 
 			return {
 				horizon,
 				parts: predictions,
-				totalParts: predictions.length,
+				totalParts: predictions.length
 			};
 		});
 	});

@@ -356,9 +356,9 @@ export async function customerRoutes(
 
 			const where = conditions.join(" AND ");
 
-			const countRaw = await (sql as any)(
+			const countRaw = await (sql as any).unsafe(
 				`SELECT COUNT(*)::int AS count FROM customers c WHERE ${where}`,
-				values
+				...values
 			);
 			const countRows = toRows(countRaw);
 			const total = countRows[0]?.count ?? 0;
@@ -367,7 +367,7 @@ export async function customerRoutes(
 			const offIdx = values.length + 2;
 			values.push(q.limit, q.offset);
 
-			const customersRaw = await (sql as any)(
+			const customersRaw = await (sql as any).unsafe(
 				`SELECT
 					id,
 					company_id       AS "companyId",
@@ -391,7 +391,7 @@ export async function customerRoutes(
 				WHERE ${where}
 				ORDER BY c.created_at DESC
 				LIMIT $${limitIdx} OFFSET $${offIdx}`,
-				values
+				...values
 			);
 			const customers = toRows(customersRaw);
 
@@ -596,7 +596,7 @@ export async function customerRoutes(
 				where += ` AND company_id = $${idx++}`;
 			}
 
-			const raw = await (sql as any)(
+			const raw = await (sql as any).unsafe(
 				`UPDATE customers SET ${fullClause} ${where} RETURNING id`,
 				whereValues
 			);
@@ -841,7 +841,7 @@ export async function customerRoutes(
 				`;
 			}
 
-			const resultRaw = await (sql as any)(
+			const resultRaw = await (sql as any).unsafe(
 				`UPDATE customer_locations
 				 SET ${fullClause}
 				 WHERE ${whereParts.join(" AND ")}
@@ -995,7 +995,7 @@ export async function customerRoutes(
 				values.push(locationId);
 			}
 
-			const raw = await (sql as any)(
+			const raw = await (sql as any).unsafe(
 				`SELECT
 					e.id,
 					e.location_id       AS "locationId",
@@ -1014,7 +1014,7 @@ export async function customerRoutes(
 				FROM equipment e
 				WHERE ${conditions.join(" AND ")}
 				ORDER BY e.install_date ASC NULLS LAST`,
-				values
+				...values
 			);
 			const equipment = toRows(raw);
 
@@ -1078,9 +1078,9 @@ export async function customerRoutes(
 				whereValues.push(companyId);
 			}
 
-			const resultRaw = await (sql as any)(
+			const resultRaw = await (sql as any).unsafe(
 				`UPDATE equipment SET ${fullClause} WHERE ${whereParts.join(" AND ")} RETURNING id`,
-				whereValues
+				...whereValues
 			);
 			const result = toRows(resultRaw);
 

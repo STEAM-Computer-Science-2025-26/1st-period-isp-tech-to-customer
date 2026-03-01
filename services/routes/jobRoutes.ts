@@ -20,7 +20,8 @@ const listJobsSchema = z.object({
 });
 
 const createJobSchema = z.object({
-	companyId: z.string().uuid().optional(),
+	companyId: z.uuid().optional(),
+	customerId: z.uuid().optional(),
 	customerName: z.string().min(1),
 	address: z.string().min(5, "Address must be at least 5 characters"),
 	phone: z.string().min(1),
@@ -212,6 +213,7 @@ export function createJob(fastify: FastifyInstance) {
 			RETURNING ${JOB_SELECT}`,
 			[
 				effectiveCompanyId,
+				body.customerId ?? null,
 				body.customerName,
 				body.address,
 				body.phone,

@@ -666,7 +666,7 @@ describe("Refrigerant Logs", () => {
 			jobId: rfJob.id,
 			techId,
 			refrigerantType: "R-410A",
-			actionType: "recovery",
+			actionType: "recover",
 			quantityLbs: 2.5,
 			cylinderTag: "CYL-001",
 			leakDetected: true,
@@ -735,7 +735,7 @@ describe("Refrigerant Logs", () => {
 			{
 				techId,
 				refrigerantType: "R-410A",
-				actionType: "recovery",
+				actionType: "recover",
 				quantityLbs: 2.75, // corrected amount
 				leakDetected: true,
 				leakRepaired: true,

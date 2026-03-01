@@ -288,7 +288,7 @@ export async function branchRoutes(fastify: FastifyInstance) {
 				where += ` AND company_id = $${idx++}`;
 			}
 
-			const raw = await (sql as any)(
+			const raw = await (sql as any).unsafe(
 				`UPDATE branches SET ${fullClause} ${where} RETURNING id`,
 				whereValues
 			);

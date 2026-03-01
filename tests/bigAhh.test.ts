@@ -22,7 +22,7 @@ import {
 	del,
 	seedCompanyAndUser,
 	deleteCompany,
-	BASE,
+	BASE
 } from "./helpers/api";
 
 // ============================================================
@@ -171,7 +171,9 @@ describe("Equipment Replacement Alerts", () => {
 			token
 		);
 		expect(status).toBe(200);
-		expect(body.alerts.every((a: any) => a.customerId === customerId)).toBe(true);
+		expect(body.alerts.every((a: any) => a.customerId === customerId)).toBe(
+			true
+		);
 	});
 
 	test("GET /equipment/replacement-alerts/summary returns counts", async () => {
@@ -222,7 +224,7 @@ describe("Equipment Replacement Alerts", () => {
 			token,
 			{
 				priority: "medium",
-				notes: "Customer requested Carrier replacement",
+				notes: "Customer requested Carrier replacement"
 			}
 		);
 		expect(status).toBe(200);
@@ -357,7 +359,9 @@ describe("Audit Log", () => {
 		const { status, body } = await get("/audit?entityType=customer", token);
 		expect(status).toBe(200);
 		if (body.logs.length > 0) {
-			expect(body.logs.every((l: any) => l.entity_type === "customer")).toBe(true);
+			expect(body.logs.every((l: any) => l.entity_type === "customer")).toBe(
+				true
+			);
 		}
 	});
 
@@ -383,7 +387,7 @@ describe("Customer ETA", () => {
 	test("POST /eta/token generates a token for the job", async () => {
 		const { status, body } = await post("/eta/token", token, {
 			jobId,
-			expiresInMinutes: 120,
+			expiresInMinutes: 120
 		});
 		expect(status).toBe(200);
 		expect(body).toHaveProperty("token");
@@ -396,7 +400,7 @@ describe("Customer ETA", () => {
 		const { status, body } = await post("/eta/update", token, {
 			jobId,
 			etaMinutes: 30,
-			note: "On the way, light traffic",
+			note: "On the way, light traffic"
 		});
 		expect(status).toBe(200);
 		expect(body).toHaveProperty("etaMinutes");
@@ -418,7 +422,7 @@ describe("Customer ETA", () => {
 	test("POST /eta/token for non-existent job returns 404", async () => {
 		const { status } = await post("/eta/token", token, {
 			jobId: "00000000-0000-0000-0000-000000000000",
-			expiresInMinutes: 60,
+			expiresInMinutes: 60
 		});
 		expect(status).toBe(404);
 	});
@@ -452,7 +456,10 @@ describe("Tech Leaderboard", () => {
 	});
 
 	test("GET /leaderboard/techs with invalid metric returns 400", async () => {
-		const { status } = await get("/leaderboard/techs?metric=fake_metric", token);
+		const { status } = await get(
+			"/leaderboard/techs?metric=fake_metric",
+			token
+		);
 		expect(status).toBe(400);
 	});
 
@@ -478,13 +485,15 @@ describe("Two-Way SMS", () => {
 		const { status, body } = await get("/sms?direction=outbound", token);
 		expect(status).toBe(200);
 		if (body.messages.length > 0) {
-			expect(body.messages.every((m: any) => m.direction === "outbound")).toBe(true);
+			expect(body.messages.every((m: any) => m.direction === "outbound")).toBe(
+				true
+			);
 		}
 	});
 
 	test("POST /sms/send with missing phone returns 400", async () => {
 		const { status } = await post("/sms/send", token, {
-			body: "Hello there",
+			body: "Hello there"
 			// missing toPhone
 		});
 		expect(status).toBe(400);
@@ -492,7 +501,7 @@ describe("Two-Way SMS", () => {
 
 	test("POST /sms/send with missing body returns 400", async () => {
 		const { status } = await post("/sms/send", token, {
-			toPhone: "214-555-9999",
+			toPhone: "214-555-9999"
 			// missing body
 		});
 		expect(status).toBe(400);
@@ -506,8 +515,8 @@ describe("Two-Way SMS", () => {
 			body: new URLSearchParams({
 				From: "+12145559999",
 				Body: "Hello from customer",
-				MessageSid: "SMtest123",
-			}).toString(),
+				MessageSid: "SMtest123"
+			}).toString()
 		});
 		// Should be 403 (invalid signature) or 200 (if signature check disabled in test env)
 		expect([200, 403, 400]).toContain(res.status);

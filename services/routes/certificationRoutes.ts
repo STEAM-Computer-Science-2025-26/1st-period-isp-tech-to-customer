@@ -266,7 +266,7 @@ export async function certificationRoutes(fastify: FastifyInstance) {
 			`;
 
 			return reply.send({
-				expiring,
+				certifications: expiring,
 				windowDays: daysN,
 				count: (expiring as any[]).length
 			});

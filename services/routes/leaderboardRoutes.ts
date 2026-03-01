@@ -74,62 +74,55 @@ export function getTechLeaderboard(fastify: FastifyInstance) {
 		const sql = getSql();
 
 		const leaderboard = await sql`
-			SELECT
-				e.id                                    AS "employeeId",
-				e.name                                  AS "techName",
-				e.role,
-				COUNT(j.id)::int                        AS "jobsCompleted",
-				COALESCE(SUM(j.invoice_total), 0)::numeric AS "revenueGenerated",
-				ROUND(AVG(j.tech_rating)::numeric, 2)  AS "avgRating",
-				COUNT(j.id) FILTER (
-					WHERE j.first_time_fix = TRUE
-				)::int                                  AS "firstTimeFixes",
-				COUNT(j.id) FILTER (
-					WHERE j.is_callback = TRUE
-				)::int                                  AS "callbacks",
-				CASE
-					WHEN COUNT(j.id) > 0
-					THEN ROUND(
-						(COUNT(j.id) FILTER (WHERE j.first_time_fix = TRUE)::numeric / COUNT(j.id)) * 100,
-						1
-					)
-					ELSE 0
-				END                                     AS "firstTimeFixRate",
-				CASE
-					WHEN COUNT(j.id) > 0
-					THEN ROUND(
-						(COUNT(j.id) FILTER (WHERE j.is_callback = TRUE)::numeric / COUNT(j.id)) * 100,
-						1
-					)
-					ELSE 0
-				END                                     AS "callbackRate",
-				AVG(j.actual_duration_minutes)::int     AS "avgJobDurationMinutes"
-			FROM employees e
-			LEFT JOIN jobs j ON j.assigned_employee_id = e.id
-				AND j.status = 'completed'
-				AND j.completed_at >= NOW() - ${interval}::interval
-			WHERE e.is_active = TRUE
-			  AND (${effectiveCompanyId}::uuid IS NULL OR e.company_id = ${effectiveCompanyId})
-			  AND (${branchId ?? null}::uuid IS NULL OR e.branch_id = ${branchId ?? null})
-			GROUP BY e.id, e.name, e.role
-			ORDER BY
-				CASE ${metric}
-					WHEN 'revenue'         THEN COALESCE(SUM(j.invoice_total), 0)
-					WHEN 'jobs_completed'  THEN COUNT(j.id)
-					WHEN 'rating'          THEN COALESCE(AVG(j.tech_rating), 0) * 100
-					WHEN 'first_time_fix'  THEN
-						CASE WHEN COUNT(j.id) > 0
-						THEN (COUNT(j.id) FILTER (WHERE j.first_time_fix = TRUE)::numeric / COUNT(j.id)) * 100
-						ELSE 0 END
-					WHEN 'callback_rate'   THEN
-						-- lower is better — invert for ordering
-						CASE WHEN COUNT(j.id) > 0
-						THEN 100 - (COUNT(j.id) FILTER (WHERE j.is_callback = TRUE)::numeric / COUNT(j.id)) * 100
-						ELSE 100 END
-					ELSE COALESCE(SUM(j.invoice_total), 0)
-				END DESC
-			LIMIT ${limit}
-		`;
+            SELECT
+                e.id                                                        AS "employeeId",
+                e.name                                                      AS "techName",
+                e.role,
+                COUNT(jc.id)::int                                           AS "jobsCompleted",
+                COALESCE(SUM(inv.total), 0)::numeric                        AS "revenueGenerated",
+                ROUND(AVG(jc.customer_rating)::numeric, 2)                  AS "avgRating",
+                COUNT(jc.id) FILTER (WHERE jc.first_time_fix = TRUE)::int   AS "firstTimeFixes",
+                COUNT(jc.id) FILTER (WHERE jc.callback_required = TRUE)::int AS "callbacks",
+                CASE
+                    WHEN COUNT(jc.id) > 0
+                    THEN ROUND(
+                        (COUNT(jc.id) FILTER (WHERE jc.first_time_fix = TRUE)::numeric / COUNT(jc.id)) * 100, 1
+                    )
+                    ELSE 0
+                END                                                         AS "firstTimeFixRate",
+                CASE
+                    WHEN COUNT(jc.id) > 0
+                    THEN ROUND(
+                        (COUNT(jc.id) FILTER (WHERE jc.callback_required = TRUE)::numeric / COUNT(jc.id)) * 100, 1
+                    )
+                    ELSE 0
+                END                                                         AS "callbackRate",
+                AVG(jc.duration_minutes)::int                               AS "avgJobDurationMinutes"
+            FROM employees e
+            LEFT JOIN job_completions jc ON jc.tech_id = e.id
+                AND jc.completed_at >= NOW() - ${interval}::interval
+            LEFT JOIN invoices inv ON inv.job_id = jc.job_id AND inv.status != 'void'
+            WHERE e.is_active = TRUE
+            AND (${effectiveCompanyId}::uuid IS NULL OR e.company_id = ${effectiveCompanyId})
+            AND (${branchId ?? null}::uuid IS NULL OR e.branch_id = ${branchId ?? null})
+            GROUP BY e.id, e.name, e.role
+            ORDER BY
+                CASE ${metric}
+                    WHEN 'revenue'        THEN COALESCE(SUM(inv.total), 0)
+                    WHEN 'jobs_completed' THEN COUNT(jc.id)
+                    WHEN 'rating'         THEN COALESCE(AVG(jc.customer_rating), 0) * 100
+                    WHEN 'first_time_fix' THEN
+                        CASE WHEN COUNT(jc.id) > 0
+                        THEN (COUNT(jc.id) FILTER (WHERE jc.first_time_fix = TRUE)::numeric / COUNT(jc.id)) * 100
+                        ELSE 0 END
+                    WHEN 'callback_rate'  THEN
+                        CASE WHEN COUNT(jc.id) > 0
+                        THEN 100 - (COUNT(jc.id) FILTER (WHERE jc.callback_required = TRUE)::numeric / COUNT(jc.id)) * 100
+                        ELSE 100 END
+                    ELSE COALESCE(SUM(inv.total), 0)
+                END DESC
+            LIMIT ${limit}
+        `;
 
 		return {
 			period,

@@ -84,23 +84,23 @@ export function getEtaByToken(fastify: FastifyInstance) {
 		const sql = getSql();
 
 		const [record] = (await sql`
-			SELECT
-				t.job_id       AS "jobId",
-				t.company_id   AS "companyId",
-				t.expires_at   AS "expiresAt",
-				j.status,
-				j.scheduled_start AS "scheduledStart",
-				j.eta_minutes  AS "etaMinutes",
-				j.eta_updated_at AS "etaUpdatedAt",
-				j.eta_note     AS "etaNote",
-				e.name         AS "techName",
-				e.phone        AS "techPhone"
-			FROM job_eta_tokens t
-			JOIN jobs j ON j.id = t.job_id
-			LEFT JOIN employees e ON e.id = j.assigned_employee_id
-			WHERE t.token = ${token}
-			  AND t.expires_at > NOW()
-		`) as any[];
+        SELECT
+            t.job_id         AS "jobId",
+            t.company_id     AS "companyId",
+            t.expires_at     AS "expiresAt",
+            j.status,
+            j.scheduled_time AS "scheduledStart",
+            j.eta_minutes    AS "etaMinutes",
+            j.eta_updated_at AS "etaUpdatedAt",
+            j.eta_note       AS "etaNote",
+            e.name           AS "techName",
+            e.phone          AS "techPhone"
+        FROM job_eta_tokens t
+        JOIN jobs j ON j.id = t.job_id
+        LEFT JOIN employees e ON e.id = j.assigned_tech_id
+        WHERE t.token = ${token}
+        AND t.expires_at > NOW()
+    `) as any[];
 
 		if (!record) {
 			return reply.code(404).send({ error: "ETA link expired or invalid" });
@@ -108,6 +108,7 @@ export function getEtaByToken(fastify: FastifyInstance) {
 
 		// Don't expose internal IDs or company info to the customer
 		return {
+			jobId: record.jobId,
 			status: record.status,
 			scheduledStart: record.scheduledStart,
 			etaMinutes: record.etaMinutes,
@@ -170,5 +171,33 @@ export async function etaRoutes(fastify: FastifyInstance) {
 		authed.addHook("onRequest", authenticate);
 		generateEtaToken(authed);
 		updateJobEta(authed);
+		// ← ADD THE NEW ROUTE RIGHT HERE, inside this block
+		authed.post("/eta/update", async (request, reply) => {
+			const user = request.user as JWTPayload;
+			const companyId = user.companyId;
+			if (!companyId)
+				return reply.code(403).send({ error: "No company on token" });
+
+			const body = request.body as any;
+			const { jobId, etaMinutes, note } = body;
+
+			if (!jobId || etaMinutes === undefined)
+				return reply.code(400).send({ error: "jobId and etaMinutes required" });
+
+			const sql = getSql();
+			const [job] = (await sql`
+				UPDATE jobs
+				SET
+					eta_minutes    = ${etaMinutes},
+					eta_updated_at = NOW(),
+					eta_note       = ${note ?? null},
+					updated_at     = NOW()
+				WHERE id = ${jobId} AND company_id = ${companyId}
+				RETURNING id, eta_minutes AS "etaMinutes", eta_updated_at AS "etaUpdatedAt"
+			`) as any[];
+
+			if (!job) return reply.code(404).send({ error: "Job not found" });
+			return { etaMinutes: job.etaMinutes, updatedAt: job.etaUpdatedAt };
+		});
 	});
 }

@@ -166,21 +166,22 @@ export async function refrigerantLogRoutes(fastify) {
         const countParams = [...filterParams];
         // Page query appends limit + offset
         const pageParams = [...filterParams, limit, offset];
-        const limitIdx = pageParams.length - 1;
-        const offsetIdx = pageParams.length;
-        const rows = (await sql.unsafe(`SELECT
-					rl.*,
-					e.name            AS tech_name,
-					j.id              AS job_ref,
-					eq.model_number   AS equipment_model
-				FROM refrigerant_logs rl
-				LEFT JOIN employees e  ON e.id  = rl.tech_id
-				LEFT JOIN jobs j       ON j.id  = rl.job_id
-				LEFT JOIN equipment eq ON eq.id = rl.equipment_id
-				WHERE ${where}
-				ORDER BY rl.logged_at DESC
-				LIMIT $${limitIdx} OFFSET $${offsetIdx}`, pageParams));
-        const [countRow] = (await sql.unsafe(`SELECT COUNT(*) AS total FROM refrigerant_logs rl WHERE ${where}`, countParams));
+        const limitIdx = filterParams.length + 1;
+        const offsetIdx = filterParams.length + 2;
+        const rawRows = await sql.unsafe(`SELECT rl.*, e.name AS tech_name, j.id AS job_ref, eq.model_number AS equipment_model
+     FROM refrigerant_logs rl
+     LEFT JOIN employees e  ON e.id  = rl.tech_id
+     LEFT JOIN jobs j       ON j.id  = rl.job_id
+     LEFT JOIN equipment eq ON eq.id = rl.equipment_id
+     WHERE ${where}
+     ORDER BY rl.logged_at DESC
+     LIMIT $${limitIdx} OFFSET $${offsetIdx}`, pageParams);
+        const rows = Array.isArray(rawRows) ? rawRows : (rawRows?.rows ?? []);
+        const rawCount = await sql.unsafe(`SELECT COUNT(*) AS total FROM refrigerant_logs rl WHERE ${where}`, countParams);
+        const countRows = Array.isArray(rawCount)
+            ? rawCount
+            : (rawCount?.rows ?? []);
+        const countRow = countRows[0];
         return {
             logs: rows,
             total: parseInt(countRow?.total ?? "0", 10),

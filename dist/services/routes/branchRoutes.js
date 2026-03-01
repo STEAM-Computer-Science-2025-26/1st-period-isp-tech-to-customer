@@ -225,7 +225,7 @@ export async function branchRoutes(fastify) {
             whereValues.push(companyId);
             where += ` AND company_id = $${idx++}`;
         }
-        const raw = await sql(`UPDATE branches SET ${fullClause} ${where} RETURNING id`, whereValues);
+        const raw = await sql.unsafe(`UPDATE branches SET ${fullClause} ${where} RETURNING id`, whereValues);
         const result = Array.isArray(raw) ? raw : (raw?.rows ?? []);
         if (!result[0])
             return reply.code(404).send({ error: "Branch not found" });
