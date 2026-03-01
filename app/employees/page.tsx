@@ -184,7 +184,9 @@ function AddEmployeeModal({
 	const toggleSkill = (skill: EmployeeSkill) => {
 		setForm((f) => {
 			const has = f.skills.includes(skill);
-			const skills = has ? f.skills.filter((s) => s !== skill) : [...f.skills, skill];
+			const skills = has
+				? f.skills.filter((s) => s !== skill)
+				: [...f.skills, skill];
 			const skillLevel = { ...f.skillLevel };
 			if (has) delete skillLevel[skill];
 			else skillLevel[skill] = 2;
@@ -228,14 +230,20 @@ function AddEmployeeModal({
 					const d = (await userRes.json()) as { error?: string };
 					// If register fails (e.g. email taken), try to get userId from DB via a different approach
 					// For now just surface the error
-					throw new Error(d.error ?? `Failed to create user (${userRes.status})`);
+					throw new Error(
+						d.error ?? `Failed to create user (${userRes.status})`
+					);
 				}
 
-				const userData = (await userRes.json()) as { user?: { userId?: string }; userId?: string };
+				const userData = (await userRes.json()) as {
+					user?: { userId?: string };
+					userId?: string;
+				};
 				effectiveUserId =
 					userData.user?.userId ?? (userData as any).userId ?? "";
 
-				if (!effectiveUserId) throw new Error("No userId returned from register");
+				if (!effectiveUserId)
+					throw new Error("No userId returned from register");
 			}
 
 			// Step 2: create the employee profile
@@ -249,7 +257,8 @@ function AddEmployeeModal({
 			};
 			if (form.email.trim()) body.email = form.email.trim();
 			if (form.phone.trim()) body.phone = form.phone.trim();
-			if (form.internalNotes.trim()) body.internalNotes = form.internalNotes.trim();
+			if (form.internalNotes.trim())
+				body.internalNotes = form.internalNotes.trim();
 
 			const empRes = await fetch(`${FASTIFY_BASE_URL}/employees`, {
 				method: "POST",
@@ -259,7 +268,9 @@ function AddEmployeeModal({
 
 			if (!empRes.ok) {
 				const d = (await empRes.json()) as { error?: string };
-				throw new Error(d.error ?? `Failed to create employee (${empRes.status})`);
+				throw new Error(
+					d.error ?? `Failed to create employee (${empRes.status})`
+				);
 			}
 
 			const empData = (await empRes.json()) as { employee: Employee };
@@ -292,7 +303,9 @@ function AddEmployeeModal({
 			<div className="bg-background-primary rounded-2xl border border-background-secondary w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
 				{/* Header */}
 				<div className="flex items-center justify-between p-5 border-b border-background-secondary">
-					<h2 className="text-base font-semibold text-text-main">Add Employee</h2>
+					<h2 className="text-base font-semibold text-text-main">
+						Add Employee
+					</h2>
 					<button
 						onClick={onClose}
 						className="p-1.5 rounded-lg hover:bg-background-secondary transition-colors"
@@ -309,7 +322,9 @@ function AddEmployeeModal({
 								className={inputCls}
 								placeholder="Jane Smith"
 								value={form.name}
-								onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+								onChange={(e) =>
+									setForm((f) => ({ ...f, name: e.target.value }))
+								}
 							/>
 						</Field>
 						<div className="grid grid-cols-2 gap-3">
@@ -318,7 +333,9 @@ function AddEmployeeModal({
 									className={inputCls}
 									placeholder="jane@example.com"
 									value={form.email}
-									onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, email: e.target.value }))
+									}
 								/>
 							</Field>
 							<Field label="Phone">
@@ -326,7 +343,9 @@ function AddEmployeeModal({
 									className={inputCls}
 									placeholder="214-555-0001"
 									value={form.phone}
-									onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, phone: e.target.value }))
+									}
 								/>
 							</Field>
 						</div>
@@ -335,7 +354,9 @@ function AddEmployeeModal({
 								className={inputCls}
 								placeholder="123 Main St, Dallas, TX 75201"
 								value={form.homeAddress}
-								onChange={(e) => setForm((f) => ({ ...f, homeAddress: e.target.value }))}
+								onChange={(e) =>
+									setForm((f) => ({ ...f, homeAddress: e.target.value }))
+								}
 							/>
 						</Field>
 						<div className="grid grid-cols-2 gap-3">
@@ -344,7 +365,9 @@ function AddEmployeeModal({
 									className={inputCls}
 									placeholder="32.7767"
 									value={form.latitude}
-									onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value }))}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, latitude: e.target.value }))
+									}
 								/>
 							</Field>
 							<Field label="Longitude">
@@ -352,7 +375,9 @@ function AddEmployeeModal({
 									className={inputCls}
 									placeholder="-96.7970"
 									value={form.longitude}
-									onChange={(e) => setForm((f) => ({ ...f, longitude: e.target.value }))}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, longitude: e.target.value }))
+									}
 								/>
 							</Field>
 						</div>
@@ -392,8 +417,13 @@ function AddEmployeeModal({
 							</p>
 							<div className="flex flex-col gap-2">
 								{form.skills.map((skill) => (
-									<div key={skill} className="flex items-center justify-between">
-										<span className="text-sm text-text-main">{SKILL_LABELS[skill]}</span>
+									<div
+										key={skill}
+										className="flex items-center justify-between"
+									>
+										<span className="text-sm text-text-main">
+											{SKILL_LABELS[skill]}
+										</span>
 										<div className="flex gap-1">
 											{[1, 2, 3].map((level) => (
 												<button
@@ -453,7 +483,9 @@ function AddEmployeeModal({
 							className={cn(inputCls, "resize-none h-20")}
 							placeholder="Admin-only notes..."
 							value={form.internalNotes}
-							onChange={(e) => setForm((f) => ({ ...f, internalNotes: e.target.value }))}
+							onChange={(e) =>
+								setForm((f) => ({ ...f, internalNotes: e.target.value }))
+							}
 						/>
 					</Field>
 
@@ -510,7 +542,9 @@ export default function EmployeesPage() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [showAddModal, setShowAddModal] = useState(false);
-	const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+	const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
+		null
+	);
 	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
 	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -527,7 +561,8 @@ export default function EmployeesPage() {
 				const res = await fetch(`${FASTIFY_BASE_URL}/employees`, {
 					headers: token ? { Authorization: `Bearer ${token}` } : {}
 				});
-				if (!res.ok) throw new Error(`Failed to load employees (${res.status})`);
+				if (!res.ok)
+					throw new Error(`Failed to load employees (${res.status})`);
 				const data = (await res.json()) as { employees?: Employee[] };
 				if (mounted) setEmployees(data.employees ?? []);
 			} catch (e) {
@@ -538,7 +573,9 @@ export default function EmployeesPage() {
 			}
 		})();
 
-		return () => { mounted = false; };
+		return () => {
+			mounted = false;
+		};
 	};
 
 	useEffect(loadEmployees, []);
@@ -548,7 +585,9 @@ export default function EmployeesPage() {
 	const onJob = employees.filter((e) => e.currentJobId).length;
 	const avgRating =
 		employees.length > 0
-			? (employees.reduce((s, e) => s + e.rating, 0) / employees.length).toFixed(1)
+			? (
+					employees.reduce((s, e) => s + e.rating, 0) / employees.length
+				).toFixed(1)
 			: "—";
 
 	return (
@@ -756,17 +795,14 @@ function EmployeeDetailPanel({
 		setToggling(true);
 		try {
 			const token = getToken();
-			const res = await fetch(
-				`${FASTIFY_BASE_URL}/employees/${employee.id}`,
-				{
-					method: "PATCH",
-					headers: {
-						"Content-Type": "application/json",
-						...(token ? { Authorization: `Bearer ${token}` } : {})
-					},
-					body: JSON.stringify({ isAvailable: !employee.isAvailable })
-				}
-			);
+			const res = await fetch(`${FASTIFY_BASE_URL}/employees/${employee.id}`, {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+					...(token ? { Authorization: `Bearer ${token}` } : {})
+				},
+				body: JSON.stringify({ isAvailable: !employee.isAvailable })
+			});
 			if (!res.ok) throw new Error("Failed to update");
 			const data = (await res.json()) as { employee: Employee };
 			onUpdated(data.employee);

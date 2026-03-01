@@ -33,7 +33,8 @@
 //   stripe_client_secret    TEXT,
 //   note                    TEXT,
 //   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-//   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+//   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+//   UNIQUE(job_id)
 // );
 // CREATE INDEX IF NOT EXISTS idx_tech_tips_job_id    ON tech_tips(job_id);
 // CREATE INDEX IF NOT EXISTS idx_tech_tips_tech_id   ON tech_tips(tech_id);

@@ -20,7 +20,7 @@ import {
 	Navigation,
 	TriangleAlert,
 	CircleDot,
-	X,
+	X
 } from "lucide-react";
 import { JobDTO, JobPriority } from "@/app/types/types";
 
@@ -61,7 +61,9 @@ function getToken() {
 
 function authHeaders(): HeadersInit {
 	const token = getToken();
-	return token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+	return token
+		? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+		: { "Content-Type": "application/json" };
 }
 
 function timeAgo(iso: string): string {
@@ -76,33 +78,45 @@ function timeAgo(iso: string): string {
 
 // ─── Priority badge ───────────────────────────────────────────────────────────
 
-const PRIORITY_CONFIG: Record<JobPriority, { label: string; className: string; icon: React.ReactNode }> = {
+const PRIORITY_CONFIG: Record<
+	JobPriority,
+	{ label: string; className: string; icon: React.ReactNode }
+> = {
 	emergency: {
 		label: "Emergency",
-		className: "bg-destructive-background/15 text-destructive-text border border-destructive-background/30",
-		icon: <TriangleAlert className="w-3 h-3" />,
+		className:
+			"bg-destructive-background/15 text-destructive-text border border-destructive-background/30",
+		icon: <TriangleAlert className="w-3 h-3" />
 	},
 	high: {
 		label: "High",
-		className: "bg-warning-background/20 text-warning-text border border-warning-foreground/30",
-		icon: <Zap className="w-3 h-3" />,
+		className:
+			"bg-warning-background/20 text-warning-text border border-warning-foreground/30",
+		icon: <Zap className="w-3 h-3" />
 	},
 	medium: {
 		label: "Medium",
-		className: "bg-accent-main/15 text-accent-text-dark border border-accent-main/30",
-		icon: <CircleDot className="w-3 h-3" />,
+		className:
+			"bg-accent-main/15 text-accent-text-dark border border-accent-main/30",
+		icon: <CircleDot className="w-3 h-3" />
 	},
 	low: {
 		label: "Low",
-		className: "bg-background-secondary/60 text-text-secondary border border-background-secondary",
-		icon: <CircleDot className="w-3 h-3 opacity-50" />,
-	},
+		className:
+			"bg-background-secondary/60 text-text-secondary border border-background-secondary",
+		icon: <CircleDot className="w-3 h-3 opacity-50" />
+	}
 };
 
 function PriorityBadge({ priority }: { priority: JobPriority }) {
 	const cfg = PRIORITY_CONFIG[priority] ?? PRIORITY_CONFIG.medium;
 	return (
-		<span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium", cfg.className)}>
+		<span
+			className={cn(
+				"inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+				cfg.className
+			)}
+		>
 			{cfg.icon}
 			{cfg.label}
 		</span>
@@ -111,17 +125,30 @@ function PriorityBadge({ priority }: { priority: JobPriority }) {
 
 // ─── Score bar ────────────────────────────────────────────────────────────────
 
-function ScoreBar({ value, max = 100, color = "bg-accent-main" }: { value: number; max?: number; color?: string }) {
+function ScoreBar({
+	value,
+	max = 100,
+	color = "bg-accent-main"
+}: {
+	value: number;
+	max?: number;
+	color?: string;
+}) {
 	const pct = Math.min(100, Math.round((value / max) * 100));
 	return (
 		<div className="flex items-center gap-2 w-full">
 			<div className="flex-1 h-1.5 rounded-full bg-background-secondary overflow-hidden">
 				<div
-					className={cn("h-full rounded-full transition-all duration-500", color)}
+					className={cn(
+						"h-full rounded-full transition-all duration-500",
+						color
+					)}
 					style={{ width: `${pct}%` }}
 				/>
 			</div>
-			<span className="text-xs tabular-nums text-text-secondary w-8 text-right">{value.toFixed(1)}</span>
+			<span className="text-xs tabular-nums text-text-secondary w-8 text-right">
+				{value.toFixed(1)}
+			</span>
 		</div>
 	);
 }
@@ -131,7 +158,7 @@ function ScoreBar({ value, max = 100, color = "bg-accent-main" }: { value: numbe
 function JobCard({
 	job,
 	selected,
-	onClick,
+	onClick
 }: {
 	job: JobDTO;
 	selected: boolean;
@@ -146,8 +173,8 @@ function JobCard({
 				selected
 					? "bg-accent-main/10 border-accent-main/40 shadow-sm"
 					: isEmergency
-					? "bg-destructive-background/5 border-destructive-background/20 hover:bg-destructive-background/10 hover:border-destructive-background/30"
-					: "bg-background-primary border-background-secondary hover:bg-background-secondary/40 hover:border-background-tertiary/50"
+						? "bg-destructive-background/5 border-destructive-background/20 hover:bg-destructive-background/10 hover:border-destructive-background/30"
+						: "bg-background-primary border-background-secondary hover:bg-background-secondary/40 hover:border-background-tertiary/50"
 			)}
 		>
 			<div className="flex items-start justify-between gap-2 mb-2">
@@ -155,11 +182,18 @@ function JobCard({
 					{isEmergency && (
 						<span className="shrink-0 w-1.5 h-1.5 rounded-full bg-destructive-text animate-pulse" />
 					)}
-					<p className="text-sm font-semibold text-text-main truncate">{job.customerName}</p>
+					<p className="text-sm font-semibold text-text-main truncate">
+						{job.customerName}
+					</p>
 				</div>
 				<div className="flex items-center gap-1.5 shrink-0">
 					<PriorityBadge priority={job.priority} />
-					<ChevronRight className={cn("w-4 h-4 text-text-tertiary transition-transform", selected && "rotate-90 text-accent-text")} />
+					<ChevronRight
+						className={cn(
+							"w-4 h-4 text-text-tertiary transition-transform",
+							selected && "rotate-90 text-accent-text"
+						)}
+					/>
 				</div>
 			</div>
 			<div className="flex flex-col gap-1">
@@ -189,7 +223,7 @@ function TechCard({
 	rank,
 	isTop,
 	onAssign,
-	assigning,
+	assigning
 }: {
 	tech: TechScore;
 	rank: number;
@@ -208,22 +242,32 @@ function TechCard({
 		>
 			<div className="flex items-center justify-between mb-3">
 				<div className="flex items-center gap-2.5">
-					<div className={cn(
-						"w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-						isTop ? "bg-accent-main text-white" : "bg-background-secondary text-text-secondary"
-					)}>
+					<div
+						className={cn(
+							"w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+							isTop
+								? "bg-accent-main text-white"
+								: "bg-background-secondary text-text-secondary"
+						)}
+					>
 						{rank}
 					</div>
 					<div>
 						<p className="text-sm font-semibold text-text-main flex items-center gap-1.5">
 							{tech.techName}
-							{isTop && <Star className="w-3 h-3 text-accent-text fill-accent-text" />}
+							{isTop && (
+								<Star className="w-3 h-3 text-accent-text fill-accent-text" />
+							)}
 						</p>
-						<p className="text-xs text-text-tertiary">{tech.distanceMiles.toFixed(1)} mi away</p>
+						<p className="text-xs text-text-tertiary">
+							{tech.distanceMiles.toFixed(1)} mi away
+						</p>
 					</div>
 				</div>
 				<div className="text-right">
-					<p className="text-lg font-bold text-text-main tabular-nums">{tech.totalScore.toFixed(0)}</p>
+					<p className="text-lg font-bold text-text-main tabular-nums">
+						{tech.totalScore.toFixed(0)}
+					</p>
 					<p className="text-xs text-text-tertiary">/ 100</p>
 				</div>
 			</div>
@@ -233,13 +277,19 @@ function TechCard({
 					<div className="flex justify-between text-xs text-text-tertiary mb-1">
 						<span>Performance</span>
 					</div>
-					<ScoreBar value={tech.performanceScore} color="bg-success-foreground" />
+					<ScoreBar
+						value={tech.performanceScore}
+						color="bg-success-foreground"
+					/>
 				</div>
 				<div>
 					<div className="flex justify-between text-xs text-text-tertiary mb-1">
 						<span>Distance</span>
 					</div>
-					<ScoreBar value={Math.max(0, 100 - tech.distanceMiles * 3)} color="bg-accent-main" />
+					<ScoreBar
+						value={Math.max(0, 100 - tech.distanceMiles * 3)}
+						color="bg-accent-main"
+					/>
 				</div>
 				<div>
 					<div className="flex justify-between text-xs text-text-tertiary mb-1">
@@ -259,7 +309,11 @@ function TechCard({
 						: "bg-background-secondary text-text-main hover:bg-background-tertiary hover:text-text-primary disabled:opacity-60"
 				)}
 			>
-				{assigning ? "Assigning…" : isTop ? "Assign (Recommended)" : "Override & Assign"}
+				{assigning
+					? "Assigning…"
+					: isTop
+						? "Assign (Recommended)"
+						: "Override & Assign"}
 			</button>
 		</div>
 	);
@@ -270,7 +324,7 @@ function TechCard({
 function DispatchPanel({
 	job,
 	onClose,
-	onAssigned,
+	onAssigned
 }: {
 	job: JobDTO;
 	onClose: () => void;
@@ -288,15 +342,22 @@ function DispatchPanel({
 		setLoading(true);
 		setError(null);
 		try {
-			const res = await fetch(`${FASTIFY_BASE_URL}/jobs/${job.id}/recommendations`, {
-				method: "GET",
-				headers: authHeaders(),
-			});
+			const res = await fetch(
+				`${FASTIFY_BASE_URL}/jobs/${job.id}/recommendations`,
+				{
+					method: "GET",
+					headers: authHeaders()
+				}
+			);
 			if (!res.ok) throw new Error(`Server error (${res.status})`);
-			const data = await res.json() as { recommendation: DispatchRecommendation };
+			const data = (await res.json()) as {
+				recommendation: DispatchRecommendation;
+			};
 			setRec(data.recommendation);
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "Failed to fetch recommendations");
+			setError(
+				e instanceof Error ? e.message : "Failed to fetch recommendations"
+			);
 		} finally {
 			setLoading(false);
 		}
@@ -323,10 +384,10 @@ function DispatchPanel({
 			const res = await fetch(`${FASTIFY_BASE_URL}/jobs/${job.id}/assign`, {
 				method: "POST",
 				headers: authHeaders(),
-				body: JSON.stringify({ techId, reason }),
+				body: JSON.stringify({ techId, reason })
 			});
 			if (!res.ok) {
-				const err = await res.json() as { error?: string };
+				const err = (await res.json()) as { error?: string };
 				throw new Error(err.error ?? `Assignment failed (${res.status})`);
 			}
 			onAssigned(job.id);
@@ -345,9 +406,13 @@ function DispatchPanel({
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2 mb-1">
 						<PriorityBadge priority={job.priority} />
-						<span className="text-xs text-text-tertiary capitalize">{job.jobType?.replace("_", " ")}</span>
+						<span className="text-xs text-text-tertiary capitalize">
+							{job.jobType?.replace("_", " ")}
+						</span>
 					</div>
-					<h2 className="text-base font-bold text-text-main truncate">{job.customerName}</h2>
+					<h2 className="text-base font-bold text-text-main truncate">
+						{job.customerName}
+					</h2>
 					<p className="text-xs text-text-secondary mt-0.5 flex items-center gap-1">
 						<MapPin className="w-3 h-3 shrink-0" /> {job.address}
 					</p>
@@ -365,7 +430,9 @@ function DispatchPanel({
 				{loading && (
 					<div className="flex flex-col items-center justify-center py-16 gap-3">
 						<RefreshCw className="w-6 h-6 text-accent-text animate-spin" />
-						<p className="text-sm text-text-secondary">Running dispatch algorithm…</p>
+						<p className="text-sm text-text-secondary">
+							Running dispatch algorithm…
+						</p>
 					</div>
 				)}
 
@@ -375,7 +442,12 @@ function DispatchPanel({
 						<div>
 							<p className="font-medium">Error</p>
 							<p className="text-xs opacity-80 mt-0.5">{error}</p>
-							<button onClick={fetchRecommendation} className="text-xs underline mt-1">Retry</button>
+							<button
+								onClick={fetchRecommendation}
+								className="text-xs underline mt-1"
+							>
+								Retry
+							</button>
 						</div>
 					</div>
 				)}
@@ -385,20 +457,33 @@ function DispatchPanel({
 						{/* Stats row */}
 						<div className="grid grid-cols-3 gap-2">
 							<div className="bg-background-primary rounded-lg p-3 border border-background-secondary text-center">
-								<p className="text-lg font-bold text-text-main">{rec.totalEligibleTechs}</p>
+								<p className="text-lg font-bold text-text-main">
+									{rec.totalEligibleTechs}
+								</p>
 								<p className="text-xs text-text-tertiary mt-0.5">Eligible</p>
 							</div>
 							<div className="bg-background-primary rounded-lg p-3 border border-background-secondary text-center">
-								<p className="text-lg font-bold text-text-main">{rec.recommendations.length}</p>
+								<p className="text-lg font-bold text-text-main">
+									{rec.recommendations.length}
+								</p>
 								<p className="text-xs text-text-tertiary mt-0.5">Ranked</p>
 							</div>
-							<div className={cn(
-								"rounded-lg p-3 border text-center",
-								rec.requiresManualDispatch
-									? "bg-warning-background/10 border-warning-foreground/20"
-									: "bg-success-background/10 border-success-foreground/20"
-							)}>
-								<p className={cn("text-xs font-semibold mt-1", rec.requiresManualDispatch ? "text-warning-text" : "text-success-text")}>
+							<div
+								className={cn(
+									"rounded-lg p-3 border text-center",
+									rec.requiresManualDispatch
+										? "bg-warning-background/10 border-warning-foreground/20"
+										: "bg-success-background/10 border-success-foreground/20"
+								)}
+							>
+								<p
+									className={cn(
+										"text-xs font-semibold mt-1",
+										rec.requiresManualDispatch
+											? "text-warning-text"
+											: "text-success-text"
+									)}
+								>
 									{rec.requiresManualDispatch ? "Manual" : "Auto-ready"}
 								</p>
 							</div>
@@ -409,8 +494,12 @@ function DispatchPanel({
 							<div className="flex items-start gap-2 p-3 rounded-lg bg-warning-background/10 border border-warning-foreground/20 text-warning-text text-sm">
 								<AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
 								<div>
-									<p className="font-medium text-xs">Manual Dispatch Required</p>
-									<p className="text-xs opacity-80 mt-0.5">{rec.manualDispatchReason ?? "No eligible techs found."}</p>
+									<p className="font-medium text-xs">
+										Manual Dispatch Required
+									</p>
+									<p className="text-xs opacity-80 mt-0.5">
+										{rec.manualDispatchReason ?? "No eligible techs found."}
+									</p>
 								</div>
 							</div>
 						)}
@@ -435,8 +524,12 @@ function DispatchPanel({
 						) : (
 							<div className="flex flex-col items-center py-8 gap-2 text-center">
 								<User className="w-8 h-8 text-text-tertiary" />
-								<p className="text-sm font-medium text-text-secondary">No techs available</p>
-								<p className="text-xs text-text-tertiary">All technicians are at capacity or unavailable.</p>
+								<p className="text-sm font-medium text-text-secondary">
+									No techs available
+								</p>
+								<p className="text-xs text-text-tertiary">
+									All technicians are at capacity or unavailable.
+								</p>
 							</div>
 						)}
 
@@ -455,8 +548,13 @@ function DispatchPanel({
 				{showOverrideInput && pendingTechId && (
 					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
 						<div className="bg-background-primary border border-background-secondary rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl">
-							<h3 className="text-sm font-bold text-text-main mb-1">Override Recommendation</h3>
-							<p className="text-xs text-text-secondary mb-4">You're assigning a non-recommended tech. Please provide a reason for the audit log.</p>
+							<h3 className="text-sm font-bold text-text-main mb-1">
+								Override Recommendation
+							</h3>
+							<p className="text-xs text-text-secondary mb-4">
+								You're assigning a non-recommended tech. Please provide a reason
+								for the audit log.
+							</p>
 							<textarea
 								value={overrideReason}
 								onChange={(e) => setOverrideReason(e.target.value)}
@@ -466,14 +564,20 @@ function DispatchPanel({
 							/>
 							<div className="flex gap-2 mt-4">
 								<button
-									onClick={() => { setShowOverrideInput(false); setPendingTechId(null); setOverrideReason(""); }}
+									onClick={() => {
+										setShowOverrideInput(false);
+										setPendingTechId(null);
+										setOverrideReason("");
+									}}
 									className="flex-1 py-2 rounded-lg text-sm border border-background-secondary text-text-secondary hover:bg-background-secondary transition-colors"
 								>
 									Cancel
 								</button>
 								<button
 									disabled={!overrideReason.trim()}
-									onClick={() => void confirmAssign(pendingTechId, overrideReason)}
+									onClick={() =>
+										void confirmAssign(pendingTechId, overrideReason)
+									}
 									className="flex-1 py-2 rounded-lg text-sm bg-accent-main text-white font-medium hover:bg-accent-text-dark transition-colors disabled:opacity-50"
 								>
 									Confirm Override
@@ -504,16 +608,18 @@ export default function DispatchPage() {
 		setError(null);
 		try {
 			const res = await fetch(`${FASTIFY_BASE_URL}/jobs?status=unassigned`, {
-				headers: authHeaders(),
+				headers: authHeaders()
 			});
 			if (!res.ok) throw new Error(`Failed to load jobs (${res.status})`);
-			const data = await res.json() as { jobs?: JobDTO[] };
+			const data = (await res.json()) as { jobs?: JobDTO[] };
 			const fetched = data.jobs ?? [];
 			// Sort: emergency first, then by createdAt desc
 			fetched.sort((a, b) => {
 				if (a.priority === "emergency" && b.priority !== "emergency") return -1;
 				if (b.priority === "emergency" && a.priority !== "emergency") return 1;
-				return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+				return (
+					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+				);
 			});
 			setJobs(fetched);
 		} catch (e) {
@@ -556,7 +662,9 @@ export default function DispatchPage() {
 								Dispatch
 							</h1>
 							<p className="text-xs text-text-tertiary mt-0.5">
-								{loading ? "Loading…" : `${jobs.length} unassigned job${jobs.length !== 1 ? "s" : ""}`}
+								{loading
+									? "Loading…"
+									: `${jobs.length} unassigned job${jobs.length !== 1 ? "s" : ""}`}
 								{emergencyCount > 0 && (
 									<span className="ml-2 text-destructive-text font-medium">
 										· {emergencyCount} emergency
@@ -580,10 +688,12 @@ export default function DispatchPage() {
 				{/* Main split layout */}
 				<div className="flex-1 flex overflow-hidden mx-2 mb-2 gap-3">
 					{/* Job list */}
-					<div className={cn(
-						"flex flex-col transition-all duration-300",
-						selectedJob ? "w-80 shrink-0" : "flex-1"
-					)}>
+					<div
+						className={cn(
+							"flex flex-col transition-all duration-300",
+							selectedJob ? "w-80 shrink-0" : "flex-1"
+						)}
+					>
 						<div className="flex-1 overflow-y-auto space-y-2 pr-1">
 							{error && (
 								<div className="flex items-center gap-2 p-3 rounded-lg bg-destructive-background/10 border border-destructive-background/20 text-destructive-text text-sm">
@@ -596,8 +706,12 @@ export default function DispatchPage() {
 									<div className="w-12 h-12 rounded-2xl bg-success-background/20 flex items-center justify-center">
 										<CheckCircle2 className="w-6 h-6 text-success-text" />
 									</div>
-									<p className="text-sm font-semibold text-text-main">All caught up!</p>
-									<p className="text-xs text-text-tertiary">No unassigned jobs right now.</p>
+									<p className="text-sm font-semibold text-text-main">
+										All caught up!
+									</p>
+									<p className="text-xs text-text-tertiary">
+										No unassigned jobs right now.
+									</p>
 								</div>
 							)}
 							{jobs.map((job) => (
@@ -605,7 +719,9 @@ export default function DispatchPage() {
 									key={job.id}
 									job={job}
 									selected={selectedJob?.id === job.id}
-									onClick={() => setSelectedJob((prev) => prev?.id === job.id ? null : job)}
+									onClick={() =>
+										setSelectedJob((prev) => (prev?.id === job.id ? null : job))
+									}
 								/>
 							))}
 						</div>
@@ -627,8 +743,12 @@ export default function DispatchPage() {
 						<div className="hidden lg:flex flex-1 items-center justify-center bg-background-primary/50 rounded-xl border border-dashed border-background-secondary">
 							<div className="text-center">
 								<Navigation className="w-8 h-8 text-text-tertiary mx-auto mb-2 opacity-50" />
-								<p className="text-sm text-text-secondary font-medium">Select a job to dispatch</p>
-								<p className="text-xs text-text-tertiary mt-1">The algorithm will find the best tech</p>
+								<p className="text-sm text-text-secondary font-medium">
+									Select a job to dispatch
+								</p>
+								<p className="text-xs text-text-tertiary mt-1">
+									The algorithm will find the best tech
+								</p>
 							</div>
 						</div>
 					)}
