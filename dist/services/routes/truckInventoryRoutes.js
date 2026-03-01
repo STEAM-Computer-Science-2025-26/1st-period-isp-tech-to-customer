@@ -99,9 +99,7 @@ export async function truckInventoryRoutes(fastify) {
             const user = getUser(request);
             const parsed = createVehicleSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -221,9 +219,7 @@ export async function truckInventoryRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = updateVehicleSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -387,9 +383,7 @@ export async function truckInventoryRoutes(fastify) {
             const user = getUser(request);
             const parsed = crossTruckTransferSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -454,9 +448,7 @@ export async function truckInventoryRoutes(fastify) {
             const { id } = request.params;
             const parsed = restockSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });

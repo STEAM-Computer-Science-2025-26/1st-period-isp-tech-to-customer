@@ -196,12 +196,10 @@ export async function crmRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = createLeadSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -409,12 +407,10 @@ export async function crmRoutes(fastify: FastifyInstance) {
 
 			const parsed = updateLeadSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 
 			const sql = getSql();
@@ -482,12 +478,10 @@ export async function crmRoutes(fastify: FastifyInstance) {
 
 			const parsed = advanceSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const { stage, lostReason, notes } = parsed.data;
 
@@ -504,11 +498,9 @@ export async function crmRoutes(fastify: FastifyInstance) {
 			const currentIdx = STAGE_ORDER.indexOf(lead.stage);
 			const targetIdx = STAGE_ORDER.indexOf(stage);
 			if (targetIdx <= currentIdx && stage !== "lost") {
-				return reply
-					.code(400)
-					.send({
-						error: `Cannot move from '${lead.stage}' back to '${stage}'`
-					});
+				return reply.code(400).send({
+					error: `Cannot move from '${lead.stage}' back to '${stage}'`
+				});
 			}
 
 			const [updated] = (await sql`
@@ -544,12 +536,10 @@ export async function crmRoutes(fastify: FastifyInstance) {
 
 			const parsed = activitySchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const body = parsed.data;
 
@@ -622,12 +612,10 @@ export async function crmRoutes(fastify: FastifyInstance) {
 
 			const parsed = convertSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const body = parsed.data;
 
@@ -641,12 +629,10 @@ export async function crmRoutes(fastify: FastifyInstance) {
 					.code(400)
 					.send({ error: "Only won leads can be converted" });
 			if (lead.converted_customer_id) {
-				return reply
-					.code(409)
-					.send({
-						error: "Lead already converted",
-						customerId: lead.converted_customer_id
-					});
+				return reply.code(409).send({
+					error: "Lead already converted",
+					customerId: lead.converted_customer_id
+				});
 			}
 
 			// Create customer

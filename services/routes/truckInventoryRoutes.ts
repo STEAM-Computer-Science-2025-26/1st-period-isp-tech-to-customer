@@ -115,12 +115,10 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = createVehicleSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -249,12 +247,10 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 
 			const parsed = updateVehicleSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 
 			const sql = getSql();
@@ -439,12 +435,10 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = crossTruckTransferSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -515,12 +509,10 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			const { id } = request.params as { id: string };
 			const parsed = restockSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);

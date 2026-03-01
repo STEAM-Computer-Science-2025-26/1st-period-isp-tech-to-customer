@@ -180,9 +180,7 @@ export async function crmRoutes(fastify) {
             const user = getUser(request);
             const parsed = createLeadSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -368,9 +366,7 @@ export async function crmRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = updateLeadSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -436,9 +432,7 @@ export async function crmRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = advanceSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -456,9 +450,7 @@ export async function crmRoutes(fastify) {
             const currentIdx = STAGE_ORDER.indexOf(lead.stage);
             const targetIdx = STAGE_ORDER.indexOf(stage);
             if (targetIdx <= currentIdx && stage !== "lost") {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: `Cannot move from '${lead.stage}' back to '${stage}'`
                 });
             }
@@ -492,9 +484,7 @@ export async function crmRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = activitySchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -562,9 +552,7 @@ export async function crmRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = convertSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -581,9 +569,7 @@ export async function crmRoutes(fastify) {
                     .code(400)
                     .send({ error: "Only won leads can be converted" });
             if (lead.converted_customer_id) {
-                return reply
-                    .code(409)
-                    .send({
+                return reply.code(409).send({
                     error: "Lead already converted",
                     customerId: lead.converted_customer_id
                 });

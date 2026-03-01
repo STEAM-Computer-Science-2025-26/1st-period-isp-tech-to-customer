@@ -1,11 +1,12 @@
 // services/routes/stripeRoutes.ts
 // Stripe integration: payment intents for online invoice payment,
-// on-site terminal payment, refunds, and webhook to sync payment status.
+// on-site terminal payment, refunds, webhook to sync payment status,
+// and technician tip status updates.
 //
 // Flow:
 //   1. POST /stripe/payment-intent  → creates PaymentIntent, returns client_secret
 //   2. Frontend confirms payment with Stripe.js using client_secret
-//   3. Stripe fires webhook → POST /stripe/webhook updates invoice status
+//   3. Stripe fires webhook → POST /stripe/webhook updates invoice/tip status
 //
 // Webhook MUST receive the raw body — registered before JSON parsing.
 
@@ -31,13 +32,12 @@ function getStripe(): Stripe {
 
 const createPaymentIntentSchema = z.object({
 	invoiceId: z.string().check(z.uuid()),
-	// Optional: if tech is collecting on-site, pass "present"
 	paymentMethodType: z.enum(["card", "card_present"]).default("card")
 });
 
 const refundSchema = z.object({
 	invoiceId: z.string().check(z.uuid()),
-	amount: z.number().min(0.01).optional(), // partial refund — omit for full
+	amount: z.number().min(0.01).optional(),
 	reason: z
 		.enum(["duplicate", "fraudulent", "requested_by_customer"])
 		.default("requested_by_customer")
@@ -68,7 +68,6 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 	// POST /stripe/payment-intent
 	// Creates a Stripe PaymentIntent for an invoice.
 	// Returns client_secret — frontend uses this to confirm payment.
-	// amount is in cents (Stripe standard).
 	// ----------------------------------------------------------
 	fastify.post(
 		"/stripe/payment-intent",
@@ -110,14 +109,13 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 					.send({ error: "No balance due on this invoice" });
 			}
 
-			// Fetch customer for Stripe metadata
 			const [customer] = (await sql`
 				SELECT first_name, last_name, email FROM customers WHERE id = ${invoice.customer_id}
 			`) as any[];
 
 			const stripe = getStripe();
 
-			// Reuse existing PaymentIntent if one exists and is still active
+			// Reuse existing PaymentIntent if still active
 			if (invoice.stripe_payment_intent_id) {
 				try {
 					const existing = await stripe.paymentIntents.retrieve(
@@ -139,7 +137,6 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 				}
 			}
 
-			// Amount in cents
 			const amountCents = Math.round(Number(invoice.balance_due) * 100);
 
 			const intent = await stripe.paymentIntents.create({
@@ -161,7 +158,6 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 				description: `Invoice ${invoice.invoice_number}`
 			});
 
-			// Store intent ID on invoice immediately
 			await sql`
 				UPDATE invoices
 				SET stripe_payment_intent_id = ${intent.id}, updated_at = NOW()
@@ -181,17 +177,16 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 	// POST /stripe/webhook
 	// Stripe calls this when payment events happen.
 	// CRITICAL: Must receive raw body for signature verification.
-	// Register this route with rawBody: true in Fastify config.
 	//
 	// Events handled:
-	//   payment_intent.succeeded     → mark invoice paid
-	//   payment_intent.payment_failed → log failure (no status change)
-	//   charge.refunded              → update amount_paid, set status
+	//   payment_intent.succeeded      → mark invoice paid OR tip succeeded
+	//   payment_intent.payment_failed → log failure (invoice) OR tip failed
+	//   charge.refunded               → update invoice amount_paid and status
 	// ----------------------------------------------------------
 	fastify.post(
 		"/stripe/webhook",
 		{
-			config: { rawBody: true } // requires @fastify/rawbody plugin
+			config: { rawBody: true }
 		},
 		async (request: FastifyRequest, reply: FastifyReply) => {
 			const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -211,7 +206,6 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 			let event: Stripe.Event;
 
 			try {
-				// @ts-ignore — rawBody added by @fastify/rawbody
 				const rawBody = (request as any).rawBody as Buffer;
 				event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
 			} catch (err: any) {
@@ -226,10 +220,24 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 			try {
 				switch (event.type) {
 					// -------------------------------------------------------
-					// Payment succeeded — mark invoice paid
+					// Payment succeeded — invoice OR tip
 					// -------------------------------------------------------
 					case "payment_intent.succeeded": {
 						const intent = event.data.object as Stripe.PaymentIntent;
+
+						// Tip payment
+						if (intent.metadata?.type === "technician_tip") {
+							await sql`
+								UPDATE tech_tips SET
+									status     = 'succeeded',
+									updated_at = NOW()
+								WHERE stripe_payment_intent_id = ${intent.id}
+							`;
+							fastify.log.info(`Tip succeeded for intent ${intent.id}`);
+							break;
+						}
+
+						// Invoice payment
 						const invoiceId = intent.metadata?.invoiceId;
 						if (!invoiceId) break;
 
@@ -253,10 +261,28 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 					}
 
 					// -------------------------------------------------------
-					// Payment failed — log it, don't change invoice status
+					// Payment failed — invoice OR tip
 					// -------------------------------------------------------
 					case "payment_intent.payment_failed": {
 						const intent = event.data.object as Stripe.PaymentIntent;
+
+						// Tip payment failed
+						if (intent.metadata?.type === "technician_tip") {
+							await sql`
+								UPDATE tech_tips SET
+									status     = 'failed',
+									updated_at = NOW()
+								WHERE stripe_payment_intent_id = ${intent.id}
+							`;
+							fastify.log.warn(
+								`Tip failed for intent ${intent.id}: ${
+									intent.last_payment_error?.message ?? "unknown"
+								}`
+							);
+							break;
+						}
+
+						// Invoice payment failed — log only, no status change
 						const invoiceId = intent.metadata?.invoiceId;
 						fastify.log.warn(
 							`Payment failed for invoice ${invoiceId ?? "unknown"}: ${
@@ -267,7 +293,7 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 					}
 
 					// -------------------------------------------------------
-					// Charge refunded — adjust amount_paid and status
+					// Charge refunded — adjust invoice amount_paid and status
 					// -------------------------------------------------------
 					case "charge.refunded": {
 						const charge = event.data.object as Stripe.Charge;
@@ -288,10 +314,9 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 							Math.round((Number(invoice.amount_paid) - totalRefunded) * 100) /
 								100
 						);
-
 						const newStatus =
 							newAmountPaid <= 0
-								? "sent" // refunded entirely — back to sent
+								? "sent"
 								: newAmountPaid >= Number(invoice.total)
 									? "paid"
 									: "partial";
@@ -314,7 +339,6 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 						fastify.log.info(`Unhandled Stripe event: ${event.type}`);
 				}
 			} catch (err) {
-				// Log a structured object and a message; serialize unknown errors safely.
 				fastify.log.error(
 					{
 						err:
@@ -375,7 +399,6 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 
 			const stripe = getStripe();
 
-			// Get the charge from the intent
 			const intent = await stripe.paymentIntents.retrieve(
 				invoice.stripe_payment_intent_id,
 				{ expand: ["latest_charge"] }
@@ -388,7 +411,6 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 					.send({ error: "No charge found on this payment intent" });
 			}
 
-			// Amount in cents — omit for full refund
 			const refundParams: Stripe.RefundCreateParams = {
 				charge: charge.id,
 				reason,
@@ -399,7 +421,7 @@ export async function stripeRoutes(fastify: FastifyInstance) {
 
 			const refund = await stripe.refunds.create(refundParams);
 
-			// Webhook will handle the status update, but we optimistically update here too
+			// Optimistic update — webhook will confirm
 			const refundedAmount = Math.round((refund.amount / 100) * 100) / 100;
 			const newAmountPaid = Math.max(
 				0,

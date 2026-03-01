@@ -238,9 +238,7 @@ export async function purchaseOrderRoutes(fastify) {
             const user = getUser(request);
             const parsed = createPOSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -377,9 +375,7 @@ export async function purchaseOrderRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = updatePOSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -500,9 +496,7 @@ export async function purchaseOrderRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = receiptSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -515,9 +509,7 @@ export async function purchaseOrderRoutes(fastify) {
 				  AND status IN ('approved', 'partially_received')
 			`);
             if (!po)
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "PO not found or not in approved/partially_received status"
                 });
             // Create receipt header
@@ -638,9 +630,7 @@ export async function purchaseOrderRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = vendorInvoiceSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });

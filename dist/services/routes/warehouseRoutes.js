@@ -125,9 +125,7 @@ export async function warehouseRoutes(fastify) {
             const user = getUser(request);
             const parsed = createPartSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -265,9 +263,7 @@ export async function warehouseRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = updatePartSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -312,9 +308,7 @@ export async function warehouseRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = receiveStockSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -372,9 +366,7 @@ export async function warehouseRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = adjustSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -414,9 +406,7 @@ export async function warehouseRoutes(fastify) {
             const user = getUser(request);
             const parsed = transferSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });

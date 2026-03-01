@@ -116,9 +116,7 @@ export async function reportingRoutes(fastify) {
             const user = getUser(request);
             const parsed = profitabilityListSchema.safeParse(request.query);
             if (!parsed.success)
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid query",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -443,9 +441,7 @@ export async function reportingRoutes(fastify) {
             const user = getUser(request);
             const parsed = timesheetSchema.safeParse(request.query);
             if (!parsed.success)
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid query",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -646,9 +642,7 @@ export async function reportingRoutes(fastify) {
             }
             const parsed = setRateSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });

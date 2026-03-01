@@ -508,12 +508,10 @@ export async function automationRoutes(fastify: FastifyInstance) {
 
 			const parsed = followUpRuleSchema.safeParse(request.body);
 			if (!parsed.success)
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -668,12 +666,10 @@ export async function automationRoutes(fastify: FastifyInstance) {
 
 			const parsed = scheduleRuleSchema.safeParse(request.body);
 			if (!parsed.success)
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);

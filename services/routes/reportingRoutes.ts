@@ -131,12 +131,10 @@ export async function reportingRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = profitabilityListSchema.safeParse(request.query);
 			if (!parsed.success)
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid query",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid query",
+					details: parsed.error.flatten().fieldErrors
+				});
 
 			const {
 				branchId,
@@ -506,12 +504,10 @@ export async function reportingRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = timesheetSchema.safeParse(request.query);
 			if (!parsed.success)
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid query",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid query",
+					details: parsed.error.flatten().fieldErrors
+				});
 
 			const { branchId, techId, periodStart, periodEnd } = parsed.data;
 			const companyId = resolveCompanyId(user, parsed.data.companyId);
@@ -734,12 +730,10 @@ export async function reportingRoutes(fastify: FastifyInstance) {
 
 			const parsed = setRateSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);

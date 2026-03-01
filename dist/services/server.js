@@ -47,6 +47,8 @@ import { truckInventoryRoutes } from "./routes/truckInventoryRoutes";
 import { purchaseOrderRoutes } from "./routes/purchaseOrderRoutes";
 import { crmRoutes } from "./routes/crmRoutes";
 import { reportingRoutes } from "./routes/reportingRoutes";
+import { tipRoutes } from "./routes/tipRoutes";
+import { terminalRoutes } from "./routes/terminalRoutes";
 // ============================================================
 // Environment validation
 // ============================================================
@@ -173,6 +175,8 @@ await fastify.register(truckInventoryRoutes);
 await fastify.register(purchaseOrderRoutes);
 await fastify.register(crmRoutes);
 await fastify.register(reportingRoutes);
+await fastify.register(tipRoutes);
+await fastify.register(terminalRoutes);
 // ============================================================
 // Root
 // ============================================================

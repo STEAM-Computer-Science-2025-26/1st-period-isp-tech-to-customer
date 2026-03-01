@@ -441,9 +441,7 @@ export async function automationRoutes(fastify) {
                 return reply.code(403).send({ error: "Admin required" });
             const parsed = followUpRuleSchema.safeParse(request.body);
             if (!parsed.success)
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -571,9 +569,7 @@ export async function automationRoutes(fastify) {
                 return reply.code(403).send({ error: "Admin required" });
             const parsed = scheduleRuleSchema.safeParse(request.body);
             if (!parsed.success)
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
