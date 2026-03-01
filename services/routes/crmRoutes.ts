@@ -29,111 +29,155 @@ import { authenticate, JWTPayload } from "../middleware/auth";
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
-const STAGES = ["new", "contacted", "qualified", "estimate_sent", "won", "lost"] as const;
-const SOURCES = ["website", "referral", "google_lsa", "google_ads", "yelp", "facebook", "phone", "walk_in", "other"] as const;
+const STAGES = [
+	"new",
+	"contacted",
+	"qualified",
+	"estimate_sent",
+	"won",
+	"lost"
+] as const;
+const SOURCES = [
+	"website",
+	"referral",
+	"google_lsa",
+	"google_ads",
+	"yelp",
+	"facebook",
+	"phone",
+	"walk_in",
+	"other"
+] as const;
 
 const createLeadSchema = z.object({
 	// Contact info
-	firstName:      z.string().min(1).max(80),
-	lastName:       z.string().min(1).max(80),
-	companyName:    z.string().max(120).optional(),
-	email:          z.string().email().optional(),
-	phone:          z.string().min(1).max(30),
-	address:        z.string().max(300).optional(),
-	city:           z.string().max(80).optional(),
-	state:          z.string().length(2).optional(),
-	zip:            z.string().min(5).max(10).optional(),
+	firstName: z.string().min(1).max(80),
+	lastName: z.string().min(1).max(80),
+	companyName: z.string().max(120).optional(),
+	email: z.string().email().optional(),
+	phone: z.string().min(1).max(30),
+	address: z.string().max(300).optional(),
+	city: z.string().max(80).optional(),
+	state: z.string().length(2).optional(),
+	zip: z.string().min(5).max(10).optional(),
 	// Lead details
-	source:         z.enum(SOURCES).default("other"),
-	sourceDetail:   z.string().max(200).optional(), // e.g. "Google search: AC repair"
-	serviceNeeded:  z.string().max(200).optional(),
-	estimatedValue: z.number().min(0).optional(),   // expected job value
-	priority:       z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+	source: z.enum(SOURCES).default("other"),
+	sourceDetail: z.string().max(200).optional(), // e.g. "Google search: AC repair"
+	serviceNeeded: z.string().max(200).optional(),
+	estimatedValue: z.number().min(0).optional(), // expected job value
+	priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
 	assignedToUserId: z.string().uuid().optional(),
-	branchId:       z.string().uuid().optional(),
-	notes:          z.string().max(2000).optional(),
-	followUpAt:     z.string().datetime().optional(),
-	companyId:      z.string().uuid().optional(),
+	branchId: z.string().uuid().optional(),
+	notes: z.string().max(2000).optional(),
+	followUpAt: z.string().datetime().optional(),
+	companyId: z.string().uuid().optional()
 });
 
-const updateLeadSchema = z.object({
-	firstName:        z.string().min(1).max(80).optional(),
-	lastName:         z.string().min(1).max(80).optional(),
-	companyName:      z.string().max(120).optional().nullable(),
-	email:            z.string().email().optional().nullable(),
-	phone:            z.string().min(1).max(30).optional(),
-	address:          z.string().max(300).optional().nullable(),
-	city:             z.string().max(80).optional().nullable(),
-	state:            z.string().length(2).optional().nullable(),
-	zip:              z.string().min(5).max(10).optional().nullable(),
-	source:           z.enum(SOURCES).optional(),
-	sourceDetail:     z.string().max(200).optional().nullable(),
-	serviceNeeded:    z.string().max(200).optional().nullable(),
-	estimatedValue:   z.number().min(0).optional().nullable(),
-	priority:         z.enum(["low", "normal", "high", "urgent"]).optional(),
-	stage:            z.enum(STAGES).optional(),
-	assignedToUserId: z.string().uuid().optional().nullable(),
-	branchId:         z.string().uuid().optional().nullable(),
-	notes:            z.string().max(2000).optional().nullable(),
-	followUpAt:       z.string().datetime().optional().nullable(),
-	lostReason:       z.string().max(500).optional().nullable(),
-}).refine(d => Object.keys(d).length > 0, { message: "At least one field required" });
+const updateLeadSchema = z
+	.object({
+		firstName: z.string().min(1).max(80).optional(),
+		lastName: z.string().min(1).max(80).optional(),
+		companyName: z.string().max(120).optional().nullable(),
+		email: z.string().email().optional().nullable(),
+		phone: z.string().min(1).max(30).optional(),
+		address: z.string().max(300).optional().nullable(),
+		city: z.string().max(80).optional().nullable(),
+		state: z.string().length(2).optional().nullable(),
+		zip: z.string().min(5).max(10).optional().nullable(),
+		source: z.enum(SOURCES).optional(),
+		sourceDetail: z.string().max(200).optional().nullable(),
+		serviceNeeded: z.string().max(200).optional().nullable(),
+		estimatedValue: z.number().min(0).optional().nullable(),
+		priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
+		stage: z.enum(STAGES).optional(),
+		assignedToUserId: z.string().uuid().optional().nullable(),
+		branchId: z.string().uuid().optional().nullable(),
+		notes: z.string().max(2000).optional().nullable(),
+		followUpAt: z.string().datetime().optional().nullable(),
+		lostReason: z.string().max(500).optional().nullable()
+	})
+	.refine((d) => Object.keys(d).length > 0, {
+		message: "At least one field required"
+	});
 
 const listLeadsSchema = z.object({
-	companyId:        z.string().uuid().optional(),
-	branchId:         z.string().uuid().optional(),
-	stage:            z.enum(STAGES).optional(),
-	source:           z.enum(SOURCES).optional(),
-	priority:         z.enum(["low", "normal", "high", "urgent"]).optional(),
+	companyId: z.string().uuid().optional(),
+	branchId: z.string().uuid().optional(),
+	stage: z.enum(STAGES).optional(),
+	source: z.enum(SOURCES).optional(),
+	priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
 	assignedToUserId: z.string().uuid().optional(),
-	search:           z.string().optional(),
-	followUpOverdue:  z.coerce.boolean().optional(),
-	since:            z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-	limit:            z.coerce.number().int().min(1).max(200).default(50),
-	offset:           z.coerce.number().int().min(0).default(0),
+	search: z.string().optional(),
+	followUpOverdue: z.coerce.boolean().optional(),
+	since: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional(),
+	limit: z.coerce.number().int().min(1).max(200).default(50),
+	offset: z.coerce.number().int().min(0).default(0)
 });
 
 const advanceSchema = z.object({
-	stage:      z.enum(STAGES),
+	stage: z.enum(STAGES),
 	lostReason: z.string().max(500).optional(),
-	notes:      z.string().max(500).optional(),
+	notes: z.string().max(500).optional()
 });
 
 const activitySchema = z.object({
-	type:       z.enum(["call", "email", "sms", "meeting", "note", "task"]),
-	direction:  z.enum(["inbound", "outbound", "internal"]).default("outbound"),
-	subject:    z.string().max(200).optional(),
-	body:       z.string().min(1).max(5000),
-	outcome:    z.enum(["resolved", "follow_up", "no_answer", "voicemail", "interested", "not_interested"]).optional(),
+	type: z.enum(["call", "email", "sms", "meeting", "note", "task"]),
+	direction: z.enum(["inbound", "outbound", "internal"]).default("outbound"),
+	subject: z.string().max(200).optional(),
+	body: z.string().min(1).max(5000),
+	outcome: z
+		.enum([
+			"resolved",
+			"follow_up",
+			"no_answer",
+			"voicemail",
+			"interested",
+			"not_interested"
+		])
+		.optional(),
 	followUpAt: z.string().datetime().optional(),
-	durationSeconds: z.number().int().min(0).optional(),
+	durationSeconds: z.number().int().min(0).optional()
 });
 
 const convertSchema = z.object({
 	// Customer creation overrides (defaults to lead contact info)
-	customerType:   z.enum(["residential", "commercial"]).default("residential"),
+	customerType: z.enum(["residential", "commercial"]).default("residential"),
 	// Optionally create a job immediately on conversion
-	createJob: z.object({
-		title:          z.string().min(1),
-		jobType:        z.string().min(1),
-		description:    z.string().optional(),
-		scheduledTime:  z.string().datetime().optional(),
-		priority:       z.enum(["low", "normal", "high", "urgent"]).default("normal"),
-		estimatedValue: z.number().min(0).optional(),
-	}).optional(),
-	notes: z.string().max(500).optional(),
+	createJob: z
+		.object({
+			title: z.string().min(1),
+			jobType: z.string().min(1),
+			description: z.string().optional(),
+			scheduledTime: z.string().datetime().optional(),
+			priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+			estimatedValue: z.number().min(0).optional()
+		})
+		.optional(),
+	notes: z.string().max(500).optional()
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getUser(req: any): JWTPayload { return req.user as JWTPayload; }
+function getUser(req: any): JWTPayload {
+	return req.user as JWTPayload;
+}
 
 function resolveCompanyId(user: JWTPayload, bodyId?: string): string | null {
 	if (user.role === "dev") return bodyId ?? user.companyId ?? null;
 	return user.companyId ?? null;
 }
 
-const STAGE_ORDER = ["new", "contacted", "qualified", "estimate_sent", "won", "lost"];
+const STAGE_ORDER = [
+	"new",
+	"contacted",
+	"qualified",
+	"estimate_sent",
+	"won",
+	"lost"
+];
 
 function nextStage(current: string): string | null {
 	const idx = STAGE_ORDER.indexOf(current);
@@ -152,7 +196,12 @@ export async function crmRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = createLeadSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -160,7 +209,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 
 			const sql = getSql();
 
-			const [lead] = await sql`
+			const [lead] = (await sql`
 				INSERT INTO crm_leads (
 					company_id, branch_id,
 					first_name, last_name, company_name,
@@ -194,7 +243,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 					assigned_to_user_id AS "assignedToUserId",
 					follow_up_at        AS "followUpAt",
 					created_at          AS "createdAt"
-			` as any[];
+			`) as any[];
 
 			// Log initial activity
 			await sql`
@@ -212,18 +261,28 @@ export async function crmRoutes(fastify: FastifyInstance) {
 		r.get("/leads", async (request, reply) => {
 			const user = getUser(request);
 			const parsed = listLeadsSchema.safeParse(request.query);
-			if (!parsed.success) return reply.code(400).send({ error: "Invalid query" });
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid query" });
 
 			const {
-				branchId, stage, source, priority,
-				assignedToUserId, search, followUpOverdue, since, limit, offset
+				branchId,
+				stage,
+				source,
+				priority,
+				assignedToUserId,
+				search,
+				followUpOverdue,
+				since,
+				limit,
+				offset
 			} = parsed.data;
 			const companyId = resolveCompanyId(user, parsed.data.companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const leads = await sql`
+			const leads = (await sql`
 				SELECT
 					l.id,
 					l.first_name          AS "firstName",
@@ -274,13 +333,13 @@ export async function crmRoutes(fastify: FastifyInstance) {
 					l.follow_up_at ASC NULLS LAST,
 					l.created_at DESC
 				LIMIT ${limit} OFFSET ${offset}
-			` as any[];
+			`) as any[];
 
-			const [{ total }] = await sql`
+			const [{ total }] = (await sql`
 				SELECT COUNT(*)::int AS total FROM crm_leads
 				WHERE (${companyId}::uuid IS NULL OR company_id = ${companyId})
 				  AND (${stage ?? null}::text IS NULL OR stage = ${stage ?? null})
-			` as any[];
+			`) as any[];
 
 			return { leads, total, limit, offset };
 		});
@@ -290,11 +349,12 @@ export async function crmRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const [lead] = await sql`
+			const [lead] = (await sql`
 				SELECT
 					l.*,
 					l.first_name          AS "firstName",
@@ -318,11 +378,11 @@ export async function crmRoutes(fastify: FastifyInstance) {
 				LEFT JOIN users u ON u.id = l.assigned_to_user_id
 				WHERE l.id = ${id}
 				  AND (${companyId}::uuid IS NULL OR l.company_id = ${companyId})
-			` as any[];
+			`) as any[];
 			if (!lead) return reply.code(404).send({ error: "Lead not found" });
 
 			// Activity timeline
-			const activities = await sql`
+			const activities = (await sql`
 				SELECT
 					a.id, a.type, a.direction, a.subject, a.body,
 					a.outcome, a.follow_up_at AS "followUpAt",
@@ -335,7 +395,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 				WHERE a.lead_id = ${id}
 				ORDER BY a.created_at DESC
 				LIMIT 50
-			` as any[];
+			`) as any[];
 
 			return { lead, activities };
 		});
@@ -349,18 +409,23 @@ export async function crmRoutes(fastify: FastifyInstance) {
 
 			const parsed = updateLeadSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 
 			const sql = getSql();
-			const [existing] = await sql`
+			const [existing] = (await sql`
 				SELECT id, stage FROM crm_leads WHERE id = ${id} AND company_id = ${companyId}
-			` as any[];
+			`) as any[];
 			if (!existing) return reply.code(404).send({ error: "Lead not found" });
 
 			const b = parsed.data;
 
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE crm_leads SET
 					first_name          = COALESCE(${b.firstName ?? null}, first_name),
 					last_name           = COALESCE(${b.lastName ?? null}, last_name),
@@ -386,7 +451,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 					updated_at          = NOW()
 				WHERE id = ${id}
 				RETURNING id, stage, priority, updated_at AS "updatedAt"
-			` as any[];
+			`) as any[];
 
 			return { lead: updated };
 		});
@@ -399,9 +464,9 @@ export async function crmRoutes(fastify: FastifyInstance) {
 			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const [deleted] = await sql`
+			const [deleted] = (await sql`
 				DELETE FROM crm_leads WHERE id = ${id} AND company_id = ${companyId} RETURNING id
-			` as any[];
+			`) as any[];
 
 			if (!deleted) return reply.code(404).send({ error: "Lead not found" });
 			return { deleted: true };
@@ -417,14 +482,19 @@ export async function crmRoutes(fastify: FastifyInstance) {
 
 			const parsed = advanceSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const { stage, lostReason, notes } = parsed.data;
 
 			const sql = getSql();
-			const [lead] = await sql`
+			const [lead] = (await sql`
 				SELECT id, stage FROM crm_leads WHERE id = ${id} AND company_id = ${companyId}
-			` as any[];
+			`) as any[];
 			if (!lead) return reply.code(404).send({ error: "Lead not found" });
 
 			if (lead.stage === "won" || lead.stage === "lost") {
@@ -432,12 +502,16 @@ export async function crmRoutes(fastify: FastifyInstance) {
 			}
 
 			const currentIdx = STAGE_ORDER.indexOf(lead.stage);
-			const targetIdx  = STAGE_ORDER.indexOf(stage);
+			const targetIdx = STAGE_ORDER.indexOf(stage);
 			if (targetIdx <= currentIdx && stage !== "lost") {
-				return reply.code(400).send({ error: `Cannot move from '${lead.stage}' back to '${stage}'` });
+				return reply
+					.code(400)
+					.send({
+						error: `Cannot move from '${lead.stage}' back to '${stage}'`
+					});
 			}
 
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE crm_leads SET
 					stage       = ${stage},
 					lost_reason = CASE WHEN ${stage} = 'lost' THEN ${lostReason ?? null} ELSE lost_reason END,
@@ -446,7 +520,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 					updated_at  = NOW()
 				WHERE id = ${id}
 				RETURNING id, stage, won_at AS "wonAt", lost_at AS "lostAt"
-			` as any[];
+			`) as any[];
 
 			// Log stage change as activity
 			await sql`
@@ -470,17 +544,22 @@ export async function crmRoutes(fastify: FastifyInstance) {
 
 			const parsed = activitySchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 
 			const sql = getSql();
-			const [lead] = await sql`
+			const [lead] = (await sql`
 				SELECT id FROM crm_leads WHERE id = ${id} AND company_id = ${companyId}
-			` as any[];
+			`) as any[];
 			if (!lead) return reply.code(404).send({ error: "Lead not found" });
 
-			const [activity] = await sql`
+			const [activity] = (await sql`
 				INSERT INTO crm_lead_activities (
 					lead_id, type, direction, subject, body,
 					outcome, follow_up_at, duration_seconds, performed_by_user_id
@@ -494,7 +573,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 					follow_up_at AS "followUpAt",
 					duration_seconds AS "durationSeconds",
 					created_at AS "createdAt"
-			` as any[];
+			`) as any[];
 
 			// If follow-up set, update lead's follow_up_at
 			if (body.followUpAt) {
@@ -511,11 +590,12 @@ export async function crmRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const activities = await sql`
+			const activities = (await sql`
 				SELECT
 					a.id, a.type, a.direction, a.subject, a.body,
 					a.outcome, a.follow_up_at AS "followUpAt",
@@ -527,7 +607,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 				LEFT JOIN users u ON u.id = a.performed_by_user_id
 				WHERE a.lead_id = ${id}
 				ORDER BY a.created_at DESC
-			` as any[];
+			`) as any[];
 
 			return { activities };
 		});
@@ -542,22 +622,35 @@ export async function crmRoutes(fastify: FastifyInstance) {
 
 			const parsed = convertSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 
 			const sql = getSql();
-			const [lead] = await sql`
+			const [lead] = (await sql`
 				SELECT * FROM crm_leads WHERE id = ${id} AND company_id = ${companyId}
-			` as any[];
+			`) as any[];
 			if (!lead) return reply.code(404).send({ error: "Lead not found" });
-			if (lead.stage !== "won") return reply.code(400).send({ error: "Only won leads can be converted" });
+			if (lead.stage !== "won")
+				return reply
+					.code(400)
+					.send({ error: "Only won leads can be converted" });
 			if (lead.converted_customer_id) {
-				return reply.code(409).send({ error: "Lead already converted", customerId: lead.converted_customer_id });
+				return reply
+					.code(409)
+					.send({
+						error: "Lead already converted",
+						customerId: lead.converted_customer_id
+					});
 			}
 
 			// Create customer
-			const [customer] = await sql`
+			const [customer] = (await sql`
 				INSERT INTO customers (
 					company_id, branch_id,
 					first_name, last_name, company_name,
@@ -572,14 +665,14 @@ export async function crmRoutes(fastify: FastifyInstance) {
 					${body.notes ?? lead.notes ?? null}, ${user.userId ?? user.id ?? null}, 'pending'
 				)
 				RETURNING id
-			` as any[];
+			`) as any[];
 
 			let jobId: string | null = null;
 
 			// Optionally create a job
 			if (body.createJob) {
 				const j = body.createJob;
-				const [job] = await sql`
+				const [job] = (await sql`
 					INSERT INTO jobs (
 						company_id, branch_id, customer_id,
 						title, job_type, description,
@@ -596,7 +689,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 						'crm'
 					)
 					RETURNING id
-				` as any[];
+				`) as any[];
 				jobId = job.id;
 			}
 
@@ -621,7 +714,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 			return {
 				success: true,
 				customerId: customer.id,
-				jobId,
+				jobId
 			};
 		});
 
@@ -629,12 +722,16 @@ export async function crmRoutes(fastify: FastifyInstance) {
 		// Kanban-ready stage counts + value summary.
 		r.get("/leads/pipeline", async (request, reply) => {
 			const user = getUser(request);
-			const companyId = resolveCompanyId(user, (request.query as any).companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			const companyId = resolveCompanyId(
+				user,
+				(request.query as any).companyId
+			);
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const stages = await sql`
+			const stages = (await sql`
 				SELECT
 					stage,
 					COUNT(*)::int                                      AS "count",
@@ -645,19 +742,21 @@ export async function crmRoutes(fastify: FastifyInstance) {
 				WHERE company_id = ${companyId}
 				  AND stage NOT IN ('won','lost')
 				GROUP BY stage
-			` as any[];
+			`) as any[];
 
 			// Fill missing stages with zeros
 			const stageMap = Object.fromEntries(stages.map((s: any) => [s.stage, s]));
-			const pipeline = ["new", "contacted", "qualified", "estimate_sent"].map(s => ({
-				stage: s,
-				count: stageMap[s]?.count ?? 0,
-				totalValue: Number(stageMap[s]?.totalValue ?? 0),
-				hotCount: stageMap[s]?.hotCount ?? 0,
-				overdueCount: stageMap[s]?.overdueCount ?? 0,
-			}));
+			const pipeline = ["new", "contacted", "qualified", "estimate_sent"].map(
+				(s) => ({
+					stage: s,
+					count: stageMap[s]?.count ?? 0,
+					totalValue: Number(stageMap[s]?.totalValue ?? 0),
+					hotCount: stageMap[s]?.hotCount ?? 0,
+					overdueCount: stageMap[s]?.overdueCount ?? 0
+				})
+			);
 
-			const [totals] = await sql`
+			const [totals] = (await sql`
 				SELECT
 					COUNT(*) FILTER (WHERE stage NOT IN ('won','lost'))::int AS "activeLeads",
 					COUNT(*) FILTER (WHERE stage = 'won')::int               AS "wonTotal",
@@ -666,7 +765,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 					COALESCE(SUM(estimated_value) FILTER (WHERE stage = 'won'), 0)               AS "wonValue"
 				FROM crm_leads
 				WHERE company_id = ${companyId}
-			` as any[];
+			`) as any[];
 
 			return { pipeline, totals };
 		});
@@ -675,14 +774,18 @@ export async function crmRoutes(fastify: FastifyInstance) {
 		// Conversion rates, source breakdown, avg time to close.
 		r.get("/leads/analytics", async (request, reply) => {
 			const user = getUser(request);
-			const companyId = resolveCompanyId(user, (request.query as any).companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			const companyId = resolveCompanyId(
+				user,
+				(request.query as any).companyId
+			);
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const since = (request.query as any).since ?? null;
 			const sql = getSql();
 
 			// Source breakdown
-			const bySource = await sql`
+			const bySource = (await sql`
 				SELECT
 					source,
 					COUNT(*)::int                                   AS "total",
@@ -698,10 +801,10 @@ export async function crmRoutes(fastify: FastifyInstance) {
 				  AND (${since}::text IS NULL OR created_at >= ${since}::date)
 				GROUP BY source
 				ORDER BY "total" DESC
-			` as any[];
+			`) as any[];
 
 			// Avg days to close (won leads only)
-			const [timeToClose] = await sql`
+			const [timeToClose] = (await sql`
 				SELECT
 					ROUND(AVG(EXTRACT(EPOCH FROM (won_at - created_at)) / 86400)::numeric, 1) AS "avgDaysToClose",
 					MIN(EXTRACT(EPOCH FROM (won_at - created_at)) / 86400)::int               AS "minDaysToClose",
@@ -711,10 +814,10 @@ export async function crmRoutes(fastify: FastifyInstance) {
 				  AND stage = 'won'
 				  AND won_at IS NOT NULL
 				  AND (${since}::text IS NULL OR created_at >= ${since}::date)
-			` as any[];
+			`) as any[];
 
 			// Overall funnel
-			const [funnel] = await sql`
+			const [funnel] = (await sql`
 				SELECT
 					COUNT(*)::int                                               AS "totalLeads",
 					COUNT(*) FILTER (WHERE stage != 'new')::int                AS "contacted",
@@ -729,10 +832,10 @@ export async function crmRoutes(fastify: FastifyInstance) {
 				FROM crm_leads
 				WHERE company_id = ${companyId}
 				  AND (${since}::text IS NULL OR created_at >= ${since}::date)
-			` as any[];
+			`) as any[];
 
 			// Lost reasons breakdown
-			const lostReasons = await sql`
+			const lostReasons = (await sql`
 				SELECT
 					COALESCE(lost_reason, 'No reason given') AS reason,
 					COUNT(*)::int AS count
@@ -743,7 +846,7 @@ export async function crmRoutes(fastify: FastifyInstance) {
 				GROUP BY lost_reason
 				ORDER BY count DESC
 				LIMIT 10
-			` as any[];
+			`) as any[];
 
 			return { funnel, bySource, timeToClose, lostReasons };
 		});

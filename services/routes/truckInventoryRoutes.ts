@@ -30,64 +30,74 @@ import { authenticate, JWTPayload } from "../middleware/auth";
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const createVehicleSchema = z.object({
-	vehicleId:    z.string().min(1).max(40),   // internal ID / plate / unit number
-	make:         z.string().max(60).optional(),
-	model:        z.string().max(60).optional(),
-	year:         z.number().int().min(1990).max(2030).optional(),
-	vin:          z.string().max(20).optional(),
+	vehicleId: z.string().min(1).max(40), // internal ID / plate / unit number
+	make: z.string().max(60).optional(),
+	model: z.string().max(60).optional(),
+	year: z.number().int().min(1990).max(2030).optional(),
+	vin: z.string().max(20).optional(),
 	licensePlate: z.string().max(20).optional(),
-	color:        z.string().max(40).optional(),
-	notes:        z.string().max(500).optional(),
-	branchId:     z.string().uuid().optional(),
-	companyId:    z.string().uuid().optional(),
+	color: z.string().max(40).optional(),
+	notes: z.string().max(500).optional(),
+	branchId: z.string().uuid().optional(),
+	companyId: z.string().uuid().optional()
 });
 
-const updateVehicleSchema = z.object({
-	make:         z.string().max(60).optional().nullable(),
-	model:        z.string().max(60).optional().nullable(),
-	year:         z.number().int().min(1990).max(2030).optional().nullable(),
-	vin:          z.string().max(20).optional().nullable(),
-	licensePlate: z.string().max(20).optional().nullable(),
-	color:        z.string().max(40).optional().nullable(),
-	notes:        z.string().max(500).optional().nullable(),
-	branchId:     z.string().uuid().optional().nullable(),
-	isActive:     z.boolean().optional(),
-}).refine(d => Object.keys(d).length > 0, { message: "At least one field required" });
+const updateVehicleSchema = z
+	.object({
+		make: z.string().max(60).optional().nullable(),
+		model: z.string().max(60).optional().nullable(),
+		year: z.number().int().min(1990).max(2030).optional().nullable(),
+		vin: z.string().max(20).optional().nullable(),
+		licensePlate: z.string().max(20).optional().nullable(),
+		color: z.string().max(40).optional().nullable(),
+		notes: z.string().max(500).optional().nullable(),
+		branchId: z.string().uuid().optional().nullable(),
+		isActive: z.boolean().optional()
+	})
+	.refine((d) => Object.keys(d).length > 0, {
+		message: "At least one field required"
+	});
 
 const listVehiclesSchema = z.object({
 	companyId: z.string().uuid().optional(),
-	branchId:  z.string().uuid().optional(),
-	isActive:  z.coerce.boolean().optional(),
-	limit:     z.coerce.number().int().min(1).max(100).default(50),
-	offset:    z.coerce.number().int().min(0).default(0),
+	branchId: z.string().uuid().optional(),
+	isActive: z.coerce.boolean().optional(),
+	limit: z.coerce.number().int().min(1).max(100).default(50),
+	offset: z.coerce.number().int().min(0).default(0)
 });
 
 const assignVehicleSchema = z.object({
-	employeeId: z.string().uuid().nullable(), // null = unassign
+	employeeId: z.string().uuid().nullable() // null = unassign
 });
 
 const crossTruckTransferSchema = z.object({
 	fromVehicleId: z.string().min(1),
-	toVehicleId:   z.string().min(1),
-	partId:        z.string().uuid(),
-	quantity:      z.number().int().min(1),
-	notes:         z.string().max(500).optional(),
-	companyId:     z.string().uuid().optional(),
+	toVehicleId: z.string().min(1),
+	partId: z.string().uuid(),
+	quantity: z.number().int().min(1),
+	notes: z.string().max(500).optional(),
+	companyId: z.string().uuid().optional()
 });
 
 const restockSchema = z.object({
 	// Array of { partId, quantity } to pull from warehouse
-	items: z.array(z.object({
-		partId:   z.string().uuid(),
-		quantity: z.number().int().min(1),
-	})).min(1),
+	items: z
+		.array(
+			z.object({
+				partId: z.string().uuid(),
+				quantity: z.number().int().min(1)
+			})
+		)
+		.min(1),
 	notes: z.string().max(500).optional(),
-	companyId: z.string().uuid().optional(),
+	companyId: z.string().uuid().optional()
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getUser(req: any): JWTPayload { return req.user as JWTPayload; }
+function getUser(req: any): JWTPayload {
+	return req.user as JWTPayload;
+}
 
 function resolveCompanyId(user: JWTPayload, bodyId?: string): string | null {
 	if (user.role === "dev") return bodyId ?? user.companyId ?? null;
@@ -105,7 +115,12 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = createVehicleSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -113,12 +128,15 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 
 			const sql = getSql();
 
-			const [existing] = await sql`
+			const [existing] = (await sql`
 				SELECT id FROM vehicles WHERE company_id = ${companyId} AND vehicle_id = ${body.vehicleId}
-			` as any[];
-			if (existing) return reply.code(409).send({ error: "Vehicle ID already exists in this company" });
+			`) as any[];
+			if (existing)
+				return reply
+					.code(409)
+					.send({ error: "Vehicle ID already exists in this company" });
 
-			const [vehicle] = await sql`
+			const [vehicle] = (await sql`
 				INSERT INTO vehicles (
 					company_id, branch_id, vehicle_id, make, model, year,
 					vin, license_plate, color, notes
@@ -139,7 +157,7 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 					is_active        AS "isActive",
 					assigned_employee_id AS "assignedEmployeeId",
 					created_at       AS "createdAt"
-			` as any[];
+			`) as any[];
 
 			return reply.code(201).send({ vehicle });
 		});
@@ -148,15 +166,17 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 		r.get("/vehicles", async (request, reply) => {
 			const user = getUser(request);
 			const parsed = listVehiclesSchema.safeParse(request.query);
-			if (!parsed.success) return reply.code(400).send({ error: "Invalid query" });
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid query" });
 
 			const { branchId, isActive, limit, offset } = parsed.data;
 			const companyId = resolveCompanyId(user, parsed.data.companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const vehicles = await sql`
+			const vehicles = (await sql`
 				SELECT
 					v.id,
 					v.vehicle_id             AS "vehicleId",
@@ -184,7 +204,7 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 				GROUP BY v.id, b.name, e.name
 				ORDER BY v.vehicle_id
 				LIMIT ${limit} OFFSET ${offset}
-			` as any[];
+			`) as any[];
 
 			return { vehicles };
 		});
@@ -194,11 +214,12 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const [vehicle] = await sql`
+			const [vehicle] = (await sql`
 				SELECT
 					v.id, v.vehicle_id AS "vehicleId", v.company_id AS "companyId",
 					v.branch_id AS "branchId", b.name AS "branchName",
@@ -213,7 +234,7 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 				LEFT JOIN employees e ON e.id = v.assigned_employee_id
 				WHERE v.id = ${id}
 				  AND (${companyId}::uuid IS NULL OR v.company_id = ${companyId})
-			` as any[];
+			`) as any[];
 			if (!vehicle) return reply.code(404).send({ error: "Vehicle not found" });
 
 			return { vehicle };
@@ -228,18 +249,24 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 
 			const parsed = updateVehicleSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 
 			const sql = getSql();
-			const [existing] = await sql`
+			const [existing] = (await sql`
 				SELECT id FROM vehicles WHERE id = ${id} AND company_id = ${companyId}
-			` as any[];
-			if (!existing) return reply.code(404).send({ error: "Vehicle not found" });
+			`) as any[];
+			if (!existing)
+				return reply.code(404).send({ error: "Vehicle not found" });
 
 			const b = parsed.data;
 
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE vehicles SET
 					make          = CASE WHEN ${b.make !== undefined ? "true" : "false"} = 'true' THEN ${b.make ?? null} ELSE make END,
 					model         = CASE WHEN ${b.model !== undefined ? "true" : "false"} = 'true' THEN ${b.model ?? null} ELSE model END,
@@ -254,7 +281,7 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 				WHERE id = ${id}
 				RETURNING id, vehicle_id AS "vehicleId", make, model, year,
 				          is_active AS "isActive", updated_at AS "updatedAt"
-			` as any[];
+			`) as any[];
 
 			return { vehicle: updated };
 		});
@@ -267,11 +294,11 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE vehicles SET is_active = false, updated_at = NOW()
 				WHERE id = ${id} AND company_id = ${companyId}
 				RETURNING id
-			` as any[];
+			`) as any[];
 
 			if (!updated) return reply.code(404).send({ error: "Vehicle not found" });
 			return { deactivated: true };
@@ -293,19 +320,19 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			const sql = getSql();
 
 			if (employeeId) {
-				const [emp] = await sql`
+				const [emp] = (await sql`
 					SELECT id FROM employees WHERE id = ${employeeId} AND company_id = ${companyId} AND is_active = true
-				` as any[];
+				`) as any[];
 				if (!emp) return reply.code(404).send({ error: "Employee not found" });
 			}
 
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE vehicles SET
 					assigned_employee_id = ${employeeId},
 					updated_at = NOW()
 				WHERE id = ${id} AND company_id = ${companyId}
 				RETURNING id, vehicle_id AS "vehicleId", assigned_employee_id AS "assignedEmployeeId"
-			` as any[];
+			`) as any[];
 
 			if (!updated) return reply.code(404).send({ error: "Vehicle not found" });
 			return { vehicle: updated };
@@ -317,20 +344,21 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
 			// Resolve vehicle_id string from UUID
-			const [vehicle] = await sql`
+			const [vehicle] = (await sql`
 				SELECT id, vehicle_id AS "vehicleId", make, model, year,
 				       assigned_employee_id AS "assignedEmployeeId"
 				FROM vehicles
 				WHERE id = ${id} AND (${companyId}::uuid IS NULL OR company_id = ${companyId})
-			` as any[];
+			`) as any[];
 			if (!vehicle) return reply.code(404).send({ error: "Vehicle not found" });
 
-			const manifest = await sql`
+			const manifest = (await sql`
 				SELECT
 					ti.part_id              AS "partId",
 					p.part_number           AS "partNumber",
@@ -347,9 +375,12 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 				JOIN parts_inventory p ON p.id = ti.part_id
 				WHERE ti.vehicle_id = ${vehicle.vehicleId}
 				ORDER BY (ti.quantity <= ti.min_quantity) DESC, p.part_name ASC
-			` as any[];
+			`) as any[];
 
-			const totalValue = manifest.reduce((s: number, r: any) => s + Number(r.stockValue ?? 0), 0);
+			const totalValue = manifest.reduce(
+				(s: number, r: any) => s + Number(r.stockValue ?? 0),
+				0
+			);
 			const lowStockCount = manifest.filter((r: any) => r.isLowStock).length;
 
 			return {
@@ -357,10 +388,13 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 				manifest,
 				summary: {
 					uniqueParts: manifest.length,
-					totalUnits: manifest.reduce((s: number, r: any) => s + Number(r.quantity), 0),
+					totalUnits: manifest.reduce(
+						(s: number, r: any) => s + Number(r.quantity),
+						0
+					),
 					totalValue: Math.round(totalValue * 100) / 100,
-					lowStockCount,
-				},
+					lowStockCount
+				}
 			};
 		});
 
@@ -369,17 +403,18 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const [vehicle] = await sql`
+			const [vehicle] = (await sql`
 				SELECT id, vehicle_id AS "vehicleId" FROM vehicles
 				WHERE id = ${id} AND (${companyId}::uuid IS NULL OR company_id = ${companyId})
-			` as any[];
+			`) as any[];
 			if (!vehicle) return reply.code(404).send({ error: "Vehicle not found" });
 
-			const lowStock = await sql`
+			const lowStock = (await sql`
 				SELECT
 					ti.part_id           AS "partId",
 					p.part_number        AS "partNumber",
@@ -393,7 +428,7 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 				WHERE ti.vehicle_id = ${vehicle.vehicleId}
 				  AND ti.quantity <= ti.min_quantity
 				ORDER BY ti.quantity ASC
-			` as any[];
+			`) as any[];
 
 			return { vehicleId: vehicle.vehicleId, lowStockParts: lowStock };
 		});
@@ -404,34 +439,43 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = crossTruckTransferSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
 			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
 			if (body.fromVehicleId === body.toVehicleId) {
-				return reply.code(400).send({ error: "Source and destination trucks must be different" });
+				return reply
+					.code(400)
+					.send({ error: "Source and destination trucks must be different" });
 			}
 
 			const sql = getSql();
 
 			// Verify both vehicles belong to company
-			const [fromV] = await sql`
+			const [fromV] = (await sql`
 				SELECT id FROM vehicles WHERE vehicle_id = ${body.fromVehicleId} AND company_id = ${companyId}
-			` as any[];
-			if (!fromV) return reply.code(404).send({ error: "Source vehicle not found" });
+			`) as any[];
+			if (!fromV)
+				return reply.code(404).send({ error: "Source vehicle not found" });
 
-			const [toV] = await sql`
+			const [toV] = (await sql`
 				SELECT id FROM vehicles WHERE vehicle_id = ${body.toVehicleId} AND company_id = ${companyId}
-			` as any[];
-			if (!toV) return reply.code(404).send({ error: "Destination vehicle not found" });
+			`) as any[];
+			if (!toV)
+				return reply.code(404).send({ error: "Destination vehicle not found" });
 
 			// Check source stock
-			const [fromStock] = await sql`
+			const [fromStock] = (await sql`
 				SELECT quantity FROM truck_inventory
 				WHERE vehicle_id = ${body.fromVehicleId} AND part_id = ${body.partId}
-			` as any[];
+			`) as any[];
 
 			if (!fromStock || Number(fromStock.quantity) < body.quantity) {
 				return reply.code(409).send({
@@ -460,7 +504,7 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 				fromVehicleId: body.fromVehicleId,
 				toVehicleId: body.toVehicleId,
 				quantityTransferred: body.quantity,
-				fromVehicleQtyAfter: newFromQty,
+				fromVehicleQtyAfter: newFromQty
 			};
 		});
 
@@ -471,7 +515,12 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 			const { id } = request.params as { id: string };
 			const parsed = restockSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -479,20 +528,20 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 
 			const sql = getSql();
 
-			const [vehicle] = await sql`
+			const [vehicle] = (await sql`
 				SELECT id, vehicle_id AS "vehicleId" FROM vehicles
 				WHERE id = ${id} AND company_id = ${companyId} AND is_active = true
-			` as any[];
+			`) as any[];
 			if (!vehicle) return reply.code(404).send({ error: "Vehicle not found" });
 
 			const results: any[] = [];
 			const errors: any[] = [];
 
 			for (const item of body.items) {
-				const [part] = await sql`
+				const [part] = (await sql`
 					SELECT id, quantity, part_name AS name FROM parts_inventory
 					WHERE id = ${item.partId} AND company_id = ${companyId}
-				` as any[];
+				`) as any[];
 
 				if (!part) {
 					errors.push({ partId: item.partId, error: "Part not found" });
@@ -503,7 +552,7 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 					errors.push({
 						partId: item.partId,
 						name: part.name,
-						error: `Insufficient warehouse stock. Available: ${part.quantity}, requested: ${item.quantity}`,
+						error: `Insufficient warehouse stock. Available: ${part.quantity}, requested: ${item.quantity}`
 					});
 					continue;
 				}
@@ -523,14 +572,18 @@ export async function truckInventoryRoutes(fastify: FastifyInstance) {
 					DO UPDATE SET quantity = truck_inventory.quantity + ${item.quantity}, updated_at = NOW()
 				`;
 
-				results.push({ partId: item.partId, name: part.name, quantityAdded: item.quantity });
+				results.push({
+					partId: item.partId,
+					name: part.name,
+					quantityAdded: item.quantity
+				});
 			}
 
 			return {
 				vehicleId: vehicle.vehicleId,
 				restocked: results,
 				errors,
-				notes: body.notes ?? null,
+				notes: body.notes ?? null
 			};
 		});
 	});

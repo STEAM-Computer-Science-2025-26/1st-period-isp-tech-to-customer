@@ -33,76 +33,111 @@ import { authenticate, JWTPayload } from "../middleware/auth";
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const lineItemSchema = z.object({
-	partId:      z.string().uuid().optional(),   // links to parts_inventory
+	partId: z.string().uuid().optional(), // links to parts_inventory
 	description: z.string().min(1).max(300),
-	quantity:    z.number().positive(),
-	unitCost:    z.number().min(0),
-	unit:        z.string().max(20).default("each"),
+	quantity: z.number().positive(),
+	unitCost: z.number().min(0),
+	unit: z.string().max(20).default("each")
 });
 
 const createPOSchema = z.object({
-	vendorName:       z.string().min(1).max(120),
-	vendorEmail:      z.string().email().optional(),
-	vendorPhone:      z.string().max(30).optional(),
-	vendorRef:        z.string().max(80).optional(),  // vendor's catalog/account ref
-	expectedDelivery: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-	shippingAddress:  z.string().max(300).optional(),
-	branchId:         z.string().uuid().optional(),
-	notes:            z.string().max(1000).optional(),
-	lineItems:        z.array(lineItemSchema).min(1),
-	companyId:        z.string().uuid().optional(),
+	vendorName: z.string().min(1).max(120),
+	vendorEmail: z.string().email().optional(),
+	vendorPhone: z.string().max(30).optional(),
+	vendorRef: z.string().max(80).optional(), // vendor's catalog/account ref
+	expectedDelivery: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional(),
+	shippingAddress: z.string().max(300).optional(),
+	branchId: z.string().uuid().optional(),
+	notes: z.string().max(1000).optional(),
+	lineItems: z.array(lineItemSchema).min(1),
+	companyId: z.string().uuid().optional()
 });
 
-const updatePOSchema = z.object({
-	vendorName:       z.string().min(1).max(120).optional(),
-	vendorEmail:      z.string().email().optional().nullable(),
-	vendorPhone:      z.string().max(30).optional().nullable(),
-	vendorRef:        z.string().max(80).optional().nullable(),
-	expectedDelivery: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-	shippingAddress:  z.string().max(300).optional().nullable(),
-	notes:            z.string().max(1000).optional().nullable(),
-	lineItems:        z.array(lineItemSchema).min(1).optional(),
-}).refine(d => Object.keys(d).length > 0, { message: "At least one field required" });
+const updatePOSchema = z
+	.object({
+		vendorName: z.string().min(1).max(120).optional(),
+		vendorEmail: z.string().email().optional().nullable(),
+		vendorPhone: z.string().max(30).optional().nullable(),
+		vendorRef: z.string().max(80).optional().nullable(),
+		expectedDelivery: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}$/)
+			.optional()
+			.nullable(),
+		shippingAddress: z.string().max(300).optional().nullable(),
+		notes: z.string().max(1000).optional().nullable(),
+		lineItems: z.array(lineItemSchema).min(1).optional()
+	})
+	.refine((d) => Object.keys(d).length > 0, {
+		message: "At least one field required"
+	});
 
 const listPOSchema = z.object({
-	companyId:   z.string().uuid().optional(),
-	branchId:    z.string().uuid().optional(),
-	status:      z.enum(["draft","submitted","approved","partially_received","received","cancelled"]).optional(),
-	vendorName:  z.string().optional(),
-	since:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-	limit:       z.coerce.number().int().min(1).max(200).default(50),
-	offset:      z.coerce.number().int().min(0).default(0),
+	companyId: z.string().uuid().optional(),
+	branchId: z.string().uuid().optional(),
+	status: z
+		.enum([
+			"draft",
+			"submitted",
+			"approved",
+			"partially_received",
+			"received",
+			"cancelled"
+		])
+		.optional(),
+	vendorName: z.string().optional(),
+	since: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional(),
+	limit: z.coerce.number().int().min(1).max(200).default(50),
+	offset: z.coerce.number().int().min(0).default(0)
 });
 
 const receiptLineSchema = z.object({
 	poLineItemId: z.string().uuid(),
 	quantityReceived: z.number().positive(),
-	notes: z.string().max(300).optional(),
+	notes: z.string().max(300).optional()
 });
 
 const receiptSchema = z.object({
-	receivedBy:   z.string().max(120).optional(),
-	receivedAt:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+	receivedBy: z.string().max(120).optional(),
+	receivedAt: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional(),
 	deliveryNote: z.string().max(80).optional(),
-	notes:        z.string().max(500).optional(),
-	lines:        z.array(receiptLineSchema).min(1),
+	notes: z.string().max(500).optional(),
+	lines: z.array(receiptLineSchema).min(1)
 });
 
 const vendorInvoiceSchema = z.object({
 	vendorInvoiceNumber: z.string().min(1).max(80),
-	invoiceDate:         z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-	dueDate:             z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-	lines: z.array(z.object({
-		poLineItemId: z.string().uuid(),
-		quantityBilled: z.number().positive(),
-		unitCostBilled: z.number().min(0),
-	})).min(1),
-	notes: z.string().max(500).optional(),
+	invoiceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+	dueDate: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional(),
+	lines: z
+		.array(
+			z.object({
+				poLineItemId: z.string().uuid(),
+				quantityBilled: z.number().positive(),
+				unitCostBilled: z.number().min(0)
+			})
+		)
+		.min(1),
+	notes: z.string().max(500).optional()
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getUser(req: any): JWTPayload { return req.user as JWTPayload; }
+function getUser(req: any): JWTPayload {
+	return req.user as JWTPayload;
+}
 
 function resolveCompanyId(user: JWTPayload, bodyId?: string): string | null {
 	if (user.role === "dev") return bodyId ?? user.companyId ?? null;
@@ -115,7 +150,8 @@ function requireAdmin(user: JWTPayload): boolean {
 
 async function generatePONumber(sql: any, companyId: string): Promise<string> {
 	const year = new Date().getFullYear();
-	const [{ seq }] = await sql`SELECT nextval('po_number_seq') AS seq` as any[];
+	const [{ seq }] =
+		(await sql`SELECT nextval('po_number_seq') AS seq`) as any[];
 	return `PO-${year}-${String(seq).padStart(5, "0")}`;
 }
 
@@ -154,20 +190,20 @@ interface MatchLine {
 }
 
 async function runThreeWayMatch(sql: any, poId: string): Promise<MatchResult> {
-	const lineItems = await sql`
+	const lineItems = (await sql`
 		SELECT id, description, quantity AS "poQty", unit_cost AS "poUnitCost"
 		FROM po_line_items WHERE purchase_order_id = ${poId}
-	` as any[];
+	`) as any[];
 
-	const receipts = await sql`
+	const receipts = (await sql`
 		SELECT pol.id AS "poLineItemId", COALESCE(SUM(rl.quantity_received), 0) AS "receivedQty"
 		FROM po_line_items pol
 		LEFT JOIN po_receipt_lines rl ON rl.po_line_item_id = pol.id
 		WHERE pol.purchase_order_id = ${poId}
 		GROUP BY pol.id
-	` as any[];
+	`) as any[];
 
-	const invoiceLines = await sql`
+	const invoiceLines = (await sql`
 		SELECT pol.id AS "poLineItemId",
 		       COALESCE(SUM(vil.quantity_billed), 0) AS "invoicedQty",
 		       MAX(vil.unit_cost_billed) AS "invoicedUnitCost"
@@ -175,10 +211,14 @@ async function runThreeWayMatch(sql: any, poId: string): Promise<MatchResult> {
 		LEFT JOIN po_vendor_invoice_lines vil ON vil.po_line_item_id = pol.id
 		WHERE pol.purchase_order_id = ${poId}
 		GROUP BY pol.id
-	` as any[];
+	`) as any[];
 
-	const receiptMap = Object.fromEntries(receipts.map((r: any) => [r.poLineItemId, r]));
-	const invoiceMap = Object.fromEntries(invoiceLines.map((i: any) => [i.poLineItemId, i]));
+	const receiptMap = Object.fromEntries(
+		receipts.map((r: any) => [r.poLineItemId, r])
+	);
+	const invoiceMap = Object.fromEntries(
+		invoiceLines.map((i: any) => [i.poLineItemId, i])
+	);
 
 	const issues: string[] = [];
 	const lines: MatchLine[] = [];
@@ -191,14 +231,16 @@ async function runThreeWayMatch(sql: any, poId: string): Promise<MatchResult> {
 	for (const li of lineItems) {
 		const received = Number(receiptMap[li.id]?.receivedQty ?? 0);
 		const invoicedQty = Number(invoiceMap[li.id]?.invoicedQty ?? 0);
-		const invoicedCost = Number(invoiceMap[li.id]?.invoicedUnitCost ?? li.poUnitCost);
+		const invoicedCost = Number(
+			invoiceMap[li.id]?.invoicedUnitCost ?? li.poUnitCost
+		);
 		const poQty = Number(li.poQty);
 		const poUnitCost = Number(li.poUnitCost);
 
 		const qtyMatch = received >= poQty && invoicedQty <= received;
 		const priceMatch = Math.abs(invoicedCost - poUnitCost) <= PRICE_TOLERANCE;
 
-		const variance = (invoicedQty * invoicedCost) - (poQty * poUnitCost);
+		const variance = invoicedQty * invoicedCost - poQty * poUnitCost;
 
 		let lineStatus: MatchStatus = "matched";
 		if (invoicedQty === 0 || received === 0) {
@@ -207,8 +249,14 @@ async function runThreeWayMatch(sql: any, poId: string): Promise<MatchResult> {
 			lineStatus = Math.abs(variance) > 10 ? "discrepancy" : "partial";
 		}
 
-		if (!qtyMatch) issues.push(`Line "${li.description}": qty mismatch — PO: ${poQty}, received: ${received}, invoiced: ${invoicedQty}`);
-		if (!priceMatch) issues.push(`Line "${li.description}": price mismatch — PO: $${poUnitCost}, invoiced: $${invoicedCost}`);
+		if (!qtyMatch)
+			issues.push(
+				`Line "${li.description}": qty mismatch — PO: ${poQty}, received: ${received}, invoiced: ${invoicedQty}`
+			);
+		if (!priceMatch)
+			issues.push(
+				`Line "${li.description}": price mismatch — PO: $${poUnitCost}, invoiced: $${invoicedCost}`
+			);
 
 		poTotal += poQty * poUnitCost;
 		receivedTotal += received * poUnitCost;
@@ -217,33 +265,41 @@ async function runThreeWayMatch(sql: any, poId: string): Promise<MatchResult> {
 		lines.push({
 			poLineItemId: li.id,
 			description: li.description,
-			poQty, poUnitCost, receivedQty: received,
-			invoicedQty, invoicedUnitCost: invoicedCost,
-			qtyMatch, priceMatch, lineStatus,
-			variance: Math.round(variance * 100) / 100,
+			poQty,
+			poUnitCost,
+			receivedQty: received,
+			invoicedQty,
+			invoicedUnitCost: invoicedCost,
+			qtyMatch,
+			priceMatch,
+			lineStatus,
+			variance: Math.round(variance * 100) / 100
 		});
 	}
 
-	const hasDiscrepancy = lines.some(l => l.lineStatus === "discrepancy");
-	const hasPartial     = lines.some(l => l.lineStatus === "partial");
-	const hasPending     = lines.some(l => l.lineStatus === "pending");
-	const allMatched     = lines.every(l => l.lineStatus === "matched");
+	const hasDiscrepancy = lines.some((l) => l.lineStatus === "discrepancy");
+	const hasPartial = lines.some((l) => l.lineStatus === "partial");
+	const hasPending = lines.some((l) => l.lineStatus === "pending");
+	const allMatched = lines.every((l) => l.lineStatus === "matched");
 
-	const status: MatchStatus = allMatched ? "matched"
-		: hasDiscrepancy ? "discrepancy"
-		: hasPending ? "pending"
-		: "partial";
+	const status: MatchStatus = allMatched
+		? "matched"
+		: hasDiscrepancy
+			? "discrepancy"
+			: hasPending
+				? "pending"
+				: "partial";
 
 	return {
 		status,
 		lines,
 		summary: {
-			poTotal:       Math.round(poTotal * 100) / 100,
+			poTotal: Math.round(poTotal * 100) / 100,
 			receivedTotal: Math.round(receivedTotal * 100) / 100,
 			invoicedTotal: Math.round(invoicedTotal * 100) / 100,
-			variance:      Math.round((invoicedTotal - poTotal) * 100) / 100,
+			variance: Math.round((invoicedTotal - poTotal) * 100) / 100
 		},
-		issues,
+		issues
 	};
 }
 
@@ -258,7 +314,12 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = createPOSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -267,9 +328,12 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 			const sql = getSql();
 			const poNumber = await generatePONumber(sql, companyId);
 
-			const subtotal = body.lineItems.reduce((s, li) => s + calcLineTotal(li.quantity, li.unitCost), 0);
+			const subtotal = body.lineItems.reduce(
+				(s, li) => s + calcLineTotal(li.quantity, li.unitCost),
+				0
+			);
 
-			const [po] = await sql`
+			const [po] = (await sql`
 				INSERT INTO purchase_orders (
 					company_id, branch_id, po_number,
 					vendor_name, vendor_email, vendor_phone, vendor_ref,
@@ -284,7 +348,7 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 					'draft', ${user.userId ?? user.id ?? null}
 				)
 				RETURNING id, po_number AS "poNumber", status, subtotal, total, created_at AS "createdAt"
-			` as any[];
+			`) as any[];
 
 			// Insert line items
 			for (const li of body.lineItems) {
@@ -298,10 +362,10 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 				`;
 			}
 
-			const lineItems = await sql`
+			const lineItems = (await sql`
 				SELECT id, part_id AS "partId", description, quantity, unit_cost AS "unitCost", total, unit
 				FROM po_line_items WHERE purchase_order_id = ${po.id} ORDER BY created_at
-			` as any[];
+			`) as any[];
 
 			return reply.code(201).send({ po: { ...po, lineItems } });
 		});
@@ -310,15 +374,18 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 		r.get("/purchase-orders", async (request, reply) => {
 			const user = getUser(request);
 			const parsed = listPOSchema.safeParse(request.query);
-			if (!parsed.success) return reply.code(400).send({ error: "Invalid query" });
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid query" });
 
-			const { branchId, status, vendorName, since, limit, offset } = parsed.data;
+			const { branchId, status, vendorName, since, limit, offset } =
+				parsed.data;
 			const companyId = resolveCompanyId(user, parsed.data.companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const pos = await sql`
+			const pos = (await sql`
 				SELECT
 					po.id,
 					po.po_number        AS "poNumber",
@@ -345,12 +412,12 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 				GROUP BY po.id, b.name
 				ORDER BY po.created_at DESC
 				LIMIT ${limit} OFFSET ${offset}
-			` as any[];
+			`) as any[];
 
-			const [{ total }] = await sql`
+			const [{ total }] = (await sql`
 				SELECT COUNT(*)::int AS total FROM purchase_orders
 				WHERE (${companyId}::uuid IS NULL OR company_id = ${companyId})
-			` as any[];
+			`) as any[];
 
 			return { pos, total, limit, offset };
 		});
@@ -360,11 +427,12 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const [po] = await sql`
+			const [po] = (await sql`
 				SELECT
 					po.*,
 					po.po_number          AS "poNumber",
@@ -383,14 +451,15 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 				FROM purchase_orders po
 				WHERE po.id = ${id}
 				  AND (${companyId}::uuid IS NULL OR po.company_id = ${companyId})
-			` as any[];
-			if (!po) return reply.code(404).send({ error: "Purchase order not found" });
+			`) as any[];
+			if (!po)
+				return reply.code(404).send({ error: "Purchase order not found" });
 
-			const lineItems = await sql`
+			const lineItems = (await sql`
 				SELECT id, part_id AS "partId", description, quantity, unit_cost AS "unitCost", total, unit,
 				       quantity_received AS "quantityReceived"
 				FROM po_line_items WHERE purchase_order_id = ${id} ORDER BY created_at
-			` as any[];
+			`) as any[];
 
 			return { po: { ...po, lineItems } };
 		});
@@ -405,16 +474,23 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 
 			const parsed = updatePOSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 
 			const sql = getSql();
-			const [existing] = await sql`
+			const [existing] = (await sql`
 				SELECT id, status FROM purchase_orders WHERE id = ${id} AND company_id = ${companyId}
-			` as any[];
+			`) as any[];
 			if (!existing) return reply.code(404).send({ error: "PO not found" });
 			if (existing.status !== "draft") {
-				return reply.code(400).send({ error: `Cannot edit a PO in '${existing.status}' status` });
+				return reply
+					.code(400)
+					.send({ error: `Cannot edit a PO in '${existing.status}' status` });
 			}
 
 			const b = parsed.data;
@@ -423,7 +499,10 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 			let subtotal: number | null = null;
 			if (b.lineItems) {
 				await sql`DELETE FROM po_line_items WHERE purchase_order_id = ${id}`;
-				subtotal = b.lineItems.reduce((s, li) => s + calcLineTotal(li.quantity, li.unitCost), 0);
+				subtotal = b.lineItems.reduce(
+					(s, li) => s + calcLineTotal(li.quantity, li.unitCost),
+					0
+				);
 				for (const li of b.lineItems) {
 					await sql`
 						INSERT INTO po_line_items (purchase_order_id, part_id, description, quantity, unit_cost, total, unit)
@@ -432,7 +511,7 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 				}
 			}
 
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE purchase_orders SET
 					vendor_name      = COALESCE(${b.vendorName ?? null}, vendor_name),
 					vendor_email     = CASE WHEN ${b.vendorEmail !== undefined ? "true" : "false"} = 'true' THEN ${b.vendorEmail ?? null} ELSE vendor_email END,
@@ -445,7 +524,7 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 					updated_at       = NOW()
 				WHERE id = ${id}
 				RETURNING id, po_number AS "poNumber", status, subtotal, total, updated_at AS "updatedAt"
-			` as any[];
+			`) as any[];
 
 			return { po: updated };
 		});
@@ -458,27 +537,31 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const [po] = await sql`
+			const [po] = (await sql`
 				UPDATE purchase_orders SET status = 'submitted', updated_at = NOW()
 				WHERE id = ${id} AND company_id = ${companyId} AND status = 'draft'
 				RETURNING id, status
-			` as any[];
+			`) as any[];
 
-			if (!po) return reply.code(400).send({ error: "PO not found or not in draft status" });
+			if (!po)
+				return reply
+					.code(400)
+					.send({ error: "PO not found or not in draft status" });
 			return { success: true, status: po.status };
 		});
 
 		// ── POST /purchase-orders/:id/approve ─────────────────────────────────
 		r.post("/purchase-orders/:id/approve", async (request, reply) => {
 			const user = getUser(request);
-			if (!requireAdmin(user)) return reply.code(403).send({ error: "Admin access required" });
+			if (!requireAdmin(user))
+				return reply.code(403).send({ error: "Admin access required" });
 
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
 			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const [po] = await sql`
+			const [po] = (await sql`
 				UPDATE purchase_orders SET
 					status             = 'approved',
 					approved_by_user_id = ${user.userId ?? user.id ?? null},
@@ -486,30 +569,37 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 					updated_at         = NOW()
 				WHERE id = ${id} AND company_id = ${companyId} AND status = 'submitted'
 				RETURNING id, status, approved_at AS "approvedAt"
-			` as any[];
+			`) as any[];
 
-			if (!po) return reply.code(400).send({ error: "PO not found or not in submitted status" });
+			if (!po)
+				return reply
+					.code(400)
+					.send({ error: "PO not found or not in submitted status" });
 			return { success: true, po };
 		});
 
 		// ── POST /purchase-orders/:id/cancel ──────────────────────────────────
 		r.post("/purchase-orders/:id/cancel", async (request, reply) => {
 			const user = getUser(request);
-			if (!requireAdmin(user)) return reply.code(403).send({ error: "Admin access required" });
+			if (!requireAdmin(user))
+				return reply.code(403).send({ error: "Admin access required" });
 
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
 			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const [po] = await sql`
+			const [po] = (await sql`
 				UPDATE purchase_orders SET status = 'cancelled', updated_at = NOW()
 				WHERE id = ${id} AND company_id = ${companyId}
 				  AND status IN ('draft', 'submitted', 'approved')
 				RETURNING id, status
-			` as any[];
+			`) as any[];
 
-			if (!po) return reply.code(400).send({ error: "PO not found or cannot be cancelled" });
+			if (!po)
+				return reply
+					.code(400)
+					.send({ error: "PO not found or cannot be cancelled" });
 			return { success: true };
 		});
 
@@ -523,20 +613,30 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 
 			const parsed = receiptSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 
 			const sql = getSql();
-			const [po] = await sql`
+			const [po] = (await sql`
 				SELECT id, status FROM purchase_orders
 				WHERE id = ${id} AND company_id = ${companyId}
 				  AND status IN ('approved', 'partially_received')
-			` as any[];
-			if (!po) return reply.code(400).send({ error: "PO not found or not in approved/partially_received status" });
+			`) as any[];
+			if (!po)
+				return reply
+					.code(400)
+					.send({
+						error: "PO not found or not in approved/partially_received status"
+					});
 
 			// Create receipt header
-			const [receipt] = await sql`
+			const [receipt] = (await sql`
 				INSERT INTO po_receipts (
 					purchase_order_id, received_by, received_at, delivery_note, notes
 				) VALUES (
@@ -547,16 +647,16 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 					${body.notes ?? null}
 				)
 				RETURNING id, received_at AS "receivedAt"
-			` as any[];
+			`) as any[];
 
 			const receiptLines = [];
 
 			for (const line of body.lines) {
 				// Validate line item belongs to this PO
-				const [li] = await sql`
+				const [li] = (await sql`
 					SELECT id, part_id, unit_cost FROM po_line_items
 					WHERE id = ${line.poLineItemId} AND purchase_order_id = ${id}
-				` as any[];
+				`) as any[];
 				if (!li) continue;
 
 				// Insert receipt line
@@ -597,16 +697,21 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 					`;
 				}
 
-				receiptLines.push({ poLineItemId: line.poLineItemId, quantityReceived: line.quantityReceived });
+				receiptLines.push({
+					poLineItemId: line.poLineItemId,
+					quantityReceived: line.quantityReceived
+				});
 			}
 
 			// Update PO status
-			const allLines = await sql`
+			const allLines = (await sql`
 				SELECT quantity, COALESCE(quantity_received, 0) AS received
 				FROM po_line_items WHERE purchase_order_id = ${id}
-			` as any[];
+			`) as any[];
 
-			const fullyReceived = allLines.every((l: any) => Number(l.received) >= Number(l.quantity));
+			const fullyReceived = allLines.every(
+				(l: any) => Number(l.received) >= Number(l.quantity)
+			);
 			const newStatus = fullyReceived ? "received" : "partially_received";
 
 			await sql`
@@ -615,7 +720,7 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 
 			return {
 				receipt: { ...receipt, lines: receiptLines },
-				poStatus: newStatus,
+				poStatus: newStatus
 			};
 		});
 
@@ -624,17 +729,18 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const [po] = await sql`
+			const [po] = (await sql`
 				SELECT id FROM purchase_orders WHERE id = ${id}
 				AND (${companyId}::uuid IS NULL OR company_id = ${companyId})
-			` as any[];
+			`) as any[];
 			if (!po) return reply.code(404).send({ error: "PO not found" });
 
-			const receipts = await sql`
+			const receipts = (await sql`
 				SELECT
 					r.id, r.received_by AS "receivedBy",
 					r.received_at AS "receivedAt", r.delivery_note AS "deliveryNote",
@@ -649,7 +755,7 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 				WHERE r.purchase_order_id = ${id}
 				GROUP BY r.id
 				ORDER BY r.received_at DESC
-			` as any[];
+			`) as any[];
 
 			return { receipts };
 		});
@@ -664,22 +770,31 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 
 			const parsed = vendorInvoiceSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 
 			const sql = getSql();
-			const [po] = await sql`
+			const [po] = (await sql`
 				SELECT id FROM purchase_orders WHERE id = ${id} AND company_id = ${companyId}
 				AND status NOT IN ('draft', 'cancelled')
-			` as any[];
-			if (!po) return reply.code(400).send({ error: "PO not found or not eligible for invoicing" });
+			`) as any[];
+			if (!po)
+				return reply
+					.code(400)
+					.send({ error: "PO not found or not eligible for invoicing" });
 
 			const invoiceTotal = body.lines.reduce(
-				(s, l) => s + l.quantityBilled * l.unitCostBilled, 0
+				(s, l) => s + l.quantityBilled * l.unitCostBilled,
+				0
 			);
 
-			const [vinvoice] = await sql`
+			const [vinvoice] = (await sql`
 				INSERT INTO po_vendor_invoices (
 					purchase_order_id, vendor_invoice_number, invoice_date, due_date, total, notes
 				) VALUES (
@@ -688,7 +803,7 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 					${Math.round(invoiceTotal * 100) / 100}, ${body.notes ?? null}
 				)
 				RETURNING id, vendor_invoice_number AS "vendorInvoiceNumber", total, created_at AS "createdAt"
-			` as any[];
+			`) as any[];
 
 			for (const l of body.lines) {
 				await sql`
@@ -710,7 +825,7 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 
 			return {
 				vendorInvoice: vinvoice,
-				matchResult: match,
+				matchResult: match
 			};
 		});
 
@@ -720,14 +835,15 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const [po] = await sql`
+			const [po] = (await sql`
 				SELECT id, po_number AS "poNumber", status, match_status AS "matchStatus"
 				FROM purchase_orders WHERE id = ${id}
 				AND (${companyId}::uuid IS NULL OR company_id = ${companyId})
-			` as any[];
+			`) as any[];
 			if (!po) return reply.code(404).send({ error: "PO not found" });
 
 			const match = await runThreeWayMatch(sql, id);
@@ -745,12 +861,16 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 		// Groups by manufacturer so you get one suggested PO per vendor.
 		r.get("/purchase-orders/reorder-suggestions", async (request, reply) => {
 			const user = getUser(request);
-			const companyId = resolveCompanyId(user, (request.query as any).companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			const companyId = resolveCompanyId(
+				user,
+				(request.query as any).companyId
+			);
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const reorderItems = await sql`
+			const reorderItems = (await sql`
 				SELECT
 					id, part_number AS "partNumber", part_name AS "name",
 					manufacturer, category,
@@ -762,7 +882,7 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 				  AND is_active = true
 				  AND quantity <= reorder_level
 				ORDER BY manufacturer NULLS LAST, part_name
-			` as any[];
+			`) as any[];
 
 			// Group by manufacturer to suggest one PO per vendor
 			const byVendor: Record<string, any> = {};
@@ -772,7 +892,7 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 					byVendor[vendor] = {
 						suggestedVendor: vendor,
 						lineItems: [],
-						estimatedTotal: 0,
+						estimatedTotal: 0
 					};
 				}
 				byVendor[vendor].lineItems.push({
@@ -782,7 +902,7 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 					currentQty: item.currentQty,
 					reorderQty: item.reorderQty,
 					unitCost: item.unitCost,
-					lineTotal: item.lineTotal,
+					lineTotal: item.lineTotal
 				});
 				byVendor[vendor].estimatedTotal += Number(item.lineTotal ?? 0);
 			}
@@ -790,13 +910,13 @@ export async function purchaseOrderRoutes(fastify: FastifyInstance) {
 			const suggestions = Object.values(byVendor).map((v: any) => ({
 				...v,
 				estimatedTotal: Math.round(v.estimatedTotal * 100) / 100,
-				itemCount: v.lineItems.length,
+				itemCount: v.lineItems.length
 			}));
 
 			return {
 				totalPartsNeedingReorder: reorderItems.length,
 				suggestedPOs: suggestions.length,
-				suggestions,
+				suggestions
 			};
 		});
 	});

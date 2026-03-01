@@ -135,9 +135,7 @@ export async function preStaffingAlertRoutes(fastify) {
             const user = getUser(request);
             const parsed = createRuleSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -234,9 +232,7 @@ export async function preStaffingAlertRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = updateRuleSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });

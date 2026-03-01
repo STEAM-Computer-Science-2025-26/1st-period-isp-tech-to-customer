@@ -98,9 +98,7 @@ export async function multiRegionRoutes(fastify) {
                 return;
             const parsed = createRegionSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -195,9 +193,7 @@ export async function multiRegionRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = updateRegionSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -487,9 +483,7 @@ export async function multiRegionRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = transferJobSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -555,9 +549,7 @@ export async function multiRegionRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = transferEmployeeSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });

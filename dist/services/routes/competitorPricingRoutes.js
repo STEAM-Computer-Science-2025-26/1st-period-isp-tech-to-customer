@@ -114,9 +114,7 @@ export async function competitorPricingRoutes(fastify) {
             const user = getUser(request);
             const parsed = createObservationSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -184,9 +182,7 @@ export async function competitorPricingRoutes(fastify) {
             const user = getUser(request);
             const parsed = listSchema.safeParse(request.query);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid query",
                     details: parsed.error.flatten().fieldErrors
                 });
@@ -320,9 +316,7 @@ export async function competitorPricingRoutes(fastify) {
                 return reply.code(403).send({ error: "Forbidden" });
             const parsed = updateObservationSchema.safeParse(request.body);
             if (!parsed.success) {
-                return reply
-                    .code(400)
-                    .send({
+                return reply.code(400).send({
                     error: "Invalid body",
                     details: parsed.error.flatten().fieldErrors
                 });

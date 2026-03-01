@@ -28,77 +28,87 @@ import { authenticate, JWTPayload } from "../middleware/auth";
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 const createPartSchema = z.object({
-	partNumber:    z.string().min(1).max(80),
-	name:          z.string().min(1).max(200),
-	description:   z.string().max(1000).optional(),
-	category:      z.string().max(80).optional(),
-	manufacturer:  z.string().max(120).optional(),
-	unitOfMeasure: z.enum(["each", "lb", "ft", "box", "case", "roll"]).default("each"),
-	unitCost:      z.number().min(0),
-	sellPrice:     z.number().min(0).optional(),
-	reorderLevel:  z.number().int().min(0).default(5),
-	reorderQty:    z.number().int().min(1).default(10),
-	location:      z.string().max(80).optional(), // bin/shelf label e.g. "A-3-2"
-	isActive:      z.boolean().default(true),
-	companyId:     z.string().uuid().optional(),
+	partNumber: z.string().min(1).max(80),
+	name: z.string().min(1).max(200),
+	description: z.string().max(1000).optional(),
+	category: z.string().max(80).optional(),
+	manufacturer: z.string().max(120).optional(),
+	unitOfMeasure: z
+		.enum(["each", "lb", "ft", "box", "case", "roll"])
+		.default("each"),
+	unitCost: z.number().min(0),
+	sellPrice: z.number().min(0).optional(),
+	reorderLevel: z.number().int().min(0).default(5),
+	reorderQty: z.number().int().min(1).default(10),
+	location: z.string().max(80).optional(), // bin/shelf label e.g. "A-3-2"
+	isActive: z.boolean().default(true),
+	companyId: z.string().uuid().optional()
 });
 
-const updatePartSchema = z.object({
-	partNumber:    z.string().min(1).max(80).optional(),
-	name:          z.string().min(1).max(200).optional(),
-	description:   z.string().max(1000).optional().nullable(),
-	category:      z.string().max(80).optional().nullable(),
-	manufacturer:  z.string().max(120).optional().nullable(),
-	unitOfMeasure: z.enum(["each", "lb", "ft", "box", "case", "roll"]).optional(),
-	unitCost:      z.number().min(0).optional(),
-	sellPrice:     z.number().min(0).optional().nullable(),
-	reorderLevel:  z.number().int().min(0).optional(),
-	reorderQty:    z.number().int().min(1).optional(),
-	location:      z.string().max(80).optional().nullable(),
-	isActive:      z.boolean().optional(),
-}).refine(d => Object.keys(d).length > 0, { message: "At least one field required" });
+const updatePartSchema = z
+	.object({
+		partNumber: z.string().min(1).max(80).optional(),
+		name: z.string().min(1).max(200).optional(),
+		description: z.string().max(1000).optional().nullable(),
+		category: z.string().max(80).optional().nullable(),
+		manufacturer: z.string().max(120).optional().nullable(),
+		unitOfMeasure: z
+			.enum(["each", "lb", "ft", "box", "case", "roll"])
+			.optional(),
+		unitCost: z.number().min(0).optional(),
+		sellPrice: z.number().min(0).optional().nullable(),
+		reorderLevel: z.number().int().min(0).optional(),
+		reorderQty: z.number().int().min(1).optional(),
+		location: z.string().max(80).optional().nullable(),
+		isActive: z.boolean().optional()
+	})
+	.refine((d) => Object.keys(d).length > 0, {
+		message: "At least one field required"
+	});
 
 const listPartsSchema = z.object({
-	companyId:    z.string().uuid().optional(),
-	category:     z.string().optional(),
-	search:       z.string().optional(),
+	companyId: z.string().uuid().optional(),
+	category: z.string().optional(),
+	search: z.string().optional(),
 	lowStockOnly: z.coerce.boolean().optional(),
-	isActive:     z.coerce.boolean().optional(),
-	limit:        z.coerce.number().int().min(1).max(200).default(50),
-	offset:       z.coerce.number().int().min(0).default(0),
+	isActive: z.coerce.boolean().optional(),
+	limit: z.coerce.number().int().min(1).max(200).default(50),
+	offset: z.coerce.number().int().min(0).default(0)
 });
 
 const receiveStockSchema = z.object({
-	quantity:      z.number().int().min(1),
-	unitCost:      z.number().min(0).optional(), // updates cost if provided
+	quantity: z.number().int().min(1),
+	unitCost: z.number().min(0).optional(), // updates cost if provided
 	purchaseOrderId: z.string().uuid().optional(),
-	vendorName:    z.string().max(120).optional(),
-	invoiceRef:    z.string().max(80).optional(),
-	notes:         z.string().max(500).optional(),
+	vendorName: z.string().max(120).optional(),
+	invoiceRef: z.string().max(80).optional(),
+	notes: z.string().max(500).optional()
 });
 
 const adjustSchema = z.object({
-	quantity:  z.number().int(), // negative = shrinkage/damage, positive = found stock
-	reason:    z.enum(["shrinkage", "damage", "count_correction", "other"]),
-	notes:     z.string().max(500).optional(),
+	quantity: z.number().int(), // negative = shrinkage/damage, positive = found stock
+	reason: z.enum(["shrinkage", "damage", "count_correction", "other"]),
+	notes: z.string().max(500).optional()
 });
 
 const transferSchema = z.object({
-	partId:    z.string().uuid(),
+	partId: z.string().uuid(),
 	vehicleId: z.string().min(1),
-	quantity:  z.number().int().min(1),
-	notes:     z.string().max(500).optional(),
-	companyId: z.string().uuid().optional(),
+	quantity: z.number().int().min(1),
+	notes: z.string().max(500).optional(),
+	companyId: z.string().uuid().optional()
 });
 
 const auditSchema = z.object({
-	limit:  z.coerce.number().int().min(1).max(200).default(50),
-	offset: z.coerce.number().int().min(0).default(0),
+	limit: z.coerce.number().int().min(1).max(200).default(50),
+	offset: z.coerce.number().int().min(0).default(0)
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getUser(req: any): JWTPayload { return req.user as JWTPayload; }
+function getUser(req: any): JWTPayload {
+	return req.user as JWTPayload;
+}
 
 function resolveCompanyId(user: JWTPayload, bodyId?: string): string | null {
 	if (user.role === "dev") return bodyId ?? user.companyId ?? null;
@@ -145,7 +155,12 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = createPartSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -154,12 +169,13 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 			const sql = getSql();
 
 			// Part number must be unique per company
-			const [existing] = await sql`
+			const [existing] = (await sql`
 				SELECT id FROM parts_inventory WHERE company_id = ${companyId} AND part_number = ${body.partNumber}
-			` as any[];
-			if (existing) return reply.code(409).send({ error: "Part number already exists" });
+			`) as any[];
+			if (existing)
+				return reply.code(409).send({ error: "Part number already exists" });
 
-			const [part] = await sql`
+			const [part] = (await sql`
 				INSERT INTO parts_inventory (
 					company_id, part_number, part_name, description,
 					category, manufacturer, unit_of_measure,
@@ -179,7 +195,7 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 					quantity, reorder_level AS "reorderLevel",
 					reorder_qty AS "reorderQty", location,
 					is_active AS "isActive", created_at AS "createdAt"
-			` as any[];
+			`) as any[];
 
 			return reply.code(201).send({ part });
 		});
@@ -188,15 +204,18 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 		r.get("/warehouse/parts", async (request, reply) => {
 			const user = getUser(request);
 			const parsed = listPartsSchema.safeParse(request.query);
-			if (!parsed.success) return reply.code(400).send({ error: "Invalid query" });
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid query" });
 
-			const { category, search, lowStockOnly, isActive, limit, offset } = parsed.data;
+			const { category, search, lowStockOnly, isActive, limit, offset } =
+				parsed.data;
 			const companyId = resolveCompanyId(user, parsed.data.companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const parts = await sql`
+			const parts = (await sql`
 				SELECT
 					id,
 					part_number      AS "partNumber",
@@ -228,13 +247,13 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 					(quantity <= reorder_level) DESC, -- low stock first
 					part_name ASC
 				LIMIT ${limit} OFFSET ${offset}
-			` as any[];
+			`) as any[];
 
-			const [{ total }] = await sql`
+			const [{ total }] = (await sql`
 				SELECT COUNT(*)::int AS total FROM parts_inventory
 				WHERE (${companyId}::uuid IS NULL OR company_id = ${companyId})
 				  AND (${isActive ?? null}::boolean IS NULL OR is_active = ${isActive ?? null})
-			` as any[];
+			`) as any[];
 
 			return { parts, total, limit, offset };
 		});
@@ -244,11 +263,12 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const [part] = await sql`
+			const [part] = (await sql`
 				SELECT
 					id, part_number AS "partNumber", part_name AS "name",
 					description, category, manufacturer,
@@ -263,12 +283,12 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 				FROM parts_inventory
 				WHERE id = ${id}
 				  AND (${companyId}::uuid IS NULL OR company_id = ${companyId})
-			` as any[];
+			`) as any[];
 
 			if (!part) return reply.code(404).send({ error: "Part not found" });
 
 			// Also fetch truck stock levels for this part
-			const truckStock = await sql`
+			const truckStock = (await sql`
 				SELECT
 					vehicle_id AS "vehicleId",
 					quantity,
@@ -277,7 +297,7 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 				FROM truck_inventory
 				WHERE part_id = ${id}
 				ORDER BY vehicle_id
-			` as any[];
+			`) as any[];
 
 			return { part: { ...part, truckStock } };
 		});
@@ -291,18 +311,23 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 
 			const parsed = updatePartSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 
 			const sql = getSql();
-			const [existing] = await sql`
+			const [existing] = (await sql`
 				SELECT id FROM parts_inventory WHERE id = ${id} AND company_id = ${companyId}
-			` as any[];
+			`) as any[];
 			if (!existing) return reply.code(404).send({ error: "Part not found" });
 
 			const b = parsed.data;
 
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE parts_inventory SET
 					part_number     = COALESCE(${b.partNumber ?? null}, part_number),
 					part_name       = COALESCE(${b.name ?? null}, part_name),
@@ -322,7 +347,7 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 					id, part_number AS "partNumber", part_name AS "name",
 					quantity, reorder_level AS "reorderLevel",
 					is_active AS "isActive", updated_at AS "updatedAt"
-			` as any[];
+			`) as any[];
 
 			return { part: updated };
 		});
@@ -337,29 +362,34 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 
 			const parsed = receiveStockSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 
 			const sql = getSql();
-			const [part] = await sql`
+			const [part] = (await sql`
 				SELECT id, quantity, unit_cost FROM parts_inventory
 				WHERE id = ${id} AND company_id = ${companyId}
-			` as any[];
+			`) as any[];
 			if (!part) return reply.code(404).send({ error: "Part not found" });
 
 			// Update cost if provided (weighted average cost)
 			const newCost = body.unitCost ?? part.unit_cost;
 			const newQty = Number(part.quantity) + body.quantity;
 
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE parts_inventory SET
 					quantity   = ${newQty},
 					unit_cost  = ${newCost},
 					updated_at = NOW()
 				WHERE id = ${id}
 				RETURNING quantity
-			` as any[];
+			`) as any[];
 
 			await logInventoryMovement(sql, {
 				companyId,
@@ -370,18 +400,21 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 				referenceId: body.purchaseOrderId ?? null,
 				referenceType: body.purchaseOrderId ? "purchase_order" : null,
 				performedByUserId: user.userId ?? user.id ?? null,
-				notes: [
-					body.vendorName ? `Vendor: ${body.vendorName}` : null,
-					body.invoiceRef ? `Invoice: ${body.invoiceRef}` : null,
-					body.notes,
-				].filter(Boolean).join(" | ") || null,
+				notes:
+					[
+						body.vendorName ? `Vendor: ${body.vendorName}` : null,
+						body.invoiceRef ? `Invoice: ${body.invoiceRef}` : null,
+						body.notes
+					]
+						.filter(Boolean)
+						.join(" | ") || null
 			});
 
 			return {
 				partId: id,
 				quantityAdded: body.quantity,
 				newQuantity: updated.quantity,
-				unitCost: newCost,
+				unitCost: newCost
 			};
 		});
 
@@ -395,23 +428,28 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 
 			const parsed = adjustSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 
 			const sql = getSql();
-			const [part] = await sql`
+			const [part] = (await sql`
 				SELECT id, quantity FROM parts_inventory WHERE id = ${id} AND company_id = ${companyId}
-			` as any[];
+			`) as any[];
 			if (!part) return reply.code(404).send({ error: "Part not found" });
 
 			const newQty = Math.max(0, Number(part.quantity) + body.quantity);
 
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE parts_inventory SET quantity = ${newQty}, updated_at = NOW()
 				WHERE id = ${id}
 				RETURNING quantity
-			` as any[];
+			`) as any[];
 
 			await logInventoryMovement(sql, {
 				companyId,
@@ -420,14 +458,14 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 				quantityChange: body.quantity,
 				quantityAfter: updated.quantity,
 				performedByUserId: user.userId ?? user.id ?? null,
-				notes: body.notes ?? null,
+				notes: body.notes ?? null
 			});
 
 			return {
 				partId: id,
 				adjustment: body.quantity,
 				reason: body.reason,
-				newQuantity: updated.quantity,
+				newQuantity: updated.quantity
 			};
 		});
 
@@ -437,7 +475,12 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = transferSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -445,9 +488,9 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 
 			const sql = getSql();
 
-			const [part] = await sql`
+			const [part] = (await sql`
 				SELECT id, quantity FROM parts_inventory WHERE id = ${body.partId} AND company_id = ${companyId}
-			` as any[];
+			`) as any[];
 			if (!part) return reply.code(404).send({ error: "Part not found" });
 
 			if (Number(part.quantity) < body.quantity) {
@@ -481,7 +524,7 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 				quantityAfter: newWarehouseQty,
 				vehicleId: body.vehicleId,
 				performedByUserId: user.userId ?? user.id ?? null,
-				notes: body.notes ?? null,
+				notes: body.notes ?? null
 			});
 
 			return {
@@ -489,7 +532,7 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 				partId: body.partId,
 				vehicleId: body.vehicleId,
 				quantityTransferred: body.quantity,
-				warehouseQuantityAfter: newWarehouseQty,
+				warehouseQuantityAfter: newWarehouseQty
 			};
 		});
 
@@ -497,12 +540,16 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 		// Parts at or below reorder level — the buying list.
 		r.get("/warehouse/reorder-queue", async (request, reply) => {
 			const user = getUser(request);
-			const companyId = resolveCompanyId(user, (request.query as any).companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			const companyId = resolveCompanyId(
+				user,
+				(request.query as any).companyId
+			);
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const parts = await sql`
+			const parts = (await sql`
 				SELECT
 					id,
 					part_number      AS "partNumber",
@@ -525,16 +572,17 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 				  AND is_active = true
 				  AND quantity <= reorder_level
 				ORDER BY (reorder_level - quantity) DESC -- most critical first
-			` as any[];
+			`) as any[];
 
 			const totalEstimatedCost = parts.reduce(
-				(sum: number, p: any) => sum + Number(p.estimatedCost ?? 0), 0
+				(sum: number, p: any) => sum + Number(p.estimatedCost ?? 0),
+				0
 			);
 
 			return {
 				count: parts.length,
 				totalEstimatedCost: Math.round(totalEstimatedCost * 100) / 100,
-				parts,
+				parts
 			};
 		});
 
@@ -544,21 +592,23 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const { partId } = request.params as { partId: string };
 			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const parsed = auditSchema.safeParse(request.query);
-			if (!parsed.success) return reply.code(400).send({ error: "Invalid query" });
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid query" });
 			const { limit, offset } = parsed.data;
 
 			const sql = getSql();
 
-			const [part] = await sql`
+			const [part] = (await sql`
 				SELECT id, part_name AS name FROM parts_inventory
 				WHERE id = ${partId} AND (${companyId}::uuid IS NULL OR company_id = ${companyId})
-			` as any[];
+			`) as any[];
 			if (!part) return reply.code(404).send({ error: "Part not found" });
 
-			const movements = await sql`
+			const movements = (await sql`
 				SELECT
 					id,
 					movement_type    AS "movementType",
@@ -573,7 +623,7 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 				WHERE part_id = ${partId}
 				ORDER BY created_at DESC
 				LIMIT ${limit} OFFSET ${offset}
-			` as any[];
+			`) as any[];
 
 			return { part, movements, limit, offset };
 		});
@@ -582,12 +632,16 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 		// Total inventory value on hand, broken down by category.
 		r.get("/warehouse/valuation", async (request, reply) => {
 			const user = getUser(request);
-			const companyId = resolveCompanyId(user, (request.query as any).companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			const companyId = resolveCompanyId(
+				user,
+				(request.query as any).companyId
+			);
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
 
-			const byCategory = await sql`
+			const byCategory = (await sql`
 				SELECT
 					COALESCE(category, 'Uncategorized') AS category,
 					COUNT(*)::int                        AS "partCount",
@@ -598,9 +652,9 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 				  AND is_active = true
 				GROUP BY category
 				ORDER BY "totalValue" DESC
-			` as any[];
+			`) as any[];
 
-			const [totals] = await sql`
+			const [totals] = (await sql`
 				SELECT
 					COUNT(*)::int                        AS "totalParts",
 					SUM(quantity)::int                   AS "totalUnits",
@@ -609,7 +663,7 @@ export async function warehouseRoutes(fastify: FastifyInstance) {
 				FROM parts_inventory
 				WHERE (${companyId}::uuid IS NULL OR company_id = ${companyId})
 				  AND is_active = true
-			` as any[];
+			`) as any[];
 
 			return { totals, byCategory };
 		});

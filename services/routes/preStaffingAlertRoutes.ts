@@ -161,12 +161,10 @@ export async function preStaffingAlertRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = createRuleSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -267,12 +265,10 @@ export async function preStaffingAlertRoutes(fastify: FastifyInstance) {
 
 			const parsed = updateRuleSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 
 			const sql = getSql();

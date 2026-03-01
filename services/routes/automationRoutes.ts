@@ -36,80 +36,96 @@ import { authenticate, JWTPayload } from "../middleware/auth";
 
 // Estimate follow-up rules
 const followUpRuleSchema = z.object({
-	name:           z.string().min(1).max(120),
-	daysAfterSent:  z.number().int().min(1).max(90),  // trigger N days after sent_at
-	channel:        z.enum(["email", "sms", "both"]).default("email"),
-	messageTemplate: z.string().max(2000).optional(),  // {{customerName}}, {{estimateTotal}}, {{estimateUrl}}
-	isActive:       z.boolean().default(true),
-	companyId:      z.string().uuid().optional(),
+	name: z.string().min(1).max(120),
+	daysAfterSent: z.number().int().min(1).max(90), // trigger N days after sent_at
+	channel: z.enum(["email", "sms", "both"]).default("email"),
+	messageTemplate: z.string().max(2000).optional(), // {{customerName}}, {{estimateTotal}}, {{estimateUrl}}
+	isActive: z.boolean().default(true),
+	companyId: z.string().uuid().optional()
 });
 
-const updateFollowUpRuleSchema = z.object({
-	name:            z.string().min(1).max(120).optional(),
-	daysAfterSent:   z.number().int().min(1).max(90).optional(),
-	channel:         z.enum(["email", "sms", "both"]).optional(),
-	messageTemplate: z.string().max(2000).optional().nullable(),
-	isActive:        z.boolean().optional(),
-}).refine(d => Object.keys(d).length > 0, { message: "At least one field required" });
+const updateFollowUpRuleSchema = z
+	.object({
+		name: z.string().min(1).max(120).optional(),
+		daysAfterSent: z.number().int().min(1).max(90).optional(),
+		channel: z.enum(["email", "sms", "both"]).optional(),
+		messageTemplate: z.string().max(2000).optional().nullable(),
+		isActive: z.boolean().optional()
+	})
+	.refine((d) => Object.keys(d).length > 0, {
+		message: "At least one field required"
+	});
 
 // Schedule auto-adjust rules
 const TRIGGER_CONDITIONS = [
-	"tech_unavailable",    // tech marked unavailable/sick
-	"job_running_long",    // job exceeds estimated duration by threshold %
-	"customer_no_show",    // tech arrived, no customer
+	"tech_unavailable", // tech marked unavailable/sick
+	"job_running_long", // job exceeds estimated duration by threshold %
+	"customer_no_show", // tech arrived, no customer
 	"customer_reschedule", // customer requested reschedule via portal
-	"weather_hold",        // manual weather hold flagged on job
-	"emergency_inserted",  // high-priority job inserted, causing conflict
+	"weather_hold", // manual weather hold flagged on job
+	"emergency_inserted" // high-priority job inserted, causing conflict
 ] as const;
 
 const ACTIONS = [
-	"bump_next_available_slot",   // push to next open slot for same tech
-	"reassign_backup_tech",       // find available tech and reassign
-	"escalate_priority",          // raise job priority
-	"notify_dispatcher",          // flag for dispatcher attention (no auto-move)
-	"bump_hours",                 // push scheduled_time by N hours
-	"bump_days",                  // push scheduled_time by N days
+	"bump_next_available_slot", // push to next open slot for same tech
+	"reassign_backup_tech", // find available tech and reassign
+	"escalate_priority", // raise job priority
+	"notify_dispatcher", // flag for dispatcher attention (no auto-move)
+	"bump_hours", // push scheduled_time by N hours
+	"bump_days" // push scheduled_time by N days
 ] as const;
 
 const scheduleRuleSchema = z.object({
-	name:           z.string().min(1).max(120),
+	name: z.string().min(1).max(120),
 	triggerCondition: z.enum(TRIGGER_CONDITIONS),
 	// Condition parameters (depends on trigger type)
-	thresholdPct:   z.number().min(0).max(500).optional(), // for job_running_long: how much over (e.g. 150 = 50% over)
-	action:         z.enum(ACTIONS),
+	thresholdPct: z.number().min(0).max(500).optional(), // for job_running_long: how much over (e.g. 150 = 50% over)
+	action: z.enum(ACTIONS),
 	// Action parameters
-	bumpHours:      z.number().min(0).max(72).optional(),  // for bump_hours
-	bumpDays:       z.number().int().min(0).max(30).optional(), // for bump_days
-	newPriority:    z.enum(["low","normal","high","urgent"]).optional(), // for escalate_priority
-	notifyMessage:  z.string().max(500).optional(),
-	isActive:       z.boolean().default(true),
-	companyId:      z.string().uuid().optional(),
+	bumpHours: z.number().min(0).max(72).optional(), // for bump_hours
+	bumpDays: z.number().int().min(0).max(30).optional(), // for bump_days
+	newPriority: z.enum(["low", "normal", "high", "urgent"]).optional(), // for escalate_priority
+	notifyMessage: z.string().max(500).optional(),
+	isActive: z.boolean().default(true),
+	companyId: z.string().uuid().optional()
 });
 
-const updateScheduleRuleSchema = z.object({
-	name:             z.string().min(1).max(120).optional(),
-	triggerCondition: z.enum(TRIGGER_CONDITIONS).optional(),
-	thresholdPct:     z.number().min(0).max(500).optional().nullable(),
-	action:           z.enum(ACTIONS).optional(),
-	bumpHours:        z.number().min(0).max(72).optional().nullable(),
-	bumpDays:         z.number().int().min(0).max(30).optional().nullable(),
-	newPriority:      z.enum(["low","normal","high","urgent"]).optional().nullable(),
-	notifyMessage:    z.string().max(500).optional().nullable(),
-	isActive:         z.boolean().optional(),
-}).refine(d => Object.keys(d).length > 0, { message: "At least one field required" });
+const updateScheduleRuleSchema = z
+	.object({
+		name: z.string().min(1).max(120).optional(),
+		triggerCondition: z.enum(TRIGGER_CONDITIONS).optional(),
+		thresholdPct: z.number().min(0).max(500).optional().nullable(),
+		action: z.enum(ACTIONS).optional(),
+		bumpHours: z.number().min(0).max(72).optional().nullable(),
+		bumpDays: z.number().int().min(0).max(30).optional().nullable(),
+		newPriority: z
+			.enum(["low", "normal", "high", "urgent"])
+			.optional()
+			.nullable(),
+		notifyMessage: z.string().max(500).optional().nullable(),
+		isActive: z.boolean().optional()
+	})
+	.refine((d) => Object.keys(d).length > 0, {
+		message: "At least one field required"
+	});
 
 const adjustmentLogSchema = z.object({
 	companyId: z.string().uuid().optional(),
-	jobId:     z.string().uuid().optional(),
-	ruleId:    z.string().uuid().optional(),
-	since:     z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-	limit:     z.coerce.number().int().min(1).max(200).default(50),
-	offset:    z.coerce.number().int().min(0).default(0),
+	jobId: z.string().uuid().optional(),
+	ruleId: z.string().uuid().optional(),
+	since: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional(),
+	limit: z.coerce.number().int().min(1).max(200).default(50),
+	offset: z.coerce.number().int().min(0).default(0)
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getUser(req: any): JWTPayload { return req.user as JWTPayload; }
+function getUser(req: any): JWTPayload {
+	return req.user as JWTPayload;
+}
 
 function resolveCompanyId(user: JWTPayload, bodyId?: string): string | null {
 	if (user.role === "dev") return bodyId ?? user.companyId ?? null;
@@ -128,16 +144,16 @@ export async function generateEstimateFollowUps(): Promise<{ queued: number }> {
 	let queued = 0;
 
 	// Get all active rules
-	const rules = await sql`
+	const rules = (await sql`
 		SELECT id, company_id, days_after_sent, channel, message_template
 		FROM estimate_followup_rules
 		WHERE is_active = true
-	` as any[];
+	`) as any[];
 
 	for (const rule of rules) {
 		// Find estimates that are 'sent', not yet responded to, and haven't
 		// already had a follow-up queued for this rule
-		const estimates = await sql`
+		const estimates = (await sql`
 			SELECT
 				e.id, e.company_id, e.customer_id, e.total,
 				e.sent_at, e.estimate_number AS "estimateNumber",
@@ -154,12 +170,13 @@ export async function generateEstimateFollowUps(): Promise<{ queued: number }> {
 			      SELECT 1 FROM estimate_followup_queue q
 			      WHERE q.estimate_id = e.id AND q.rule_id = ${rule.id}
 			  )
-		` as any[];
+		`) as any[];
 
 		for (const est of estimates) {
 			// Render message template
-			const template = rule.message_template
-				?? `Hi {{customerFirstName}}, just following up on estimate {{estimateNumber}} for {{estimateTotal}}. Let us know if you have any questions!`;
+			const template =
+				rule.message_template ??
+				`Hi {{customerFirstName}}, just following up on estimate {{estimateNumber}} for {{estimateTotal}}. Let us know if you have any questions!`;
 
 			const message = template
 				.replace("{{customerFirstName}}", est.customerFirstName ?? "there")
@@ -183,12 +200,15 @@ export async function generateEstimateFollowUps(): Promise<{ queued: number }> {
 }
 
 // Called by cron hourly. Dispatches pending follow-ups.
-export async function dispatchEstimateFollowUps(): Promise<{ sent: number; failed: number }> {
+export async function dispatchEstimateFollowUps(): Promise<{
+	sent: number;
+	failed: number;
+}> {
 	const sql = getSql();
 	let sent = 0;
 	let failed = 0;
 
-	const pending = await sql`
+	const pending = (await sql`
 		SELECT q.*, c.email, c.phone, c.first_name
 		FROM estimate_followup_queue q
 		JOIN customers c ON c.id = q.customer_id
@@ -196,12 +216,14 @@ export async function dispatchEstimateFollowUps(): Promise<{ sent: number; faile
 		  AND q.scheduled_for <= NOW()
 		ORDER BY q.scheduled_for ASC
 		LIMIT 100
-	` as any[];
+	`) as any[];
 
 	for (const item of pending) {
 		try {
 			// TODO: plug in Twilio (SMS) / SendGrid (email) here
-			console.log(`[estimate-followup] Sending ${item.channel} to customer ${item.customer_id} for estimate ${item.estimate_id}`);
+			console.log(
+				`[estimate-followup] Sending ${item.channel} to customer ${item.customer_id} for estimate ${item.estimate_id}`
+			);
 
 			await sql`
 				UPDATE estimate_followup_queue
@@ -224,20 +246,23 @@ export async function dispatchEstimateFollowUps(): Promise<{ sent: number; faile
 }
 
 // Called by cron every 15 min. Evaluates schedule rules against current jobs.
-export async function evaluateScheduleRules(): Promise<{ evaluated: number; adjusted: number }> {
+export async function evaluateScheduleRules(): Promise<{
+	evaluated: number;
+	adjusted: number;
+}> {
 	const sql = getSql();
 	let evaluated = 0;
 	let adjusted = 0;
 
-	const rules = await sql`
+	const rules = (await sql`
 		SELECT * FROM schedule_auto_adjust_rules WHERE is_active = true
-	` as any[];
+	`) as any[];
 
 	for (const rule of rules) {
 		if (rule.trigger_condition === "job_running_long") {
 			// Jobs that started but haven't been marked complete, and are over threshold
 			const threshold = rule.threshold_pct ?? 150; // default 50% over
-			const overrunJobs = await sql`
+			const overrunJobs = (await sql`
 				SELECT j.id, j.company_id, j.assigned_tech_id, j.scheduled_time,
 				       j.estimated_duration_minutes, j.priority,
 				       j.started_at
@@ -253,7 +278,7 @@ export async function evaluateScheduleRules(): Promise<{ evaluated: number; adju
 				      WHERE sal.job_id = j.id AND sal.rule_id = ${rule.id}
 				        AND sal.created_at > NOW() - INTERVAL '4 hours'
 				  )
-			` as any[];
+			`) as any[];
 
 			for (const job of overrunJobs) {
 				await applyScheduleAction(sql, rule, job);
@@ -264,7 +289,7 @@ export async function evaluateScheduleRules(): Promise<{ evaluated: number; adju
 
 		if (rule.trigger_condition === "tech_unavailable") {
 			// Jobs assigned to techs who are currently marked unavailable
-			const affectedJobs = await sql`
+			const affectedJobs = (await sql`
 				SELECT j.id, j.company_id, j.assigned_tech_id, j.scheduled_time,
 				       j.estimated_duration_minutes, j.priority
 				FROM jobs j
@@ -278,7 +303,7 @@ export async function evaluateScheduleRules(): Promise<{ evaluated: number; adju
 				      WHERE sal.job_id = j.id AND sal.rule_id = ${rule.id}
 				        AND sal.created_at > NOW() - INTERVAL '1 hour'
 				  )
-			` as any[];
+			`) as any[];
 
 			for (const job of affectedJobs) {
 				await applyScheduleAction(sql, rule, job);
@@ -289,7 +314,7 @@ export async function evaluateScheduleRules(): Promise<{ evaluated: number; adju
 
 		if (rule.trigger_condition === "customer_no_show") {
 			// Jobs where tech arrived (arrived_at set) but no work started after 30 min
-			const noShows = await sql`
+			const noShows = (await sql`
 				SELECT j.id, j.company_id, j.assigned_tech_id, j.scheduled_time,
 				       j.estimated_duration_minutes, j.priority
 				FROM jobs j
@@ -304,7 +329,7 @@ export async function evaluateScheduleRules(): Promise<{ evaluated: number; adju
 				      WHERE sal.job_id = j.id AND sal.rule_id = ${rule.id}
 				        AND sal.created_at > NOW() - INTERVAL '2 hours'
 				  )
-			` as any[];
+			`) as any[];
 
 			for (const job of noShows) {
 				await applyScheduleAction(sql, rule, job);
@@ -315,7 +340,7 @@ export async function evaluateScheduleRules(): Promise<{ evaluated: number; adju
 
 		if (rule.trigger_condition === "weather_hold") {
 			// Jobs manually flagged with weather_hold = true
-			const heldJobs = await sql`
+			const heldJobs = (await sql`
 				SELECT j.id, j.company_id, j.assigned_tech_id, j.scheduled_time,
 				       j.estimated_duration_minutes, j.priority
 				FROM jobs j
@@ -327,7 +352,7 @@ export async function evaluateScheduleRules(): Promise<{ evaluated: number; adju
 				      WHERE sal.job_id = j.id AND sal.rule_id = ${rule.id}
 				        AND sal.created_at > NOW() - INTERVAL '6 hours'
 				  )
-			` as any[];
+			`) as any[];
 
 			for (const job of heldJobs) {
 				await applyScheduleAction(sql, rule, job);
@@ -340,7 +365,11 @@ export async function evaluateScheduleRules(): Promise<{ evaluated: number; adju
 	return { evaluated, adjusted };
 }
 
-async function applyScheduleAction(sql: any, rule: any, job: any): Promise<void> {
+async function applyScheduleAction(
+	sql: any,
+	rule: any,
+	job: any
+): Promise<void> {
 	const action = rule.action;
 	let description = "";
 	let newScheduledTime: string | null = null;
@@ -379,7 +408,8 @@ async function applyScheduleAction(sql: any, rule: any, job: any): Promise<void>
 			nextSlot.setHours(nextSlot.getHours() + 4);
 			// Round to next half-hour
 			nextSlot.setMinutes(nextSlot.getMinutes() < 30 ? 30 : 0);
-			if (nextSlot.getMinutes() === 0) nextSlot.setHours(nextSlot.getHours() + 1);
+			if (nextSlot.getMinutes() === 0)
+				nextSlot.setHours(nextSlot.getHours() + 1);
 			newScheduledTime = nextSlot.toISOString();
 			description = `Auto-scheduled to next available slot due to: ${rule.trigger_condition}`;
 
@@ -391,7 +421,7 @@ async function applyScheduleAction(sql: any, rule: any, job: any): Promise<void>
 
 		if (action === "reassign_backup_tech") {
 			// Find available tech not already assigned to a job at this time
-			const [backupTech] = await sql`
+			const [backupTech] = (await sql`
 				SELECT e.id FROM employees e
 				WHERE e.company_id = ${job.company_id}
 				  AND e.is_active = true
@@ -408,7 +438,7 @@ async function applyScheduleAction(sql: any, rule: any, job: any): Promise<void>
 				  )
 				ORDER BY e.current_jobs_count ASC
 				LIMIT 1
-			` as any[];
+			`) as any[];
 
 			if (backupTech) {
 				newTechId = backupTech.id;
@@ -435,7 +465,9 @@ async function applyScheduleAction(sql: any, rule: any, job: any): Promise<void>
 		}
 
 		if (action === "notify_dispatcher") {
-			description = rule.notify_message ?? `Dispatcher attention needed. Trigger: ${rule.trigger_condition}`;
+			description =
+				rule.notify_message ??
+				`Dispatcher attention needed. Trigger: ${rule.trigger_condition}`;
 			// No job mutation — just logs the adjustment for dispatcher review
 		}
 
@@ -452,7 +484,10 @@ async function applyScheduleAction(sql: any, rule: any, job: any): Promise<void>
 			)
 		`;
 	} catch (err) {
-		console.error(`[schedule-adjust] Failed to apply rule ${rule.id} to job ${job.id}:`, err);
+		console.error(
+			`[schedule-adjust] Failed to apply rule ${rule.id} to job ${job.id}:`,
+			err
+		);
 	}
 }
 
@@ -468,10 +503,17 @@ export async function automationRoutes(fastify: FastifyInstance) {
 
 		r.post("/automation/estimate-followup-rules", async (request, reply) => {
 			const user = getUser(request);
-			if (!isAdmin(user)) return reply.code(403).send({ error: "Admin required" });
+			if (!isAdmin(user))
+				return reply.code(403).send({ error: "Admin required" });
 
 			const parsed = followUpRuleSchema.safeParse(request.body);
-			if (!parsed.success) return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+			if (!parsed.success)
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -479,7 +521,7 @@ export async function automationRoutes(fastify: FastifyInstance) {
 
 			const sql = getSql();
 
-			const [rule] = await sql`
+			const [rule] = (await sql`
 				INSERT INTO estimate_followup_rules (
 					company_id, name, days_after_sent, channel, message_template, is_active
 				) VALUES (
@@ -490,44 +532,50 @@ export async function automationRoutes(fastify: FastifyInstance) {
 					id, name, days_after_sent AS "daysAfterSent",
 					channel, message_template AS "messageTemplate",
 					is_active AS "isActive", created_at AS "createdAt"
-			` as any[];
+			`) as any[];
 
 			return reply.code(201).send({ rule });
 		});
 
 		r.get("/automation/estimate-followup-rules", async (request, reply) => {
 			const user = getUser(request);
-			const companyId = resolveCompanyId(user, (request.query as any).companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			const companyId = resolveCompanyId(
+				user,
+				(request.query as any).companyId
+			);
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const rules = await sql`
+			const rules = (await sql`
 				SELECT id, name, days_after_sent AS "daysAfterSent",
 				       channel, message_template AS "messageTemplate",
 				       is_active AS "isActive", created_at AS "createdAt"
 				FROM estimate_followup_rules
 				WHERE (${companyId}::uuid IS NULL OR company_id = ${companyId})
 				ORDER BY days_after_sent
-			` as any[];
+			`) as any[];
 
 			return { rules };
 		});
 
 		r.put("/automation/estimate-followup-rules/:id", async (request, reply) => {
 			const user = getUser(request);
-			if (!isAdmin(user)) return reply.code(403).send({ error: "Admin required" });
+			if (!isAdmin(user))
+				return reply.code(403).send({ error: "Admin required" });
 
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
 			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
 			const parsed = updateFollowUpRuleSchema.safeParse(request.body);
-			if (!parsed.success) return reply.code(400).send({ error: "Invalid body" });
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid body" });
 
 			const sql = getSql();
 			const b = parsed.data;
 
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE estimate_followup_rules SET
 					name             = COALESCE(${b.name ?? null}, name),
 					days_after_sent  = COALESCE(${b.daysAfterSent ?? null}, days_after_sent),
@@ -537,36 +585,44 @@ export async function automationRoutes(fastify: FastifyInstance) {
 					updated_at       = NOW()
 				WHERE id = ${id} AND company_id = ${companyId}
 				RETURNING id, name, days_after_sent AS "daysAfterSent", channel, is_active AS "isActive"
-			` as any[];
+			`) as any[];
 
 			if (!updated) return reply.code(404).send({ error: "Rule not found" });
 			return { rule: updated };
 		});
 
-		r.delete("/automation/estimate-followup-rules/:id", async (request, reply) => {
-			const user = getUser(request);
-			if (!isAdmin(user)) return reply.code(403).send({ error: "Admin required" });
+		r.delete(
+			"/automation/estimate-followup-rules/:id",
+			async (request, reply) => {
+				const user = getUser(request);
+				if (!isAdmin(user))
+					return reply.code(403).send({ error: "Admin required" });
 
-			const { id } = request.params as { id: string };
-			const companyId = resolveCompanyId(user);
-			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
+				const { id } = request.params as { id: string };
+				const companyId = resolveCompanyId(user);
+				if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
-			const sql = getSql();
-			const [deleted] = await sql`
+				const sql = getSql();
+				const [deleted] = (await sql`
 				DELETE FROM estimate_followup_rules WHERE id = ${id} AND company_id = ${companyId} RETURNING id
-			` as any[];
+			`) as any[];
 
-			if (!deleted) return reply.code(404).send({ error: "Rule not found" });
-			return { deleted: true };
-		});
+				if (!deleted) return reply.code(404).send({ error: "Rule not found" });
+				return { deleted: true };
+			}
+		);
 
 		r.get("/automation/estimate-followups/queue", async (request, reply) => {
 			const user = getUser(request);
-			const companyId = resolveCompanyId(user, (request.query as any).companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			const companyId = resolveCompanyId(
+				user,
+				(request.query as any).companyId
+			);
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const queue = await sql`
+			const queue = (await sql`
 				SELECT
 					q.id, q.estimate_id AS "estimateId", q.rule_id AS "ruleId",
 					q.channel, q.message, q.status,
@@ -579,21 +635,26 @@ export async function automationRoutes(fastify: FastifyInstance) {
 				WHERE (${companyId}::uuid IS NULL OR q.company_id = ${companyId})
 				ORDER BY q.scheduled_for DESC
 				LIMIT 100
-			` as any[];
+			`) as any[];
 
 			return { queue };
 		});
 
 		r.post("/automation/estimate-followups/run", async (request, reply) => {
 			const user = getUser(request);
-			if (!isAdmin(user)) return reply.code(403).send({ error: "Admin required" });
+			if (!isAdmin(user))
+				return reply.code(403).send({ error: "Admin required" });
 
 			const [queued, dispatched] = await Promise.all([
 				generateEstimateFollowUps(),
-				dispatchEstimateFollowUps(),
+				dispatchEstimateFollowUps()
 			]);
 
-			return { queued: queued.queued, sent: dispatched.sent, failed: dispatched.failed };
+			return {
+				queued: queued.queued,
+				sent: dispatched.sent,
+				failed: dispatched.failed
+			};
 		});
 
 		// ════════════════════════════════════════════════════════════════════
@@ -602,17 +663,24 @@ export async function automationRoutes(fastify: FastifyInstance) {
 
 		r.post("/automation/schedule-rules", async (request, reply) => {
 			const user = getUser(request);
-			if (!isAdmin(user)) return reply.code(403).send({ error: "Admin required" });
+			if (!isAdmin(user))
+				return reply.code(403).send({ error: "Admin required" });
 
 			const parsed = scheduleRuleSchema.safeParse(request.body);
-			if (!parsed.success) return reply.code(400).send({ error: "Invalid body", details: parsed.error.flatten().fieldErrors });
+			if (!parsed.success)
+				return reply
+					.code(400)
+					.send({
+						error: "Invalid body",
+						details: parsed.error.flatten().fieldErrors
+					});
 
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
 			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const [rule] = await sql`
+			const [rule] = (await sql`
 				INSERT INTO schedule_auto_adjust_rules (
 					company_id, name, trigger_condition, threshold_pct,
 					action, bump_hours, bump_days, new_priority, notify_message, is_active
@@ -633,18 +701,22 @@ export async function automationRoutes(fastify: FastifyInstance) {
 					notify_message    AS "notifyMessage",
 					is_active         AS "isActive",
 					created_at        AS "createdAt"
-			` as any[];
+			`) as any[];
 
 			return reply.code(201).send({ rule });
 		});
 
 		r.get("/automation/schedule-rules", async (request, reply) => {
 			const user = getUser(request);
-			const companyId = resolveCompanyId(user, (request.query as any).companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			const companyId = resolveCompanyId(
+				user,
+				(request.query as any).companyId
+			);
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const rules = await sql`
+			const rules = (await sql`
 				SELECT
 					id, name,
 					trigger_condition AS "triggerCondition",
@@ -657,26 +729,28 @@ export async function automationRoutes(fastify: FastifyInstance) {
 				FROM schedule_auto_adjust_rules
 				WHERE (${companyId}::uuid IS NULL OR company_id = ${companyId})
 				ORDER BY trigger_condition, name
-			` as any[];
+			`) as any[];
 
 			return { rules };
 		});
 
 		r.put("/automation/schedule-rules/:id", async (request, reply) => {
 			const user = getUser(request);
-			if (!isAdmin(user)) return reply.code(403).send({ error: "Admin required" });
+			if (!isAdmin(user))
+				return reply.code(403).send({ error: "Admin required" });
 
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
 			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
 			const parsed = updateScheduleRuleSchema.safeParse(request.body);
-			if (!parsed.success) return reply.code(400).send({ error: "Invalid body" });
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid body" });
 
 			const sql = getSql();
 			const b = parsed.data;
 
-			const [updated] = await sql`
+			const [updated] = (await sql`
 				UPDATE schedule_auto_adjust_rules SET
 					name              = COALESCE(${b.name ?? null}, name),
 					trigger_condition = COALESCE(${b.triggerCondition ?? null}, trigger_condition),
@@ -690,7 +764,7 @@ export async function automationRoutes(fastify: FastifyInstance) {
 					updated_at        = NOW()
 				WHERE id = ${id} AND company_id = ${companyId}
 				RETURNING id, name, trigger_condition AS "triggerCondition", action, is_active AS "isActive"
-			` as any[];
+			`) as any[];
 
 			if (!updated) return reply.code(404).send({ error: "Rule not found" });
 			return { rule: updated };
@@ -698,16 +772,17 @@ export async function automationRoutes(fastify: FastifyInstance) {
 
 		r.delete("/automation/schedule-rules/:id", async (request, reply) => {
 			const user = getUser(request);
-			if (!isAdmin(user)) return reply.code(403).send({ error: "Admin required" });
+			if (!isAdmin(user))
+				return reply.code(403).send({ error: "Admin required" });
 
 			const { id } = request.params as { id: string };
 			const companyId = resolveCompanyId(user);
 			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const [deleted] = await sql`
+			const [deleted] = (await sql`
 				DELETE FROM schedule_auto_adjust_rules WHERE id = ${id} AND company_id = ${companyId} RETURNING id
-			` as any[];
+			`) as any[];
 
 			if (!deleted) return reply.code(404).send({ error: "Rule not found" });
 			return { deleted: true };
@@ -715,7 +790,8 @@ export async function automationRoutes(fastify: FastifyInstance) {
 
 		r.post("/automation/schedule-rules/evaluate", async (request, reply) => {
 			const user = getUser(request);
-			if (!isAdmin(user)) return reply.code(403).send({ error: "Admin required" });
+			if (!isAdmin(user))
+				return reply.code(403).send({ error: "Admin required" });
 
 			const result = await evaluateScheduleRules();
 			return result;
@@ -724,14 +800,16 @@ export async function automationRoutes(fastify: FastifyInstance) {
 		r.get("/automation/schedule-adjustments", async (request, reply) => {
 			const user = getUser(request);
 			const parsed = adjustmentLogSchema.safeParse(request.query);
-			if (!parsed.success) return reply.code(400).send({ error: "Invalid query" });
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid query" });
 
 			const { jobId, ruleId, since, limit, offset } = parsed.data;
 			const companyId = resolveCompanyId(user, parsed.data.companyId);
-			if (!companyId && user.role !== "dev") return reply.code(403).send({ error: "Forbidden" });
+			if (!companyId && user.role !== "dev")
+				return reply.code(403).send({ error: "Forbidden" });
 
 			const sql = getSql();
-			const adjustments = await sql`
+			const adjustments = (await sql`
 				SELECT
 					sal.id,
 					sal.job_id              AS "jobId",
@@ -754,7 +832,7 @@ export async function automationRoutes(fastify: FastifyInstance) {
 				  AND (${since ?? null}::text IS NULL OR sal.created_at >= ${since ?? null}::date)
 				ORDER BY sal.created_at DESC
 				LIMIT ${limit} OFFSET ${offset}
-			` as any[];
+			`) as any[];
 
 			return { adjustments, limit, offset };
 		});

@@ -114,12 +114,10 @@ export async function multiRegionRoutes(fastify: FastifyInstance) {
 
 			const parsed = createRegionSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -220,12 +218,10 @@ export async function multiRegionRoutes(fastify: FastifyInstance) {
 
 			const parsed = updateRegionSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 
 			const sql = getSql();
@@ -555,12 +551,10 @@ export async function multiRegionRoutes(fastify: FastifyInstance) {
 
 			const parsed = transferJobSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const { toBranchId, reason } = parsed.data;
 
@@ -630,12 +624,10 @@ export async function multiRegionRoutes(fastify: FastifyInstance) {
 
 			const parsed = transferEmployeeSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const { toBranchId, reason, effectiveDate } = parsed.data;
 

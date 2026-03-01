@@ -8,7 +8,10 @@
 //   5. Tech certification expiration alerts (Week 4)
 
 import { getSql } from "@/db/connection";
-import { generateEstimateFollowUps, dispatchEstimateFollowUps } from "../routes/automationRoutes";
+import {
+	generateEstimateFollowUps,
+	dispatchEstimateFollowUps
+} from "../routes/automationRoutes";
 import { evaluateScheduleRules } from "../routes/automationRoutes";
 // ─────────────────────────────────────────────────────────────────────────────
 // Frequency → days helper
@@ -594,17 +597,19 @@ export async function runAllCronJobs() {
 	// NEW AUTOMATION JOBS
 	// ─────────────────────────────
 
-	const estimateFollowUps = await generateEstimateFollowUps().catch(err => {
+	const estimateFollowUps = await generateEstimateFollowUps().catch((err) => {
 		console.error("[cron] estimate follow-up generation failed:", err);
 		return { queued: 0 };
 	});
 
-	const estimateFollowUpDispatch = await dispatchEstimateFollowUps().catch(err => {
-		console.error("[cron] estimate follow-up dispatch failed:", err);
-		return { sent: 0, failed: 0 };
-	});
+	const estimateFollowUpDispatch = await dispatchEstimateFollowUps().catch(
+		(err) => {
+			console.error("[cron] estimate follow-up dispatch failed:", err);
+			return { sent: 0, failed: 0 };
+		}
+	);
 
-	const scheduleAdjust = await evaluateScheduleRules().catch(err => {
+	const scheduleAdjust = await evaluateScheduleRules().catch((err) => {
 		console.error("[cron] schedule auto-adjust failed:", err);
 		return { evaluated: 0, adjusted: 0 };
 	});

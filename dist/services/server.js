@@ -42,6 +42,11 @@ import { smsRoutes } from "./routes/smsRoutes";
 import { competitorPricingRoutes } from "./routes/competitorPricingRoutes";
 import { preStaffingAlertRoutes } from "./routes/preStaffingAlertRoutes";
 import { multiRegionRoutes } from "./routes/multiRegionRoutes";
+import { warehouseRoutes } from "./routes/warehouseRoutes";
+import { truckInventoryRoutes } from "./routes/truckInventoryRoutes";
+import { purchaseOrderRoutes } from "./routes/purchaseOrderRoutes";
+import { crmRoutes } from "./routes/crmRoutes";
+import { reportingRoutes } from "./routes/reportingRoutes";
 // ============================================================
 // Environment validation
 // ============================================================
@@ -163,6 +168,11 @@ await fastify.register(smsRoutes);
 await fastify.register(competitorPricingRoutes);
 await fastify.register(preStaffingAlertRoutes);
 await fastify.register(multiRegionRoutes);
+await fastify.register(warehouseRoutes);
+await fastify.register(truckInventoryRoutes);
+await fastify.register(purchaseOrderRoutes);
+await fastify.register(crmRoutes);
+await fastify.register(reportingRoutes);
 // ============================================================
 // Root
 // ============================================================

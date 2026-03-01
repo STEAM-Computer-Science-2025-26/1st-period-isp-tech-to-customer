@@ -126,12 +126,10 @@ export async function competitorPricingRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = createObservationSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user, body.companyId);
@@ -200,12 +198,10 @@ export async function competitorPricingRoutes(fastify: FastifyInstance) {
 			const user = getUser(request);
 			const parsed = listSchema.safeParse(request.query);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid query",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid query",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 			const { competitorName, serviceType, source, zip, since, limit, offset } =
 				parsed.data;
@@ -348,12 +344,10 @@ export async function competitorPricingRoutes(fastify: FastifyInstance) {
 
 			const parsed = updateObservationSchema.safeParse(request.body);
 			if (!parsed.success) {
-				return reply
-					.code(400)
-					.send({
-						error: "Invalid body",
-						details: parsed.error.flatten().fieldErrors
-					});
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
 			}
 
 			const sql = getSql();
