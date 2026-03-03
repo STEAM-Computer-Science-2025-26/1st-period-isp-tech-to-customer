@@ -15,14 +15,8 @@ export const defaultSidebarItems: SidebarItemParams[] = [
 			window.location.href = "/";
 		}
 	},
-	{ id: 2, title: "Settings", icon: "settings" },
-	{ id: 3, title: "Statistics", icon: "statistics" },
-	{ id: 4, title: "Work History", icon: "history" },
-	{ id: 5, title: "Calendar", icon: "calendar" },
-	{ id: 6, title: "Tools", icon: "tools" },
-	{ id: 7, title: "Dispatch", icon: "dispatch" },
 	{
-		id: 8,
+		id: 2,
 		title: "Developer Tools",
 		icon: "code",
 		onClick: () => {
@@ -30,11 +24,19 @@ export const defaultSidebarItems: SidebarItemParams[] = [
 		}
 	},
 	{
-		id: 9,
+		id: 3,
 		title: "Jobs",
 		icon: "briefcase",
 		onClick: () => {
 			window.location.href = "/jobs";
+		}
+	},
+	{
+		id: 4,
+		title: "Calendar",
+		icon: "calendar",
+		onClick: () => {
+			window.location.href = "/calendar";
 		}
 	}
 ];

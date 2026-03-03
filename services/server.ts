@@ -1,6 +1,8 @@
 // services/server.ts
 import fastifyRawBody from "fastify-raw-body";
-import "dotenv/config";
+import fs from "node:fs";
+import path from "node:path";
+import dotenv from "dotenv";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import fastifyCors from "@fastify/cors";
 import fastifyJwt from "@fastify/jwt";
@@ -53,6 +55,13 @@ import { crmRoutes } from "./routes/crmRoutes";
 import { reportingRoutes } from "./routes/reportingRoutes";
 import { tipRoutes } from "./routes/tipRoutes";
 import { terminalRoutes } from "./routes/terminalRoutes";
+
+const envLocalPath = path.resolve(process.cwd(), ".env.local");
+if (fs.existsSync(envLocalPath)) {
+	dotenv.config({ path: envLocalPath });
+} else {
+	dotenv.config();
+}
 // ============================================================
 // Environment validation
 // ============================================================
