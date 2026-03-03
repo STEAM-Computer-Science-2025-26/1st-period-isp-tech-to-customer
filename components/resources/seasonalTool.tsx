@@ -34,6 +34,111 @@ interface MonthData {
 	lostJobs: number;
 }
 
+// ─── Hoisted outside component so React doesn't recreate it on every render ──
+
+function Slider({
+	label,
+	question,
+	value,
+	min,
+	max,
+	step,
+	onChange,
+	danger,
+	display
+}: {
+	label: string;
+	question: string;
+	value: number;
+	min: number;
+	max: number;
+	step: number;
+	onChange: (v: number) => void;
+	danger?: boolean;
+	display: string;
+}) {
+	return (
+		<div className="bg-white border border-background-secondary rounded-xl p-5">
+			<div className="font-mono text-[10px] tracking-widest uppercase text-text-tertiary mb-1">
+				{label}
+			</div>
+			<div className="text-[13px] font-medium text-text-primary mb-3 leading-snug">
+				{question}
+			</div>
+			<div
+				className={`text-[28px] font-bold tracking-tight mb-2.5 leading-none ${danger ? "text-warning-foreground" : "text-accent-main"}`}
+			>
+				{display}
+			</div>
+			<input
+				type="range"
+				min={min}
+				max={max}
+				step={step}
+				value={value}
+				onChange={(e) => onChange(+e.target.value)}
+				className="w-full h-1 rounded-full outline-none cursor-pointer accent-accent-main"
+			/>
+			<div className="flex justify-between mt-1.5 font-mono text-[10px] text-text-tertiary">
+				<span>{min}</span>
+				<span>{max}</span>
+			</div>
+		</div>
+	);
+}
+
+function KpiItem({
+	label,
+	value,
+	color,
+	sub
+}: {
+	label: string;
+	value: string;
+	color: string;
+	sub: string;
+}) {
+	return (
+		<div>
+			<div className="font-mono text-[10px] tracking-widest uppercase text-white/30 mb-1">
+				{label}
+			</div>
+			<div
+				className={`text-[28px] font-bold tracking-tight leading-none mb-1 ${color}`}
+			>
+				{value}
+			</div>
+			<div className="text-[11px] text-white/30">{sub}</div>
+		</div>
+	);
+}
+
+function Cta() {
+	return (
+		<div
+			className="rounded-xl p-8 flex items-center justify-between gap-6 flex-wrap"
+			style={{
+				background: "linear-gradient(135deg, #42585e 0%, #1b3235 100%)"
+			}}
+		>
+			<div>
+				<h3 className="text-[17px] font-bold text-white mb-1.5 tracking-tight">
+					TTC fills that gap automatically.
+				</h3>
+				<p className="text-[13px] text-white/40 max-w-sm leading-relaxed">
+					Real-time dispatch, skill-matched routing, and live availability — so
+					every peak week is covered.
+				</p>
+			</div>
+			<button className="bg-accent-main text-white rounded-lg px-6 py-3 text-[14px] font-semibold shrink-0 hover:opacity-90 transition-opacity">
+				Start Free Trial →
+			</button>
+		</div>
+	);
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function SeasonalTool({ email: _ }: { email: string }) {
 	const [techs, setTechs] = useState(8);
 	const [jtd, setJtd] = useState(4);
@@ -112,55 +217,6 @@ export default function SeasonalTool({ email: _ }: { email: string }) {
 			<polyline points="${data.map((d, i) => `${xp(i).toFixed(1)},${yp(d.demand).toFixed(1)}`).join(" ")}" fill="none" stroke="#ffa200" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
 			${dots}`;
 	}, [data, cap]);
-
-	const Slider = ({
-		label,
-		question,
-		value,
-		min,
-		max,
-		step,
-		onChange,
-		danger,
-		display
-	}: {
-		label: string;
-		question: string;
-		value: number;
-		min: number;
-		max: number;
-		step: number;
-		onChange: (v: number) => void;
-		danger?: boolean;
-		display: string;
-	}) => (
-		<div className="bg-white border border-background-secondary rounded-xl p-5">
-			<div className="font-mono text-[10px] tracking-widest uppercase text-text-tertiary mb-1">
-				{label}
-			</div>
-			<div className="text-[13px] font-medium text-text-primary mb-3 leading-snug">
-				{question}
-			</div>
-			<div
-				className={`text-[28px] font-bold tracking-tight mb-2.5 leading-none ${danger ? "text-warning-foreground" : "text-accent-main"}`}
-			>
-				{display}
-			</div>
-			<input
-				type="range"
-				min={min}
-				max={max}
-				step={step}
-				value={value}
-				onChange={(e) => onChange(+e.target.value)}
-				className="w-full h-1 rounded-full outline-none cursor-pointer accent-accent-main"
-			/>
-			<div className="flex justify-between mt-1.5 font-mono text-[10px] text-text-tertiary">
-				<span>{min}</span>
-				<span>{max}</span>
-			</div>
-		</div>
-	);
 
 	return (
 		<div className="max-w-[900px] mx-auto px-6 py-10 pb-16">
@@ -332,7 +388,7 @@ export default function SeasonalTool({ email: _ }: { email: string }) {
 				</div>
 			</div>
 
-			{/* Breakdown */}
+			{/* Month breakdown */}
 			<div className="bg-white border border-background-secondary rounded-xl overflow-hidden mb-3">
 				<div className="px-5 py-3.5 border-b border-background-secondary text-[13px] font-semibold text-foreground">
 					Month-by-Month
@@ -377,56 +433,6 @@ export default function SeasonalTool({ email: _ }: { email: string }) {
 			</div>
 
 			<Cta />
-		</div>
-	);
-}
-
-function KpiItem({
-	label,
-	value,
-	color,
-	sub
-}: {
-	label: string;
-	value: string;
-	color: string;
-	sub: string;
-}) {
-	return (
-		<div>
-			<div className="font-mono text-[10px] tracking-widest uppercase text-white/30 mb-1">
-				{label}
-			</div>
-			<div
-				className={`text-[28px] font-bold tracking-tight leading-none mb-1 ${color}`}
-			>
-				{value}
-			</div>
-			<div className="text-[11px] text-white/30">{sub}</div>
-		</div>
-	);
-}
-
-function Cta() {
-	return (
-		<div
-			className="rounded-xl p-8 flex items-center justify-between gap-6 flex-wrap"
-			style={{
-				background: "linear-gradient(135deg, #42585e 0%, #1b3235 100%)"
-			}}
-		>
-			<div>
-				<h3 className="text-[17px] font-bold text-white mb-1.5 tracking-tight">
-					TTC fills that gap automatically.
-				</h3>
-				<p className="text-[13px] text-white/40 max-w-sm leading-relaxed">
-					Real-time dispatch, skill-matched routing, and live availability — so
-					every peak week is covered.
-				</p>
-			</div>
-			<button className="bg-accent-main text-white rounded-lg px-6 py-3 text-[14px] font-semibold shrink-0 hover:opacity-90 transition-opacity">
-				Start Free Trial →
-			</button>
 		</div>
 	);
 }

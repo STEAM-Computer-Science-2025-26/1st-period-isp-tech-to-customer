@@ -4,7 +4,7 @@ import { useState } from "react";
 import ScorecardTool from "../../../components/resources/scorecardTool";
 import RevenueleakTool from "../../../components/resources/revenueleakTool";
 import CallbackTool from "../../../components/resources/callbackTool";
-import SeasonalTool from "../../../components/resources/seasonalTool"
+import SeasonalTool from "../../../components/resources/seasonalTool";
 import RoiTool from "../../../components/resources/roiTool";
 import HiringTool from "../../../components/resources/hiringTool";
 
@@ -38,7 +38,7 @@ const TOOLS: Tool[] = [
 		tag: "Diagnostic",
 		tagColor: "bg-success-background/20 text-success-foreground",
 		desc: "25 questions across 5 categories. Grade, breakdown, and custom action plan.",
-		component: ScorecardTool,
+		component: ScorecardTool
 	},
 	{
 		id: "revenue-leak",
@@ -47,7 +47,7 @@ const TOOLS: Tool[] = [
 		tag: "Calculator",
 		tagColor: "bg-destructive-background/10 text-destructive-foreground",
 		desc: "How much are callbacks, missed reviews, and lapsed agreements costing you?",
-		component: RevenueleakTool,
+		component: RevenueleakTool
 	},
 	{
 		id: "callback",
@@ -56,7 +56,7 @@ const TOOLS: Tool[] = [
 		tag: "Calculator",
 		tagColor: "bg-destructive-background/10 text-destructive-foreground",
 		desc: "Labor, margin erosion, and churned customers — the real bill per return visit.",
-		component: CallbackTool,
+		component: CallbackTool
 	},
 	{
 		id: "seasonal",
@@ -65,7 +65,7 @@ const TOOLS: Tool[] = [
 		tag: "Planner",
 		tagColor: "bg-warning-background/30 text-warning-foreground",
 		desc: "How many jobs are you losing when summer hits? Find out before it does.",
-		component: SeasonalTool,
+		component: SeasonalTool
 	},
 	{
 		id: "roi",
@@ -74,7 +74,7 @@ const TOOLS: Tool[] = [
 		tag: "Calculator",
 		tagColor: "bg-accent-main/10 text-accent-text-dark",
 		desc: "What does TTC actually return on your investment? See your payback period.",
-		component: RoiTool,
+		component: RoiTool
 	},
 	{
 		id: "hiring",
@@ -83,8 +83,8 @@ const TOOLS: Tool[] = [
 		tag: "Decision Tool",
 		tagColor: "bg-accent-main/10 text-accent-text-dark",
 		desc: "About to hire another tech? Run these numbers first.",
-		component: HiringTool,
-	},
+		component: HiringTool
+	}
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ export default function ResourceHubPage() {
 			await fetch("/api/leads", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email: val, source: "resource_hub" }),
+				body: JSON.stringify({ email: val, source: "resource_hub" })
 			});
 		} catch {
 			// fail silently — still unlock
@@ -134,10 +134,8 @@ export default function ResourceHubPage() {
 
 	return (
 		<div className="flex h-screen overflow-hidden bg-background-main">
-
 			{/* ── Sidebar ── */}
 			<aside className="w-70 shrink-0 flex flex-col bg-foreground overflow-hidden border-r border-foreground">
-
 				{/* Logo + kit label */}
 				<div className="px-5 pt-7 pb-5 border-b border-white/5">
 					<div className="flex items-center gap-2.5 mb-5">
@@ -249,7 +247,6 @@ export default function ResourceHubPage() {
 
 			{/* ── Main ── */}
 			<main className="flex-1 overflow-hidden flex flex-col">
-
 				{/* Hero — shown when no tool active */}
 				{!activeTool && (
 					<div className="flex-1 overflow-y-auto px-12 py-14">
@@ -260,13 +257,15 @@ export default function ResourceHubPage() {
 							</div>
 
 							<h1 className="text-5xl font-bold text-foreground tracking-tight leading-[1.08] mb-4">
-								Stop Running Your<br />
-								HVAC Business{" "}
-								<span className="text-accent-main">Blind.</span>
+								Stop Running Your
+								<br />
+								HVAC Business <span className="text-accent-main">Blind.</span>
 							</h1>
 
 							<p className="text-[16px] text-text-secondary max-w-lg leading-relaxed mb-10">
-								Six free tools that show you exactly where your business is leaking money, losing customers, and leaving capacity on the table.
+								Six free tools that show you exactly where your business is
+								leaking money, losing customers, and leaving capacity on the
+								table.
 							</p>
 
 							{/* Tool grid */}
@@ -288,7 +287,7 @@ export default function ResourceHubPage() {
 									{ val: "6", label: "Free tools, no paywall" },
 									{ val: "5 min", label: "To complete the scorecard" },
 									{ val: "$0", label: "Cost to access everything" },
-									{ val: "CSV", label: "Export your full report" },
+									{ val: "CSV", label: "Export your full report" }
 								].map((s) => (
 									<div key={s.label}>
 										<div className="text-2xl font-bold text-foreground tracking-tight">
@@ -314,7 +313,9 @@ export default function ResourceHubPage() {
 								<span className="text-[14px] font-semibold text-foreground tracking-tight">
 									{currentTool?.name}
 								</span>
-								<span className={`font-mono text-[9px] tracking-widest uppercase px-2 py-0.5 rounded ${currentTool?.tagColor}`}>
+								<span
+									className={`font-mono text-[9px] tracking-widest uppercase px-2 py-0.5 rounded ${currentTool?.tagColor}`}
+								>
 									{currentTool?.tag}
 								</span>
 							</div>
@@ -343,7 +344,7 @@ function NavItem({
 	tool,
 	active,
 	locked,
-	onClick,
+	onClick
 }: {
 	tool: Tool;
 	active: boolean;
@@ -357,8 +358,8 @@ function NavItem({
 				active
 					? "bg-accent-main/10"
 					: locked
-					? "opacity-40 cursor-default"
-					: "hover:bg-white/[0.03] cursor-pointer"
+						? "opacity-40 cursor-default"
+						: "hover:bg-white/[0.03] cursor-pointer"
 			}`}
 		>
 			{active && (
@@ -366,10 +367,14 @@ function NavItem({
 			)}
 			<span className="text-sm shrink-0">{tool.icon}</span>
 			<div className="flex-1 min-w-0">
-				<div className={`text-[12px] font-medium leading-tight truncate ${active ? "text-accent-main" : "text-white/60"}`}>
+				<div
+					className={`text-[12px] font-medium leading-tight truncate ${active ? "text-accent-main" : "text-white/60"}`}
+				>
 					{tool.name}
 				</div>
-				<div className="text-[10px] text-white/20 mt-0.5 truncate">{tool.desc.split(".")[0]}</div>
+				<div className="text-[10px] text-white/20 mt-0.5 truncate">
+					{tool.desc.split(".")[0]}
+				</div>
 			</div>
 			{locked && <span className="text-[10px] text-white/20 shrink-0">🔒</span>}
 		</button>
@@ -380,7 +385,7 @@ function ToolCard({
 	tool,
 	locked,
 	onClick,
-	delay,
+	delay
 }: {
 	tool: Tool;
 	locked: boolean;
@@ -412,7 +417,9 @@ function ToolCard({
 			<div className="text-[11px] text-text-tertiary leading-relaxed mb-3">
 				{tool.desc}
 			</div>
-			<span className={`inline-flex font-mono text-[9px] tracking-widest uppercase px-2 py-1 rounded ${tool.tagColor}`}>
+			<span
+				className={`inline-flex font-mono text-[9px] tracking-widest uppercase px-2 py-1 rounded ${tool.tagColor}`}
+			>
 				{tool.tag}
 			</span>
 		</div>
