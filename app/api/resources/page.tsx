@@ -47,7 +47,7 @@ const TOOLS: Tool[] = [
 		tag: "Diagnostic",
 		tagColor: "bg-success-background/20 text-success-foreground",
 		desc: "25 questions across 5 categories. Grade, breakdown, and custom action plan.",
-		component: ScorecardTool,
+		component: ScorecardTool
 	},
 	{
 		id: "revenue-leak",
@@ -56,7 +56,7 @@ const TOOLS: Tool[] = [
 		tag: "Calculator",
 		tagColor: "bg-destructive-background/10 text-destructive-foreground",
 		desc: "How much are callbacks, missed reviews, and lapsed agreements costing you?",
-		component: RevenueleakTool,
+		component: RevenueleakTool
 	},
 	{
 		id: "callback",
@@ -65,7 +65,7 @@ const TOOLS: Tool[] = [
 		tag: "Calculator",
 		tagColor: "bg-destructive-background/10 text-destructive-foreground",
 		desc: "Labor, margin erosion, and churned customers — the real bill per return visit.",
-		component: CallbackTool,
+		component: CallbackTool
 	},
 	{
 		id: "seasonal",
@@ -74,7 +74,7 @@ const TOOLS: Tool[] = [
 		tag: "Planner",
 		tagColor: "bg-warning-background/30 text-warning-foreground",
 		desc: "How many jobs are you losing when summer hits? Find out before it does.",
-		component: SeasonalTool,
+		component: SeasonalTool
 	},
 	{
 		id: "roi",
@@ -83,7 +83,7 @@ const TOOLS: Tool[] = [
 		tag: "Calculator",
 		tagColor: "bg-accent-main/10 text-accent-text-dark",
 		desc: "What does TTC actually return on your investment? See your payback period.",
-		component: RoiTool,
+		component: RoiTool
 	},
 	{
 		id: "hiring",
@@ -92,8 +92,8 @@ const TOOLS: Tool[] = [
 		tag: "Decision Tool",
 		tagColor: "bg-accent-main/10 text-accent-text-dark",
 		desc: "About to hire another tech? Run these numbers first.",
-		component: HiringTool,
-	},
+		component: HiringTool
+	}
 ];
 
 // ─── Shared input styles ──────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ function inputCls(hasError: boolean) {
 		"placeholder:text-white/20 outline-none transition-colors",
 		hasError
 			? "border-destructive-background focus:border-destructive-background"
-			: "border-white/10 focus:border-accent-main",
+			: "border-white/10 focus:border-accent-main"
 	].join(" ");
 }
 
@@ -114,7 +114,7 @@ function selectCls(hasError: boolean) {
 		"outline-none transition-colors cursor-pointer",
 		hasError
 			? "border-destructive-background"
-			: "border-white/10 focus:border-accent-main",
+			: "border-white/10 focus:border-accent-main"
 	].join(" ");
 }
 
@@ -122,7 +122,7 @@ function Field({
 	label,
 	hint,
 	error,
-	children,
+	children
 }: {
 	label: string;
 	hint?: string;
@@ -135,7 +135,9 @@ function Field({
 				<label className="text-[12px] font-medium text-white/50">{label}</label>
 				{hint && <span className="text-[11px] text-white/25">{hint}</span>}
 				{error && (
-					<span className="text-[11px] text-destructive-foreground">{error}</span>
+					<span className="text-[11px] text-destructive-foreground">
+						{error}
+					</span>
 				)}
 			</div>
 			{children}
@@ -152,7 +154,7 @@ function LeadGate({ onUnlock }: { onUnlock: (email: string) => void }) {
 		email: "",
 		businessName: "",
 		phone: "",
-		techCount: "",
+		techCount: ""
 	});
 	const [errors, setErrors] = useState<Partial<Record<keyof LeadForm, string>>>(
 		{}
@@ -160,9 +162,7 @@ function LeadGate({ onUnlock }: { onUnlock: (email: string) => void }) {
 	const [submitting, setSubmitting] = useState(false);
 
 	function set(key: keyof LeadForm) {
-		return (
-			e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-		) => {
+		return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
 			setForm((f) => ({ ...f, [key]: e.target.value }));
 			setErrors((prev) => ({ ...prev, [key]: undefined }));
 		};
@@ -200,8 +200,8 @@ function LeadGate({ onUnlock }: { onUnlock: (email: string) => void }) {
 					businessName: form.businessName.trim(),
 					phone: form.phone.trim() || undefined,
 					techCount: Number(form.techCount),
-					source: "resource_hub",
-				}),
+					source: "resource_hub"
+				})
 			});
 		} catch {
 			// fail silently — still unlock
@@ -238,8 +238,7 @@ function LeadGate({ onUnlock }: { onUnlock: (email: string) => void }) {
 					<h1 className="text-4xl font-bold text-white tracking-tight leading-[1.1] mb-5">
 						Stop running your
 						<br />
-						HVAC business{" "}
-						<span className="text-accent-main">blind.</span>
+						HVAC business <span className="text-accent-main">blind.</span>
 					</h1>
 
 					<p className="text-[15px] text-white/40 leading-relaxed mb-10">
@@ -347,10 +346,7 @@ function LeadGate({ onUnlock }: { onUnlock: (email: string) => void }) {
 							/>
 						</Field>
 
-						<Field
-							label="How many techs do you have?"
-							error={errors.techCount}
-						>
+						<Field label="How many techs do you have?" error={errors.techCount}>
 							<select
 								value={form.techCount}
 								onChange={set("techCount")}
@@ -389,7 +385,7 @@ function LeadGate({ onUnlock }: { onUnlock: (email: string) => void }) {
 function NavItem({
 	tool,
 	active,
-	onClick,
+	onClick
 }: {
 	tool: Tool;
 	active: boolean;
@@ -546,8 +542,7 @@ export default function ResourceHubPage() {
 							<h1 className="text-5xl font-bold text-foreground tracking-tight leading-[1.08] mb-4">
 								Stop Running Your
 								<br />
-								HVAC Business{" "}
-								<span className="text-accent-main">Blind.</span>
+								HVAC Business <span className="text-accent-main">Blind.</span>
 							</h1>
 
 							<p className="text-[16px] text-text-secondary max-w-lg leading-relaxed mb-10">
@@ -571,7 +566,7 @@ export default function ResourceHubPage() {
 									{ val: "6", label: "Free tools, no paywall" },
 									{ val: "5 min", label: "To complete the scorecard" },
 									{ val: "$0", label: "Cost to access everything" },
-									{ val: "CSV", label: "Export your full report" },
+									{ val: "CSV", label: "Export your full report" }
 								].map((s) => (
 									<div key={s.label}>
 										<div className="text-2xl font-bold text-foreground tracking-tight">

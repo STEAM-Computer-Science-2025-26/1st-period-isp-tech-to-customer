@@ -28,18 +28,25 @@ export async function POST(request: NextRequest) {
 
 	const email = body.email?.trim().toLowerCase();
 	if (!email || !email.includes("@") || email.length > 254) {
-		return NextResponse.json({ error: "Valid email required" }, { status: 400 });
+		return NextResponse.json(
+			{ error: "Valid email required" },
+			{ status: 400 }
+		);
 	}
 
-	const firstName    = body.firstName?.trim().slice(0, 80) ?? null;
-	const lastName     = body.lastName?.trim().slice(0, 80) ?? null;
+	const firstName = body.firstName?.trim().slice(0, 80) ?? null;
+	const lastName = body.lastName?.trim().slice(0, 80) ?? null;
 	const businessName = body.businessName?.trim().slice(0, 120) ?? null;
-	const phone        = body.phone?.trim().slice(0, 30) ?? null;
-	const techCount    = body.techCount != null ? parseInt(String(body.techCount), 10) : null;
-	const source       = body.source ?? "resource_hub";
-	const toolsUsed    = Array.isArray(body.toolsUsed) ? body.toolsUsed : [];
+	const phone = body.phone?.trim().slice(0, 30) ?? null;
+	const techCount =
+		body.techCount != null ? parseInt(String(body.techCount), 10) : null;
+	const source = body.source ?? "resource_hub";
+	const toolsUsed = Array.isArray(body.toolsUsed) ? body.toolsUsed : [];
 
-	if (techCount !== null && (isNaN(techCount) || techCount < 0 || techCount > 9999)) {
+	if (
+		techCount !== null &&
+		(isNaN(techCount) || techCount < 0 || techCount > 9999)
+	) {
 		return NextResponse.json({ error: "Invalid tech count" }, { status: 400 });
 	}
 

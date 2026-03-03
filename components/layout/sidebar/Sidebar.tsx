@@ -18,7 +18,7 @@ import {
 	User,
 	Wrench,
 	Code,
-	Briefcase,
+	Briefcase
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useBreakpoints } from "@/app/hooks/useBreakpoints";
@@ -124,7 +124,7 @@ function DesktopSidebar({
 					: ""
 			)}
 		>
-			<div className="border border-background-secondary shadow-md w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3 px-1.5 py-2">
+			<div className="border border-accent-text/50 shadow-md w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3 px-1.5 py-2">
 				<div className="flex items-center gap-1 px-2 pt-1">
 					<button
 						type="button"
@@ -429,7 +429,7 @@ function resolveIcon(icon: string | LucideIcon): LucideIcon {
 		stats: BarChart3,
 		statistics: BarChart3,
 		code: Code,
-		briefcase: Briefcase,
+		briefcase: Briefcase
 	};
 
 	return map[key] ?? User;

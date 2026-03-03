@@ -43,9 +43,7 @@ export default function MainContent({
 				<Header
 					sidebarAutoCollapse={sidebarAutoCollapse}
 					sidebarIsStrip={sidebarIsStrip}
-					onMobileMenuClick={() =>
-						setMobileSidebarOpen((open) => !open)
-					}
+					onMobileMenuClick={() => setMobileSidebarOpen((open) => !open)}
 					mobileMenuOpen={mobileSidebarOpen}
 					title={headerTitle}
 				/>
@@ -53,7 +51,7 @@ export default function MainContent({
 			<main
 				className={clsx(
 					className,
-					"bg-background-main text-text-main w-full max-w-full min-h-screen py-4 pt-24 transition-[padding] duration-300 absolute mb-6 px-6 overflow-x-hidden",
+					"bg-background-main text-text-main w-full max-w-full min-h-screen py-4 pt-26 transition-[padding] duration-300 absolute mb-6 px-6 overflow-x-hidden",
 					lgUp
 						? sidebarAutoCollapse
 							? "pl-6"
@@ -61,8 +59,7 @@ export default function MainContent({
 						: sidebarIsStrip
 							? "pl-22"
 							: "pl-8"
-					)
-				}
+				)}
 			>
 				{children}
 			</main>

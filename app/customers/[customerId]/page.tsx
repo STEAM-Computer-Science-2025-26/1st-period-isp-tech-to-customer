@@ -841,11 +841,7 @@ export default function CustomerDetailPage() {
 				onMobileMenuClick={() => setMobileSidebarOpen((o) => !o)}
 				mobileMenuOpen={mobileSidebarOpen}
 			/>
-			<MainContent
-				sidebarAutoCollapse={sidebarAutoCollapse}
-				sidebarIsStrip={sidebarIsStrip}
-				className={cn("flex flex-col gap-4")}
-			>
+			<MainContent className={cn("flex flex-col gap-4")}>
 				{/* Breadcrumb */}
 				<div className="flex items-center gap-2 text-sm text-text-tertiary px-1">
 					<button
