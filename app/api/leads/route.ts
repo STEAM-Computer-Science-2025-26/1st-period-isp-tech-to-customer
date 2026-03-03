@@ -20,7 +20,10 @@ export async function POST(request: NextRequest) {
 	const email = body.email?.trim().toLowerCase();
 
 	if (!email || !email.includes("@") || email.length > 254) {
-		return NextResponse.json({ error: "Valid email required" }, { status: 400 });
+		return NextResponse.json(
+			{ error: "Valid email required" },
+			{ status: 400 }
+		);
 	}
 
 	const source = body.source ?? "resource_hub";
@@ -29,7 +32,7 @@ export async function POST(request: NextRequest) {
 	const sql = getSql();
 
 	// Upsert — if they submit again, update timestamp and tools used
-	const [lead] = await sql`
+	const [lead] = (await sql`
 		INSERT INTO resource_leads (email, source, tools_used)
 		VALUES (${email}, ${source}, ${toolsUsed})
 		ON CONFLICT (email)
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest) {
 			),
 			created_at   = NOW()
 		RETURNING id, email, source, tools_used, created_at
-	` as any[];
+	`) as any[];
 
 	return NextResponse.json({ ok: true, lead }, { status: 200 });
 }
