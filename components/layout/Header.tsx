@@ -7,13 +7,15 @@ type HeaderProps = {
 	sidebarIsStrip: boolean;
 	onMobileMenuClick?: () => void;
 	mobileMenuOpen?: boolean;
+	title?: string;
 };
 
 export default function Header({
 	sidebarAutoCollapse,
 	sidebarIsStrip,
 	onMobileMenuClick,
-	mobileMenuOpen
+	mobileMenuOpen,
+	title = "Dashboard"
 }: HeaderProps) {
 	const { lgUp } = useBreakpoints();
 	return (
@@ -30,7 +32,7 @@ export default function Header({
 			)}
 		>
 			<header className="border border-background-secondary w-full px-4 flex flex-row items-center justify-between rounded-xl h-full bg-background-secondary/50 shadow-sm backdrop-blur-md">
-				<h1 className="text-lg font-semibold text-text-main">Dashboard</h1>
+				<h1 className="text-lg font-semibold text-text-main">{title}</h1>
 				{lgUp ? (
 					<nav className="flex flex-row items-center gap-6 text-text-secondary [&>a]:cursor-pointer">
 						{/* Navigation items can be added here */}

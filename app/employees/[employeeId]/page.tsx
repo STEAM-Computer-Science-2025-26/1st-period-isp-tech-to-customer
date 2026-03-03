@@ -1,9 +1,6 @@
 "use client";
 
-import Header from "@/components/layout/Header";
 import MainContent from "@/components/layout/MainContent";
-import Sidebar from "@/components/layout/sidebar/Sidebar";
-import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
 import { useParams, useRouter } from "next/navigation";
@@ -250,10 +247,6 @@ export default function EmployeeDetailPage() {
 	const [activeTab, setActiveTab] = useState<Tab>("overview");
 	const [toggling, setToggling] = useState(false);
 
-	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
-	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
-	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-
 	useEffect(() => {
 		if (!employeeId) return;
 		let mounted = true;
@@ -329,17 +322,7 @@ export default function EmployeeDetailPage() {
 
 	return (
 		<>
-			<Header
-				sidebarAutoCollapse={sidebarAutoCollapse}
-				sidebarIsStrip={sidebarIsStrip}
-				onMobileMenuClick={() => setMobileSidebarOpen((o) => !o)}
-				mobileMenuOpen={mobileSidebarOpen}
-			/>
-			<MainContent
-				sidebarAutoCollapse={sidebarAutoCollapse}
-				sidebarIsStrip={sidebarIsStrip}
-				className={cn("flex flex-col gap-4 pb-8")}
-			>
+			<MainContent className={cn("flex flex-col gap-4 pb-8")}>
 				{/* Back nav */}
 				<div className="mx-2 pt-1">
 					<button
@@ -700,19 +683,6 @@ export default function EmployeeDetailPage() {
 					</>
 				)}
 			</MainContent>
-
-			<Sidebar
-				title="Tech to Customer"
-				autoCollapse={false}
-				items={defaultSidebarItems}
-				mobileOpen={mobileSidebarOpen}
-				onMobileOpenChange={setMobileSidebarOpen}
-				hideMobileToggleButton
-				onFlagsChange={({ autoCollapse, isStrip }) => {
-					setSidebarAutoCollapse(autoCollapse);
-					setSidebarIsStrip(isStrip);
-				}}
-			/>
 		</>
 	);
 }

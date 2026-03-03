@@ -1,9 +1,6 @@
 "use client";
 
-import Header from "@/components/layout/Header";
 import MainContent from "@/components/layout/MainContent";
-import Sidebar from "@/components/layout/sidebar/Sidebar";
-import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
 import { KpiCard } from "@/components/ui/Card";
@@ -22,9 +19,6 @@ const JobsPage = () => {
 	const [jobsLoading, setJobsLoading] = useState(false);
 
 	const [jobsError, setJobsError] = useState<string | null>(null);
-	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
-	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
-	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 	const { lgUp } = useBreakpoints();
 
 	useEffect(() => {
@@ -82,17 +76,7 @@ const JobsPage = () => {
 	}, []);
 	return (
 		<>
-			<Header
-				sidebarAutoCollapse={sidebarAutoCollapse}
-				sidebarIsStrip={sidebarIsStrip}
-				onMobileMenuClick={() => setMobileSidebarOpen((open) => !open)}
-				mobileMenuOpen={mobileSidebarOpen}
-			/>
-			<MainContent
-				sidebarAutoCollapse={sidebarAutoCollapse}
-				sidebarIsStrip={sidebarIsStrip}
-				className={cn(`flex flex-col gap-4`)}
-			>
+			<MainContent className={cn(`flex flex-col gap-4`)}>
 				<FadeEnd
 					className={cn("h-48 w-full overflow-hidden")}
 					orientation="horizontal"
@@ -148,18 +132,6 @@ const JobsPage = () => {
 					onClick={() => console.log("Fab clicked!")}
 				/>
 			</MainContent>
-			<Sidebar
-				title="Tech to Customer"
-				autoCollapse={false}
-				items={defaultSidebarItems}
-				mobileOpen={mobileSidebarOpen}
-				onMobileOpenChange={setMobileSidebarOpen}
-				hideMobileToggleButton
-				onFlagsChange={({ autoCollapse, isStrip }) => {
-					setSidebarAutoCollapse(autoCollapse);
-					setSidebarIsStrip(isStrip);
-				}}
-			/>
 		</>
 	);
 };

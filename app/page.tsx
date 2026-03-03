@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { Point } from "@/app/types/types";
 import { ArrowUpRight, ChevronRight, TrendingUp } from "lucide-react";
 import {
@@ -11,8 +9,6 @@ import {
 	ListCard,
 	TableCard
 } from "@/components/ui/Card";
-import Header from "@/components/layout/Header";
-import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import MainContent from "@/components/layout/MainContent";
 
 const lineData: Point[] = [
@@ -141,22 +137,9 @@ const openJobsRows = [
 ];
 
 export default function Home() {
-	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
-	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
-	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-
 	return (
 		<>
-			<Header
-				sidebarAutoCollapse={sidebarAutoCollapse}
-				sidebarIsStrip={sidebarIsStrip}
-				onMobileMenuClick={() => setMobileSidebarOpen((open) => !open)}
-				mobileMenuOpen={mobileSidebarOpen}
-			/>
-			<MainContent
-				sidebarAutoCollapse={sidebarAutoCollapse}
-				sidebarIsStrip={sidebarIsStrip}
-			>
+			<MainContent>
 				<div className="grid w-full max-w-full gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 mx-auto">
 					<Card
 						type="kpi"
@@ -268,18 +251,6 @@ export default function Home() {
 					/>
 				</div>
 			</MainContent>
-			<Sidebar
-				title="Tech to Customer"
-				autoCollapse={false}
-				items={defaultSidebarItems}
-				mobileOpen={mobileSidebarOpen}
-				onMobileOpenChange={setMobileSidebarOpen}
-				hideMobileToggleButton
-				onFlagsChange={({ autoCollapse, isStrip }) => {
-					setSidebarAutoCollapse(autoCollapse);
-					setSidebarIsStrip(isStrip);
-				}}
-			/>
 		</>
 	);
 }

@@ -1,9 +1,6 @@
 "use client";
 
-import Header from "@/components/layout/Header";
 import MainContent from "@/components/layout/MainContent";
-import Sidebar from "@/components/layout/sidebar/Sidebar";
-import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
 import { KpiCard } from "@/components/ui/Card";
@@ -545,9 +542,6 @@ export default function EmployeesPage() {
 	const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
 		null
 	);
-	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
-	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
-	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 	const { lgUp } = useBreakpoints();
 
 	const loadEmployees = () => {
@@ -592,17 +586,7 @@ export default function EmployeesPage() {
 
 	return (
 		<>
-			<Header
-				sidebarAutoCollapse={sidebarAutoCollapse}
-				sidebarIsStrip={sidebarIsStrip}
-				onMobileMenuClick={() => setMobileSidebarOpen((o) => !o)}
-				mobileMenuOpen={mobileSidebarOpen}
-			/>
-			<MainContent
-				sidebarAutoCollapse={sidebarAutoCollapse}
-				sidebarIsStrip={sidebarIsStrip}
-				className={cn("flex flex-col gap-4")}
-			>
+			<MainContent className={cn("flex flex-col gap-4")}>
 				{/* KPI Strip */}
 				<FadeEnd
 					className={cn("h-32 w-full overflow-hidden")}
@@ -761,19 +745,6 @@ export default function EmployeesPage() {
 					}}
 				/>
 			)}
-
-			<Sidebar
-				title="Tech to Customer"
-				autoCollapse={false}
-				items={defaultSidebarItems}
-				mobileOpen={mobileSidebarOpen}
-				onMobileOpenChange={setMobileSidebarOpen}
-				hideMobileToggleButton
-				onFlagsChange={({ autoCollapse, isStrip }) => {
-					setSidebarAutoCollapse(autoCollapse);
-					setSidebarIsStrip(isStrip);
-				}}
-			/>
 		</>
 	);
 }
