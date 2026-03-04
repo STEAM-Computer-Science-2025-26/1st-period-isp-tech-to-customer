@@ -15,6 +15,8 @@ type MainContentProps = {
 	sidebarTitle?: string;
 	sidebarItems?: SidebarItemParams[];
 	sidebarAutoCollapseDefault?: boolean;
+	sidebarAutoCollapse?: boolean;
+	sidebarIsStrip?: boolean;
 	hideMobileToggleButton?: boolean;
 	showHeader?: boolean;
 	showSidebar?: boolean;
@@ -27,22 +29,27 @@ export default function MainContent({
 	sidebarTitle = "Tech to Customer",
 	sidebarItems = defaultSidebarItems,
 	sidebarAutoCollapseDefault = false,
+	sidebarAutoCollapse,
+	sidebarIsStrip,
 	hideMobileToggleButton = true,
 	showHeader = true,
 	showSidebar = true
 }: MainContentProps) {
 	const { lgUp } = useBreakpoints();
-	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(
+	const [sidebarAutoCollapseState, setSidebarAutoCollapse] = useState(
 		sidebarAutoCollapseDefault
 	);
-	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
+	const [sidebarIsStripState, setSidebarIsStrip] = useState(false);
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+	const effectiveSidebarAutoCollapse =
+		sidebarAutoCollapse ?? sidebarAutoCollapseState;
+	const effectiveSidebarIsStrip = sidebarIsStrip ?? sidebarIsStripState;
 	return (
 		<>
 			{showHeader ? (
 				<Header
-					sidebarAutoCollapse={sidebarAutoCollapse}
-					sidebarIsStrip={sidebarIsStrip}
+					sidebarAutoCollapse={effectiveSidebarAutoCollapse}
+					sidebarIsStrip={effectiveSidebarIsStrip}
 					onMobileMenuClick={() => setMobileSidebarOpen((open) => !open)}
 					mobileMenuOpen={mobileSidebarOpen}
 					title={headerTitle}
@@ -53,10 +60,10 @@ export default function MainContent({
 					className,
 					"bg-background-main text-text-main w-full max-w-full min-h-screen py-4 pt-26 transition-[padding] duration-300 absolute mb-6 px-6 overflow-x-hidden",
 					lgUp
-						? sidebarAutoCollapse
+						? effectiveSidebarAutoCollapse
 							? "pl-6"
 							: "pl-[calc(var(--sidebar-desktop-width)-var(--sidebar-main-gap))]"
-						: sidebarIsStrip
+						: effectiveSidebarIsStrip
 							? "pl-22"
 							: "pl-8"
 				)}
@@ -66,7 +73,7 @@ export default function MainContent({
 			{showSidebar ? (
 				<Sidebar
 					title={sidebarTitle}
-					autoCollapse={sidebarAutoCollapse}
+					autoCollapse={effectiveSidebarAutoCollapse}
 					items={sidebarItems}
 					mobileOpen={mobileSidebarOpen}
 					onMobileOpenChange={setMobileSidebarOpen}

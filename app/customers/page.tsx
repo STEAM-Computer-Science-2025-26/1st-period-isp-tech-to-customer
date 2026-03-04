@@ -98,6 +98,8 @@ export default function CustomersPage() {
 			<MainContent
 				sidebarAutoCollapse={sidebarAutoCollapse}
 				sidebarIsStrip={sidebarIsStrip}
+				showHeader={false}
+				showSidebar={false}
 				className={cn("flex flex-col gap-4")}
 			>
 				{/* KPI Strip */}

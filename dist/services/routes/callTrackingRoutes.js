@@ -23,120 +23,117 @@ import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getUser(request) {
-	return request.user;
+    return request.user;
 }
 function isDev(user) {
-	return user.role === "dev";
+    return user.role === "dev";
 }
 function resolveCompanyId(user) {
-	return user.companyId ?? null;
+    return user.companyId ?? null;
 }
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const CALL_SOURCES = [
-	"google_lsa",
-	"google_ads",
-	"google_organic",
-	"yelp",
-	"facebook",
-	"referral",
-	"website",
-	"repeat_customer",
-	"direct",
-	"other"
+    "google_lsa",
+    "google_ads",
+    "google_organic",
+    "yelp",
+    "facebook",
+    "referral",
+    "website",
+    "repeat_customer",
+    "direct",
+    "other"
 ];
 const CALL_OUTCOMES = [
-	"booked",
-	"callback_requested",
-	"not_interested",
-	"wrong_number",
-	"no_answer",
-	"voicemail",
-	"duplicate",
-	"other"
+    "booked",
+    "callback_requested",
+    "not_interested",
+    "wrong_number",
+    "no_answer",
+    "voicemail",
+    "duplicate",
+    "other"
 ];
 const createCallSchema = z.object({
-	direction: z.enum(["inbound", "outbound"]).default("inbound"),
-	callerPhone: z.string().min(7).max(30),
-	callerName: z.string().max(120).optional(),
-	source: z.enum(CALL_SOURCES).default("direct"),
-	sourceDetail: z.string().max(200).optional(), // e.g. campaign name, tracking number
-	trackingNumber: z.string().max(30).optional(), // the number they dialed (for DNI)
-	durationSeconds: z.number().int().min(0).optional(),
-	outcome: z.enum(CALL_OUTCOMES).optional(),
-	notes: z.string().max(2000).optional(),
-	// Links
-	customerId: z.string().uuid().optional(),
-	leadId: z.string().uuid().optional(),
-	jobId: z.string().uuid().optional(),
-	// Recording
-	recordingUrl: z.string().url().optional(),
-	// Twilio fields
-	twilioCallSid: z.string().max(60).optional()
+    direction: z.enum(["inbound", "outbound"]).default("inbound"),
+    callerPhone: z.string().min(7).max(30),
+    callerName: z.string().max(120).optional(),
+    source: z.enum(CALL_SOURCES).default("direct"),
+    sourceDetail: z.string().max(200).optional(), // e.g. campaign name, tracking number
+    trackingNumber: z.string().max(30).optional(), // the number they dialed (for DNI)
+    durationSeconds: z.number().int().min(0).optional(),
+    outcome: z.enum(CALL_OUTCOMES).optional(),
+    notes: z.string().max(2000).optional(),
+    // Links
+    customerId: z.string().uuid().optional(),
+    leadId: z.string().uuid().optional(),
+    jobId: z.string().uuid().optional(),
+    // Recording
+    recordingUrl: z.string().url().optional(),
+    // Twilio fields
+    twilioCallSid: z.string().max(60).optional()
 });
 const updateCallSchema = z.object({
-	outcome: z.enum(CALL_OUTCOMES).optional(),
-	notes: z.string().max(2000).optional(),
-	durationSeconds: z.number().int().min(0).optional(),
-	customerId: z.string().uuid().optional(),
-	leadId: z.string().uuid().optional(),
-	jobId: z.string().uuid().optional(),
-	source: z.enum(CALL_SOURCES).optional(),
-	sourceDetail: z.string().max(200).optional()
+    outcome: z.enum(CALL_OUTCOMES).optional(),
+    notes: z.string().max(2000).optional(),
+    durationSeconds: z.number().int().min(0).optional(),
+    customerId: z.string().uuid().optional(),
+    leadId: z.string().uuid().optional(),
+    jobId: z.string().uuid().optional(),
+    source: z.enum(CALL_SOURCES).optional(),
+    sourceDetail: z.string().max(200).optional()
 });
 const listCallsSchema = z.object({
-	companyId: z.string().uuid().optional(),
-	direction: z.enum(["inbound", "outbound"]).optional(),
-	source: z.enum(CALL_SOURCES).optional(),
-	outcome: z.enum(CALL_OUTCOMES).optional(),
-	customerId: z.string().uuid().optional(),
-	leadId: z.string().uuid().optional(),
-	unmatched: z.coerce.boolean().optional(), // calls with no customer or lead
-	since: z
-		.string()
-		.regex(/^\d{4}-\d{2}-\d{2}$/)
-		.optional(),
-	until: z
-		.string()
-		.regex(/^\d{4}-\d{2}-\d{2}$/)
-		.optional(),
-	limit: z.coerce.number().int().min(1).max(200).default(50),
-	offset: z.coerce.number().int().min(0).default(0)
+    companyId: z.string().uuid().optional(),
+    direction: z.enum(["inbound", "outbound"]).optional(),
+    source: z.enum(CALL_SOURCES).optional(),
+    outcome: z.enum(CALL_OUTCOMES).optional(),
+    customerId: z.string().uuid().optional(),
+    leadId: z.string().uuid().optional(),
+    unmatched: z.coerce.boolean().optional(), // calls with no customer or lead
+    since: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+    until: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+    limit: z.coerce.number().int().min(1).max(200).default(50),
+    offset: z.coerce.number().int().min(0).default(0)
 });
 const analyticsSchema = z.object({
-	companyId: z.string().uuid().optional(),
-	days: z.coerce.number().int().min(1).max(365).default(30)
+    companyId: z.string().uuid().optional(),
+    days: z.coerce.number().int().min(1).max(365).default(30)
 });
 const convertToLeadSchema = z.object({
-	serviceNeeded: z.string().min(1).max(200).optional(),
-	notes: z.string().max(500).optional(),
-	priority: z.enum(["low", "normal", "high", "urgent"]).default("normal")
+    serviceNeeded: z.string().min(1).max(200).optional(),
+    notes: z.string().max(500).optional(),
+    priority: z.enum(["low", "normal", "high", "urgent"]).default("normal")
 });
 // ─── Routes ──────────────────────────────────────────────────────────────────
 export async function callTrackingRoutes(fastify) {
-	// ── POST /calls ───────────────────────────────────────────────────────────
-	// Manually log a call.
-	fastify.post(
-		"/calls",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user)) {
-				return reply.code(403).send({ error: "Forbidden" });
-			}
-			const parsed = createCallSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({
-					error: "Invalid request body",
-					details: parsed.error.flatten().fieldErrors
-				});
-			}
-			const body = parsed.data;
-			const effectiveCompanyId = isDev(user)
-				? (request.body.companyId ?? companyId)
-				: companyId;
-			const sql = getSql();
-			const [call] = await sql`
+    // ── POST /calls ───────────────────────────────────────────────────────────
+    // Manually log a call.
+    fastify.post("/calls", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        if (!companyId && !isDev(user)) {
+            return reply.code(403).send({ error: "Forbidden" });
+        }
+        const parsed = createCallSchema.safeParse(request.body);
+        if (!parsed.success) {
+            return reply.code(400).send({
+                error: "Invalid request body",
+                details: parsed.error.flatten().fieldErrors
+            });
+        }
+        const body = parsed.data;
+        const effectiveCompanyId = isDev(user)
+            ? (request.body.companyId ?? companyId)
+            : companyId;
+        const sql = getSql();
+        const [call] = (await sql `
 				INSERT INTO call_logs (
 					company_id,
 					direction, caller_phone, caller_name,
@@ -162,35 +159,20 @@ export async function callTrackingRoutes(fastify) {
 					source, outcome, duration_seconds AS "durationSeconds",
 					customer_id AS "customerId", lead_id AS "leadId",
 					called_at AS "calledAt", created_at AS "createdAt"
-			`;
-			return reply.code(201).send({ call });
-		}
-	);
-	// ── GET /calls ────────────────────────────────────────────────────────────
-	fastify.get(
-		"/calls",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			const parsed = listCallsSchema.safeParse(request.query);
-			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid query params" });
-			}
-			const {
-				direction,
-				source,
-				outcome,
-				customerId,
-				leadId,
-				unmatched,
-				since,
-				until,
-				limit,
-				offset
-			} = parsed.data;
-			const sql = getSql();
-			const calls = await sql`
+			`);
+        return reply.code(201).send({ call });
+    });
+    // ── GET /calls ────────────────────────────────────────────────────────────
+    fastify.get("/calls", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        const parsed = listCallsSchema.safeParse(request.query);
+        if (!parsed.success) {
+            return reply.code(400).send({ error: "Invalid query params" });
+        }
+        const { direction, source, outcome, customerId, leadId, unmatched, since, until, limit, offset } = parsed.data;
+        const sql = getSql();
+        const calls = (await sql `
 				SELECT
 					cl.id,
 					cl.direction,
@@ -224,20 +206,16 @@ export async function callTrackingRoutes(fastify) {
 					AND (${until ?? null}::date IS NULL OR cl.called_at < (${until ?? null}::date + INTERVAL '1 day'))
 				ORDER BY cl.called_at DESC
 				LIMIT ${limit} OFFSET ${offset}
-			`;
-			return reply.send({ calls, limit, offset });
-		}
-	);
-	// ── GET /calls/:id ────────────────────────────────────────────────────────
-	fastify.get(
-		"/calls/:id",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			const sql = getSql();
-			const [call] = await sql`
+			`);
+        return reply.send({ calls, limit, offset });
+    });
+    // ── GET /calls/:id ────────────────────────────────────────────────────────
+    fastify.get("/calls/:id", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const { id } = request.params;
+        const companyId = resolveCompanyId(user);
+        const sql = getSql();
+        const [call] = (await sql `
 				SELECT
 					cl.*,
 					c.first_name || ' ' || c.last_name AS "customerName",
@@ -246,26 +224,23 @@ export async function callTrackingRoutes(fastify) {
 				LEFT JOIN customers c ON c.id = cl.customer_id
 				WHERE cl.id = ${id}
 					AND (${isDev(user) && !companyId} OR cl.company_id = ${companyId})
-			`;
-			if (!call) return reply.code(404).send({ error: "Call not found" });
-			return reply.send({ call });
-		}
-	);
-	// ── PATCH /calls/:id ──────────────────────────────────────────────────────
-	fastify.patch(
-		"/calls/:id",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			const parsed = updateCallSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body" });
-			}
-			const b = parsed.data;
-			const sql = getSql();
-			const [updated] = await sql`
+			`);
+        if (!call)
+            return reply.code(404).send({ error: "Call not found" });
+        return reply.send({ call });
+    });
+    // ── PATCH /calls/:id ──────────────────────────────────────────────────────
+    fastify.patch("/calls/:id", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const { id } = request.params;
+        const companyId = resolveCompanyId(user);
+        const parsed = updateCallSchema.safeParse(request.body);
+        if (!parsed.success) {
+            return reply.code(400).send({ error: "Invalid body" });
+        }
+        const b = parsed.data;
+        const sql = getSql();
+        const [updated] = (await sql `
 				UPDATE call_logs SET
 					outcome          = COALESCE(${b.outcome ?? null}, outcome),
 					notes            = COALESCE(${b.notes ?? null}, notes),
@@ -279,45 +254,43 @@ export async function callTrackingRoutes(fastify) {
 				WHERE id = ${id}
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
 				RETURNING id, outcome, notes, customer_id AS "customerId", updated_at AS "updatedAt"
-			`;
-			if (!updated) return reply.code(404).send({ error: "Call not found" });
-			return reply.send({ call: updated });
-		}
-	);
-	// ── POST /calls/:id/convert-to-lead ───────────────────────────────────────
-	// Convert an unmatched inbound call into a CRM lead.
-	fastify.post(
-		"/calls/:id/convert-to-lead",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			const parsed = convertToLeadSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body" });
-			}
-			const body = parsed.data;
-			const sql = getSql();
-			const [call] = await sql`
+			`);
+        if (!updated)
+            return reply.code(404).send({ error: "Call not found" });
+        return reply.send({ call: updated });
+    });
+    // ── POST /calls/:id/convert-to-lead ───────────────────────────────────────
+    // Convert an unmatched inbound call into a CRM lead.
+    fastify.post("/calls/:id/convert-to-lead", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const { id } = request.params;
+        const companyId = resolveCompanyId(user);
+        const parsed = convertToLeadSchema.safeParse(request.body);
+        if (!parsed.success) {
+            return reply.code(400).send({ error: "Invalid body" });
+        }
+        const body = parsed.data;
+        const sql = getSql();
+        const [call] = (await sql `
 				SELECT * FROM call_logs
 				WHERE id = ${id}
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
-			`;
-			if (!call) return reply.code(404).send({ error: "Call not found" });
-			if (call.lead_id) {
-				return reply.code(409).send({
-					error: "Call already linked to a lead",
-					leadId: call.lead_id
-				});
-			}
-			// Parse name if available
-			const nameParts = (call.caller_name ?? "Unknown Caller")
-				.trim()
-				.split(" ");
-			const firstName = nameParts[0] ?? "Unknown";
-			const lastName = nameParts.slice(1).join(" ") || "Caller";
-			const [lead] = await sql`
+			`);
+        if (!call)
+            return reply.code(404).send({ error: "Call not found" });
+        if (call.lead_id) {
+            return reply.code(409).send({
+                error: "Call already linked to a lead",
+                leadId: call.lead_id
+            });
+        }
+        // Parse name if available
+        const nameParts = (call.caller_name ?? "Unknown Caller")
+            .trim()
+            .split(" ");
+        const firstName = nameParts[0] ?? "Unknown";
+        const lastName = nameParts.slice(1).join(" ") || "Caller";
+        const [lead] = (await sql `
 				INSERT INTO crm_leads (
 					company_id,
 					first_name, last_name,
@@ -338,14 +311,14 @@ export async function callTrackingRoutes(fastify) {
 					${user.userId ?? user.id ?? null}
 				)
 				RETURNING id, created_at AS "createdAt"
-			`;
-			// Link call to lead
-			await sql`
+			`);
+        // Link call to lead
+        await sql `
 				UPDATE call_logs SET lead_id = ${lead.id}, updated_at = NOW()
 				WHERE id = ${id}
 			`;
-			// Log activity on the lead
-			await sql`
+        // Log activity on the lead
+        await sql `
 				INSERT INTO crm_lead_activities (
 					lead_id, type, direction, body, duration_seconds, performed_by_user_id
 				) VALUES (
@@ -355,38 +328,36 @@ export async function callTrackingRoutes(fastify) {
 					${user.userId ?? user.id ?? null}
 				)
 			`;
-			return reply.code(201).send({ leadId: lead.id, callId: id });
-		}
-	);
-	// ── POST /calls/webhook/twilio ────────────────────────────────────────────
-	// Twilio StatusCallback webhook — auto-logs completed calls.
-	// No auth — validated by Twilio signature header.
-	// Register tracking numbers in Twilio pointing to this URL.
-	fastify.post("/calls/webhook/twilio", async (request, reply) => {
-		// TODO: validate X-Twilio-Signature in production
-		const body = request.body;
-		if (!body?.CallSid || !body?.To) {
-			return reply.code(400).send({ error: "Invalid Twilio payload" });
-		}
-		const sql = getSql();
-		// Look up which company owns this tracking number
-		const [company] = await sql`
+        return reply.code(201).send({ leadId: lead.id, callId: id });
+    });
+    // ── POST /calls/webhook/twilio ────────────────────────────────────────────
+    // Twilio StatusCallback webhook — auto-logs completed calls.
+    // No auth — validated by Twilio signature header.
+    // Register tracking numbers in Twilio pointing to this URL.
+    fastify.post("/calls/webhook/twilio", async (request, reply) => {
+        // TODO: validate X-Twilio-Signature in production
+        const body = request.body;
+        if (!body?.CallSid || !body?.To) {
+            return reply.code(400).send({ error: "Invalid Twilio payload" });
+        }
+        const sql = getSql();
+        // Look up which company owns this tracking number
+        const [company] = (await sql `
 				SELECT id FROM companies
 				WHERE ${body.To} = ANY(tracking_phone_numbers)
 					AND is_active = TRUE
 				LIMIT 1
-			`;
-		if (!company) {
-			// Number not registered — ignore gracefully
-			return reply.send({ received: true });
-		}
-		const durationSeconds = body.CallDuration
-			? parseInt(body.CallDuration, 10)
-			: null;
-		const direction =
-			body.Direction === "outbound-dial" ? "outbound" : "inbound";
-		// Upsert — Twilio fires this multiple times as call progresses
-		await sql`
+			`);
+        if (!company) {
+            // Number not registered — ignore gracefully
+            return reply.send({ received: true });
+        }
+        const durationSeconds = body.CallDuration
+            ? parseInt(body.CallDuration, 10)
+            : null;
+        const direction = body.Direction === "outbound-dial" ? "outbound" : "inbound";
+        // Upsert — Twilio fires this multiple times as call progresses
+        await sql `
 				INSERT INTO call_logs (
 					company_id,
 					direction, caller_phone, caller_name,
@@ -413,23 +384,20 @@ export async function callTrackingRoutes(fastify) {
 					END,
 					updated_at       = NOW()
 			`;
-		return reply.send({ received: true });
-	});
-	// ── GET /calls/analytics ──────────────────────────────────────────────────
-	// Call volume, source breakdown, conversion rate, avg duration.
-	fastify.get(
-		"/calls/analytics",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			const parsed = analyticsSchema.safeParse(request.query);
-			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid query" });
-			}
-			const { days } = parsed.data;
-			const sql = getSql();
-			const [totals] = await sql`
+        return reply.send({ received: true });
+    });
+    // ── GET /calls/analytics ──────────────────────────────────────────────────
+    // Call volume, source breakdown, conversion rate, avg duration.
+    fastify.get("/calls/analytics", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        const parsed = analyticsSchema.safeParse(request.query);
+        if (!parsed.success) {
+            return reply.code(400).send({ error: "Invalid query" });
+        }
+        const { days } = parsed.data;
+        const sql = getSql();
+        const [totals] = (await sql `
 				SELECT
 					COUNT(*)                                                      AS total_calls,
 					COUNT(*) FILTER (WHERE direction = 'inbound')                AS inbound,
@@ -446,8 +414,8 @@ export async function callTrackingRoutes(fastify) {
 				FROM call_logs
 				WHERE company_id = ${companyId}
 					AND called_at >= NOW() - (${days} || ' days')::interval
-			`;
-			const bySource = await sql`
+			`);
+        const bySource = (await sql `
 				SELECT
 					source,
 					COUNT(*)                                        AS total,
@@ -458,8 +426,8 @@ export async function callTrackingRoutes(fastify) {
 					AND called_at >= NOW() - (${days} || ' days')::interval
 				GROUP BY source
 				ORDER BY total DESC
-			`;
-			const byDay = await sql`
+			`);
+        const byDay = (await sql `
 				SELECT
 					DATE(called_at)                                 AS date,
 					COUNT(*)                                        AS total,
@@ -470,13 +438,12 @@ export async function callTrackingRoutes(fastify) {
 					AND called_at >= NOW() - (${days} || ' days')::interval
 				GROUP BY DATE(called_at)
 				ORDER BY date ASC
-			`;
-			return reply.send({
-				days,
-				totals,
-				bySource,
-				byDay
-			});
-		}
-	);
+			`);
+        return reply.send({
+            days,
+            totals,
+            bySource,
+            byDay
+        });
+    });
 }

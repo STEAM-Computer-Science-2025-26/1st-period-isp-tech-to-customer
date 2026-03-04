@@ -651,6 +651,8 @@ export default function DispatchPage() {
 			<MainContent
 				sidebarAutoCollapse={sidebarAutoCollapse}
 				sidebarIsStrip={sidebarIsStrip}
+				showHeader={false}
+				showSidebar={false}
 				className={cn("flex flex-col h-screen overflow-hidden")}
 			>
 				{/* Page header */}

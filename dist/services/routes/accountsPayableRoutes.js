@@ -36,133 +36,128 @@ import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getUser(request) {
-	return request.user;
+    return request.user;
 }
 function isDev(user) {
-	return user.role === "dev";
+    return user.role === "dev";
 }
 function resolveCompanyId(user) {
-	return user.companyId ?? null;
+    return user.companyId ?? null;
 }
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const createVendorSchema = z.object({
-	name: z.string().min(1).max(200),
-	contactName: z.string().max(120).optional(),
-	email: z.string().email().optional(),
-	phone: z.string().max(30).optional(),
-	address: z.string().max(300).optional(),
-	city: z.string().max(80).optional(),
-	state: z.string().length(2).optional(),
-	zip: z.string().max(10).optional(),
-	paymentTerms: z
-		.enum(["net15", "net30", "net45", "net60", "due_on_receipt"])
-		.default("net30"),
-	defaultPaymentMethod: z
-		.enum(["check", "ach", "wire", "card", "other"])
-		.default("check"),
-	accountNumber: z.string().max(80).optional(), // your account # with this vendor
-	notes: z.string().max(1000).optional()
+    name: z.string().min(1).max(200),
+    contactName: z.string().max(120).optional(),
+    email: z.string().email().optional(),
+    phone: z.string().max(30).optional(),
+    address: z.string().max(300).optional(),
+    city: z.string().max(80).optional(),
+    state: z.string().length(2).optional(),
+    zip: z.string().max(10).optional(),
+    paymentTerms: z
+        .enum(["net15", "net30", "net45", "net60", "due_on_receipt"])
+        .default("net30"),
+    defaultPaymentMethod: z
+        .enum(["check", "ach", "wire", "card", "other"])
+        .default("check"),
+    accountNumber: z.string().max(80).optional(), // your account # with this vendor
+    notes: z.string().max(1000).optional()
 });
 const createBillSchema = z.object({
-	vendorId: z.string().uuid(),
-	billNumber: z.string().max(80).optional(), // vendor's invoice number
-	purchaseOrderId: z.string().uuid().optional(), // link to existing PO
-	billDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-	dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-	lineItems: z
-		.array(
-			z.object({
-				description: z.string().min(1).max(300),
-				quantity: z.number().positive(),
-				unitCost: z.number().min(0),
-				category: z.string().max(80).optional() // e.g. "parts", "subcontractor", "equipment"
-			})
-		)
-		.min(1),
-	notes: z.string().max(1000).optional()
+    vendorId: z.string().uuid(),
+    billNumber: z.string().max(80).optional(), // vendor's invoice number
+    purchaseOrderId: z.string().uuid().optional(), // link to existing PO
+    billDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    lineItems: z
+        .array(z.object({
+        description: z.string().min(1).max(300),
+        quantity: z.number().positive(),
+        unitCost: z.number().min(0),
+        category: z.string().max(80).optional() // e.g. "parts", "subcontractor", "equipment"
+    }))
+        .min(1),
+    notes: z.string().max(1000).optional()
 });
 const approveBillSchema = z.object({
-	notes: z.string().max(500).optional()
+    notes: z.string().max(500).optional()
 });
 const rejectBillSchema = z.object({
-	reason: z.string().min(1).max(500)
+    reason: z.string().min(1).max(500)
 });
 const schedulePaymentSchema = z.object({
-	paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-	paymentMethod: z.enum(["check", "ach", "wire", "card", "other"]),
-	checkNumber: z.string().max(30).optional(),
-	notes: z.string().max(500).optional()
+    paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    paymentMethod: z.enum(["check", "ach", "wire", "card", "other"]),
+    checkNumber: z.string().max(30).optional(),
+    notes: z.string().max(500).optional()
 });
 const markPaidSchema = z.object({
-	paidDate: z
-		.string()
-		.regex(/^\d{4}-\d{2}-\d{2}$/)
-		.optional(),
-	checkNumber: z.string().max(30).optional(),
-	referenceNumber: z.string().max(80).optional(), // ACH trace, wire ref, etc.
-	notes: z.string().max(500).optional()
+    paidDate: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+    checkNumber: z.string().max(30).optional(),
+    referenceNumber: z.string().max(80).optional(), // ACH trace, wire ref, etc.
+    notes: z.string().max(500).optional()
 });
 const listBillsSchema = z.object({
-	companyId: z.string().uuid().optional(),
-	vendorId: z.string().uuid().optional(),
-	status: z
-		.enum([
-			"draft",
-			"pending_approval",
-			"approved",
-			"scheduled",
-			"paid",
-			"rejected",
-			"void"
-		])
-		.optional(),
-	overdue: z.coerce.boolean().optional(),
-	since: z
-		.string()
-		.regex(/^\d{4}-\d{2}-\d{2}$/)
-		.optional(),
-	until: z
-		.string()
-		.regex(/^\d{4}-\d{2}-\d{2}$/)
-		.optional(),
-	limit: z.coerce.number().int().min(1).max(200).default(50),
-	offset: z.coerce.number().int().min(0).default(0)
+    companyId: z.string().uuid().optional(),
+    vendorId: z.string().uuid().optional(),
+    status: z
+        .enum([
+        "draft",
+        "pending_approval",
+        "approved",
+        "scheduled",
+        "paid",
+        "rejected",
+        "void"
+    ])
+        .optional(),
+    overdue: z.coerce.boolean().optional(),
+    since: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+    until: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+    limit: z.coerce.number().int().min(1).max(200).default(50),
+    offset: z.coerce.number().int().min(0).default(0)
 });
 const agingSchema = z.object({
-	companyId: z.string().uuid().optional()
+    companyId: z.string().uuid().optional()
 });
 const cashFlowSchema = z.object({
-	companyId: z.string().uuid().optional(),
-	days: z.coerce.number().int().min(7).max(90).default(30)
+    companyId: z.string().uuid().optional(),
+    days: z.coerce.number().int().min(7).max(90).default(30)
 });
 const spendSchema = z.object({
-	companyId: z.string().uuid().optional(),
-	days: z.coerce.number().int().min(1).max(365).default(90)
+    companyId: z.string().uuid().optional(),
+    days: z.coerce.number().int().min(1).max(365).default(90)
 });
 // ─── Routes ──────────────────────────────────────────────────────────────────
 export async function accountsPayableRoutes(fastify) {
-	// =========================================================================
-	// VENDORS
-	// =========================================================================
-	// ── POST /ap/vendors ──────────────────────────────────────────────────────
-	fastify.post(
-		"/ap/vendors",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user))
-				return reply.code(403).send({ error: "Forbidden" });
-			const parsed = createVendorSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({
-					error: "Invalid body",
-					details: parsed.error.flatten().fieldErrors
-				});
-			}
-			const b = parsed.data;
-			const sql = getSql();
-			const [vendor] = await sql`
+    // =========================================================================
+    // VENDORS
+    // =========================================================================
+    // ── POST /ap/vendors ──────────────────────────────────────────────────────
+    fastify.post("/ap/vendors", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        if (!companyId && !isDev(user))
+            return reply.code(403).send({ error: "Forbidden" });
+        const parsed = createVendorSchema.safeParse(request.body);
+        if (!parsed.success) {
+            return reply.code(400).send({
+                error: "Invalid body",
+                details: parsed.error.flatten().fieldErrors
+            });
+        }
+        const b = parsed.data;
+        const sql = getSql();
+        const [vendor] = (await sql `
 				INSERT INTO ap_vendors (
 					company_id, name, contact_name, email, phone,
 					address, city, state, zip,
@@ -178,19 +173,15 @@ export async function accountsPayableRoutes(fastify) {
 					id, name, contact_name AS "contactName", email, phone,
 					payment_terms AS "paymentTerms", default_payment_method AS "defaultPaymentMethod",
 					created_at AS "createdAt"
-			`;
-			return reply.code(201).send({ vendor });
-		}
-	);
-	// ── GET /ap/vendors ───────────────────────────────────────────────────────
-	fastify.get(
-		"/ap/vendors",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			const sql = getSql();
-			const vendors = await sql`
+			`);
+        return reply.code(201).send({ vendor });
+    });
+    // ── GET /ap/vendors ───────────────────────────────────────────────────────
+    fastify.get("/ap/vendors", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        const sql = getSql();
+        const vendors = (await sql `
 				SELECT
 					v.id, v.name, v.contact_name AS "contactName",
 					v.email, v.phone,
@@ -204,21 +195,17 @@ export async function accountsPayableRoutes(fastify) {
 				WHERE v.company_id = ${companyId}
 				GROUP BY v.id
 				ORDER BY v.name
-			`;
-			return reply.send({ vendors });
-		}
-	);
-	// ── PUT /ap/vendors/:id ───────────────────────────────────────────────────
-	fastify.put(
-		"/ap/vendors/:id",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			const b = createVendorSchema.partial().parse(request.body);
-			const sql = getSql();
-			const [updated] = await sql`
+			`);
+        return reply.send({ vendors });
+    });
+    // ── PUT /ap/vendors/:id ───────────────────────────────────────────────────
+    fastify.put("/ap/vendors/:id", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const { id } = request.params;
+        const companyId = resolveCompanyId(user);
+        const b = createVendorSchema.partial().parse(request.body);
+        const sql = getSql();
+        const [updated] = (await sql `
 				UPDATE ap_vendors SET
 					name                   = COALESCE(${b.name ?? null}, name),
 					contact_name           = COALESCE(${b.contactName ?? null}, contact_name),
@@ -231,50 +218,45 @@ export async function accountsPayableRoutes(fastify) {
 				WHERE id = ${id}
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
 				RETURNING id, name, updated_at AS "updatedAt"
-			`;
-			if (!updated) return reply.code(404).send({ error: "Vendor not found" });
-			return reply.send({ vendor: updated });
-		}
-	);
-	// =========================================================================
-	// BILLS
-	// =========================================================================
-	// ── POST /ap/bills ────────────────────────────────────────────────────────
-	fastify.post(
-		"/ap/bills",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			if (!companyId && !isDev(user))
-				return reply.code(403).send({ error: "Forbidden" });
-			const parsed = createBillSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({
-					error: "Invalid body",
-					details: parsed.error.flatten().fieldErrors
-				});
-			}
-			const b = parsed.data;
-			const sql = getSql();
-			// Verify vendor belongs to company
-			const [vendor] = await sql`
+			`);
+        if (!updated)
+            return reply.code(404).send({ error: "Vendor not found" });
+        return reply.send({ vendor: updated });
+    });
+    // =========================================================================
+    // BILLS
+    // =========================================================================
+    // ── POST /ap/bills ────────────────────────────────────────────────────────
+    fastify.post("/ap/bills", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        if (!companyId && !isDev(user))
+            return reply.code(403).send({ error: "Forbidden" });
+        const parsed = createBillSchema.safeParse(request.body);
+        if (!parsed.success) {
+            return reply.code(400).send({
+                error: "Invalid body",
+                details: parsed.error.flatten().fieldErrors
+            });
+        }
+        const b = parsed.data;
+        const sql = getSql();
+        // Verify vendor belongs to company
+        const [vendor] = (await sql `
 				SELECT id, payment_terms FROM ap_vendors
 				WHERE id = ${b.vendorId}
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
-			`;
-			if (!vendor) return reply.code(404).send({ error: "Vendor not found" });
-			const total = b.lineItems.reduce(
-				(sum, li) => sum + li.quantity * li.unitCost,
-				0
-			);
-			// Fetch company approval threshold
-			const [company] = await sql`
+			`);
+        if (!vendor)
+            return reply.code(404).send({ error: "Vendor not found" });
+        const total = b.lineItems.reduce((sum, li) => sum + li.quantity * li.unitCost, 0);
+        // Fetch company approval threshold
+        const [company] = (await sql `
 				SELECT ap_approval_threshold FROM companies WHERE id = ${companyId}
-			`;
-			const threshold = Number(company?.ap_approval_threshold ?? 500);
-			const needsApproval = total >= threshold;
-			const [bill] = await sql`
+			`);
+        const threshold = Number(company?.ap_approval_threshold ?? 500);
+        const needsApproval = total >= threshold;
+        const [bill] = (await sql `
 				INSERT INTO ap_bills (
 					company_id, vendor_id, purchase_order_id,
 					bill_number, bill_date, due_date,
@@ -293,10 +275,10 @@ export async function accountsPayableRoutes(fastify) {
 					id, bill_number AS "billNumber", bill_date AS "billDate",
 					due_date AS "dueDate", total, status,
 					created_at AS "createdAt"
-			`;
-			// Insert line items
-			for (const li of b.lineItems) {
-				await sql`
+			`);
+        // Insert line items
+        for (const li of b.lineItems) {
+            await sql `
 					INSERT INTO ap_bill_line_items (
 						bill_id, description, quantity, unit_cost, total, category
 					) VALUES (
@@ -305,24 +287,19 @@ export async function accountsPayableRoutes(fastify) {
 						${li.category ?? null}
 					)
 				`;
-			}
-			return reply.code(201).send({ bill, needsApproval });
-		}
-	);
-	// ── GET /ap/bills ─────────────────────────────────────────────────────────
-	fastify.get(
-		"/ap/bills",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			const parsed = listBillsSchema.safeParse(request.query);
-			if (!parsed.success)
-				return reply.code(400).send({ error: "Invalid query" });
-			const { vendorId, status, overdue, since, until, limit, offset } =
-				parsed.data;
-			const sql = getSql();
-			const bills = await sql`
+        }
+        return reply.code(201).send({ bill, needsApproval });
+    });
+    // ── GET /ap/bills ─────────────────────────────────────────────────────────
+    fastify.get("/ap/bills", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        const parsed = listBillsSchema.safeParse(request.query);
+        if (!parsed.success)
+            return reply.code(400).send({ error: "Invalid query" });
+        const { vendorId, status, overdue, since, until, limit, offset } = parsed.data;
+        const sql = getSql();
+        const bills = (await sql `
 				SELECT
 					b.id,
 					b.bill_number    AS "billNumber",
@@ -349,46 +326,39 @@ export async function accountsPayableRoutes(fastify) {
 					AND (${until ?? null}::date IS NULL OR b.bill_date <= ${until ?? null}::date)
 				ORDER BY b.due_date ASC
 				LIMIT ${limit} OFFSET ${offset}
-			`;
-			return reply.send({ bills, limit, offset });
-		}
-	);
-	// ── GET /ap/bills/:id ─────────────────────────────────────────────────────
-	fastify.get(
-		"/ap/bills/:id",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			const sql = getSql();
-			const [bill] = await sql`
+			`);
+        return reply.send({ bills, limit, offset });
+    });
+    // ── GET /ap/bills/:id ─────────────────────────────────────────────────────
+    fastify.get("/ap/bills/:id", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const { id } = request.params;
+        const companyId = resolveCompanyId(user);
+        const sql = getSql();
+        const [bill] = (await sql `
 				SELECT b.*, v.name AS "vendorName", v.email AS "vendorEmail"
 				FROM ap_bills b
 				JOIN ap_vendors v ON v.id = b.vendor_id
 				WHERE b.id = ${id}
 					AND (${isDev(user) && !companyId} OR b.company_id = ${companyId})
-			`;
-			if (!bill) return reply.code(404).send({ error: "Bill not found" });
-			const lineItems = await sql`
+			`);
+        if (!bill)
+            return reply.code(404).send({ error: "Bill not found" });
+        const lineItems = (await sql `
 				SELECT id, description, quantity, unit_cost AS "unitCost", total, category
 				FROM ap_bill_line_items WHERE bill_id = ${id}
 				ORDER BY id
-			`;
-			return reply.send({ bill: { ...bill, lineItems } });
-		}
-	);
-	// ── POST /ap/bills/:id/approve ────────────────────────────────────────────
-	fastify.post(
-		"/ap/bills/:id/approve",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			const { notes } = approveBillSchema.parse(request.body ?? {});
-			const sql = getSql();
-			const [bill] = await sql`
+			`);
+        return reply.send({ bill: { ...bill, lineItems } });
+    });
+    // ── POST /ap/bills/:id/approve ────────────────────────────────────────────
+    fastify.post("/ap/bills/:id/approve", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const { id } = request.params;
+        const companyId = resolveCompanyId(user);
+        const { notes } = approveBillSchema.parse(request.body ?? {});
+        const sql = getSql();
+        const [bill] = (await sql `
 				UPDATE ap_bills SET
 					status       = 'approved',
 					approved_by  = ${user.userId ?? user.id ?? null},
@@ -399,25 +369,21 @@ export async function accountsPayableRoutes(fastify) {
 					AND status = 'pending_approval'
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
 				RETURNING id, status, approved_at AS "approvedAt"
-			`;
-			if (!bill)
-				return reply
-					.code(404)
-					.send({ error: "Bill not found or not pending approval" });
-			return reply.send({ bill });
-		}
-	);
-	// ── POST /ap/bills/:id/reject ─────────────────────────────────────────────
-	fastify.post(
-		"/ap/bills/:id/reject",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			const { reason } = rejectBillSchema.parse(request.body);
-			const sql = getSql();
-			const [bill] = await sql`
+			`);
+        if (!bill)
+            return reply
+                .code(404)
+                .send({ error: "Bill not found or not pending approval" });
+        return reply.send({ bill });
+    });
+    // ── POST /ap/bills/:id/reject ─────────────────────────────────────────────
+    fastify.post("/ap/bills/:id/reject", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const { id } = request.params;
+        const companyId = resolveCompanyId(user);
+        const { reason } = rejectBillSchema.parse(request.body);
+        const sql = getSql();
+        const [bill] = (await sql `
 				UPDATE ap_bills SET
 					status     = 'rejected',
 					notes      = ${reason},
@@ -426,28 +392,24 @@ export async function accountsPayableRoutes(fastify) {
 					AND status = 'pending_approval'
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
 				RETURNING id, status
-			`;
-			if (!bill)
-				return reply
-					.code(404)
-					.send({ error: "Bill not found or not pending approval" });
-			return reply.send({ bill });
-		}
-	);
-	// ── POST /ap/bills/:id/schedule-payment ───────────────────────────────────
-	fastify.post(
-		"/ap/bills/:id/schedule-payment",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			const parsed = schedulePaymentSchema.safeParse(request.body);
-			if (!parsed.success)
-				return reply.code(400).send({ error: "Invalid body" });
-			const b = parsed.data;
-			const sql = getSql();
-			const [bill] = await sql`
+			`);
+        if (!bill)
+            return reply
+                .code(404)
+                .send({ error: "Bill not found or not pending approval" });
+        return reply.send({ bill });
+    });
+    // ── POST /ap/bills/:id/schedule-payment ───────────────────────────────────
+    fastify.post("/ap/bills/:id/schedule-payment", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const { id } = request.params;
+        const companyId = resolveCompanyId(user);
+        const parsed = schedulePaymentSchema.safeParse(request.body);
+        if (!parsed.success)
+            return reply.code(400).send({ error: "Invalid body" });
+        const b = parsed.data;
+        const sql = getSql();
+        const [bill] = (await sql `
 				UPDATE ap_bills SET
 					status              = 'scheduled',
 					scheduled_pay_date  = ${b.paymentDate},
@@ -459,28 +421,24 @@ export async function accountsPayableRoutes(fastify) {
 					AND status = 'approved'
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
 				RETURNING id, status, scheduled_pay_date AS "scheduledPayDate", payment_method AS "paymentMethod"
-			`;
-			if (!bill)
-				return reply
-					.code(404)
-					.send({ error: "Bill not found or not approved" });
-			return reply.send({ bill });
-		}
-	);
-	// ── POST /ap/bills/:id/mark-paid ──────────────────────────────────────────
-	fastify.post(
-		"/ap/bills/:id/mark-paid",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			const parsed = markPaidSchema.safeParse(request.body ?? {});
-			if (!parsed.success)
-				return reply.code(400).send({ error: "Invalid body" });
-			const b = parsed.data;
-			const sql = getSql();
-			const [bill] = await sql`
+			`);
+        if (!bill)
+            return reply
+                .code(404)
+                .send({ error: "Bill not found or not approved" });
+        return reply.send({ bill });
+    });
+    // ── POST /ap/bills/:id/mark-paid ──────────────────────────────────────────
+    fastify.post("/ap/bills/:id/mark-paid", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const { id } = request.params;
+        const companyId = resolveCompanyId(user);
+        const parsed = markPaidSchema.safeParse(request.body ?? {});
+        if (!parsed.success)
+            return reply.code(400).send({ error: "Invalid body" });
+        const b = parsed.data;
+        const sql = getSql();
+        const [bill] = (await sql `
 				UPDATE ap_bills SET
 					status           = 'paid',
 					amount_paid      = total,
@@ -495,48 +453,40 @@ export async function accountsPayableRoutes(fastify) {
 					AND status IN ('approved', 'scheduled')
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
 				RETURNING id, status, paid_date AS "paidDate", total, amount_paid AS "amountPaid"
-			`;
-			if (!bill)
-				return reply.code(404).send({ error: "Bill not found or not payable" });
-			return reply.send({ bill });
-		}
-	);
-	// ── DELETE /ap/bills/:id (void) ───────────────────────────────────────────
-	fastify.delete(
-		"/ap/bills/:id",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			const sql = getSql();
-			const [bill] = await sql`
+			`);
+        if (!bill)
+            return reply.code(404).send({ error: "Bill not found or not payable" });
+        return reply.send({ bill });
+    });
+    // ── DELETE /ap/bills/:id (void) ───────────────────────────────────────────
+    fastify.delete("/ap/bills/:id", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const { id } = request.params;
+        const companyId = resolveCompanyId(user);
+        const sql = getSql();
+        const [bill] = (await sql `
 				UPDATE ap_bills SET status = 'void', updated_at = NOW()
 				WHERE id = ${id}
 					AND status IN ('draft', 'rejected', 'pending_approval')
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
 				RETURNING id, status
-			`;
-			if (!bill)
-				return reply
-					.code(404)
-					.send({ error: "Bill not found or cannot be voided" });
-			return reply.send({ voided: true, id });
-		}
-	);
-	// =========================================================================
-	// REPORTS
-	// =========================================================================
-	// ── GET /ap/aging ─────────────────────────────────────────────────────────
-	// AP aging report — buckets unpaid bills by how overdue they are.
-	fastify.get(
-		"/ap/aging",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			const sql = getSql();
-			const rows = await sql`
+			`);
+        if (!bill)
+            return reply
+                .code(404)
+                .send({ error: "Bill not found or cannot be voided" });
+        return reply.send({ voided: true, id });
+    });
+    // =========================================================================
+    // REPORTS
+    // =========================================================================
+    // ── GET /ap/aging ─────────────────────────────────────────────────────────
+    // AP aging report — buckets unpaid bills by how overdue they are.
+    fastify.get("/ap/aging", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        const sql = getSql();
+        const rows = (await sql `
 				SELECT
 					v.name                                                        AS "vendorName",
 					b.id, b.bill_number AS "billNumber", b.due_date AS "dueDate",
@@ -554,37 +504,33 @@ export async function accountsPayableRoutes(fastify) {
 				WHERE b.company_id = ${companyId}
 					AND b.status NOT IN ('paid', 'void')
 				ORDER BY b.due_date ASC
-			`;
-			// Summarize by bucket
-			const summary = {
-				current: 0,
-				"1_30": 0,
-				"31_60": 0,
-				"61_90": 0,
-				"90_plus": 0,
-				total: 0
-			};
-			for (const r of rows) {
-				summary[r.bucket] = (summary[r.bucket] ?? 0) + Number(r.balanceDue);
-				summary.total += Number(r.balanceDue);
-			}
-			return reply.send({ summary, bills: rows });
-		}
-	);
-	// ── GET /ap/cash-flow ─────────────────────────────────────────────────────
-	// Upcoming payment obligations grouped by day.
-	fastify.get(
-		"/ap/cash-flow",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			const parsed = cashFlowSchema.safeParse(request.query);
-			if (!parsed.success)
-				return reply.code(400).send({ error: "Invalid query" });
-			const { days } = parsed.data;
-			const sql = getSql();
-			const rows = await sql`
+			`);
+        // Summarize by bucket
+        const summary = {
+            current: 0,
+            "1_30": 0,
+            "31_60": 0,
+            "61_90": 0,
+            "90_plus": 0,
+            total: 0
+        };
+        for (const r of rows) {
+            summary[r.bucket] = (summary[r.bucket] ?? 0) + Number(r.balanceDue);
+            summary.total += Number(r.balanceDue);
+        }
+        return reply.send({ summary, bills: rows });
+    });
+    // ── GET /ap/cash-flow ─────────────────────────────────────────────────────
+    // Upcoming payment obligations grouped by day.
+    fastify.get("/ap/cash-flow", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        const parsed = cashFlowSchema.safeParse(request.query);
+        if (!parsed.success)
+            return reply.code(400).send({ error: "Invalid query" });
+        const { days } = parsed.data;
+        const sql = getSql();
+        const rows = (await sql `
 				SELECT
 					b.due_date::date                                  AS "date",
 					COUNT(*)                                          AS "billCount",
@@ -597,24 +543,20 @@ export async function accountsPayableRoutes(fastify) {
 					AND b.due_date::date BETWEEN CURRENT_DATE AND CURRENT_DATE + (${days} || ' days')::interval
 				GROUP BY b.due_date::date
 				ORDER BY b.due_date::date ASC
-			`;
-			const totalDue = rows.reduce((s, r) => s + Number(r.totalDue), 0);
-			return reply.send({ days, totalDue, byDate: rows });
-		}
-	);
-	// ── GET /ap/spend-by-vendor ───────────────────────────────────────────────
-	fastify.get(
-		"/ap/spend-by-vendor",
-		{ preHandler: [authenticate] },
-		async (request, reply) => {
-			const user = getUser(request);
-			const companyId = resolveCompanyId(user);
-			const parsed = spendSchema.safeParse(request.query);
-			if (!parsed.success)
-				return reply.code(400).send({ error: "Invalid query" });
-			const { days } = parsed.data;
-			const sql = getSql();
-			const rows = await sql`
+			`);
+        const totalDue = rows.reduce((s, r) => s + Number(r.totalDue), 0);
+        return reply.send({ days, totalDue, byDate: rows });
+    });
+    // ── GET /ap/spend-by-vendor ───────────────────────────────────────────────
+    fastify.get("/ap/spend-by-vendor", { preHandler: [authenticate] }, async (request, reply) => {
+        const user = getUser(request);
+        const companyId = resolveCompanyId(user);
+        const parsed = spendSchema.safeParse(request.query);
+        if (!parsed.success)
+            return reply.code(400).send({ error: "Invalid query" });
+        const { days } = parsed.data;
+        const sql = getSql();
+        const rows = (await sql `
 				SELECT
 					v.id                                             AS "vendorId",
 					v.name                                           AS "vendorName",
@@ -630,8 +572,7 @@ export async function accountsPayableRoutes(fastify) {
 					AND b.status != 'void'
 				GROUP BY v.id, v.name
 				ORDER BY "totalBilled" DESC
-			`;
-			return reply.send({ days, vendors: rows });
-		}
-	);
+			`);
+        return reply.send({ days, vendors: rows });
+    });
 }
