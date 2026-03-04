@@ -649,8 +649,6 @@ export default function DispatchPage() {
 				mobileMenuOpen={mobileSidebarOpen}
 			/>
 			<MainContent
-				sidebarAutoCollapse={sidebarAutoCollapse}
-				sidebarIsStrip={sidebarIsStrip}
 				className={cn("flex flex-col h-screen overflow-hidden")}
 			>
 				{/* Page header */}

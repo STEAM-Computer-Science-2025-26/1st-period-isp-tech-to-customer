@@ -23,6 +23,7 @@
 	"dependencies": {
 		"@fastify/cors": "^11.2.0",
 		"@fastify/jwt": "^10.0.0",
+		"@fastify/websocket": "^11.2.0",
 		"@googlemaps/js-api-loader": "^2.0.2",
 		"@neondatabase/serverless": "^1.0.2",
 		"bcryptjs": "^3.0.3",
@@ -33,6 +34,7 @@
 		"express": "^5.2.1",
 		"fastify": "^5.7.4",
 		"fastify-raw-body": "^5.0.0",
+		"firebase-admin": "^13.7.0",
 		"intuit-oauth": "^4.2.2",
 		"jsonwebtoken": "^9.0.3",
 		"lucide-react": "^0.563.0",

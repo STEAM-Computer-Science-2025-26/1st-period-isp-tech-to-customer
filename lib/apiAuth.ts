@@ -52,7 +52,7 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
 
 		const user: AuthUser = {
 			// Token may use either 'id' or 'userId' depending on when it was signed
-			userId: payload.userId ?? payload.id,
+			userId: payload.userId,
 			id: payload.id,
 			email: payload.email ?? "",
 			role: payload.role as UserRole,

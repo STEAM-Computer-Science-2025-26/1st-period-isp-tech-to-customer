@@ -43,9 +43,7 @@ export default function MainContent({
 				<Header
 					sidebarAutoCollapse={sidebarAutoCollapse}
 					sidebarIsStrip={sidebarIsStrip}
-					onMobileMenuClick={() =>
-						setMobileSidebarOpen((open) => !open)
-					}
+					onMobileMenuClick={() => setMobileSidebarOpen((open) => !open)}
 					mobileMenuOpen={mobileSidebarOpen}
 					title={headerTitle}
 				/>
@@ -61,8 +59,7 @@ export default function MainContent({
 						: sidebarIsStrip
 							? "pl-22"
 							: "pl-8"
-					)
-				}
+				)}
 			>
 				{children}
 			</main>

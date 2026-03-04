@@ -18,7 +18,7 @@ import {
 	User,
 	Wrench,
 	Code,
-	Briefcase,
+	Briefcase
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useBreakpoints } from "@/app/hooks/useBreakpoints";
@@ -429,7 +429,7 @@ function resolveIcon(icon: string | LucideIcon): LucideIcon {
 		stats: BarChart3,
 		statistics: BarChart3,
 		code: Code,
-		briefcase: Briefcase,
+		briefcase: Briefcase
 	};
 
 	return map[key] ?? User;

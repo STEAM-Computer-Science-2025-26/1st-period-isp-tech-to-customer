@@ -2,7 +2,9 @@
 
 import { FastifyRequest, FastifyReply } from "fastify";
 
-export type UserRole = "dev" | "admin" | "tech";
+export type UserRole = "dev" | "admin" | "owner" | "tech";
+
+export const ADMIN_ROLES: UserRole[] = ["admin", "owner", "dev", "tech"];
 
 export interface JWTPayload {
 	// userId and id both exist in the wild depending on how the token was signed.
@@ -37,15 +39,13 @@ export async function authenticate(
 }
 
 // Require admin role — call after authenticate
-export async function requireAdmin(
-	request: FastifyRequest,
-	reply: FastifyReply
-) {
-	const user = request.user as JWTPayload;
-	if (user?.role !== "admin") {
-		return reply.code(403).send({ error: "Forbidden - Admin access required" });
-	}
+export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user as JWTPayload;
+  if (!ADMIN_ROLES.includes(user?.role)) {
+    return reply.code(403).send({ error: "Forbidden - Admin access required" });
+  }
 }
+
 
 // Require dev role — call after authenticate
 export async function requireDev(request: FastifyRequest, reply: FastifyReply) {

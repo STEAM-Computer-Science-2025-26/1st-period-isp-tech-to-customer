@@ -4,6 +4,7 @@ import { queryOne } from "@/db/connection";
 import { LoginInput, LoginSuccess, UserDTO } from "@/services/types/userTypes";
 import { getPublicError } from "@/services/publicErrors";
 import bcrypt from "bcryptjs";
+import { email } from "zod";
 
 // Helper to convert DB row into UserDTO + passwordHash
 function mapUser(
@@ -13,7 +14,7 @@ function mapUser(
 		id: String(row.id),
 		email: String(row.email),
 		role: row.role as UserDTO["role"],
-		companyId: (row.companyId ?? "") as UserDTO["companyId"],
+		companyId: (row.companyId || undefined) as UserDTO["companyId"],
 		passwordHash: String(row.passwordHash),
 		createdAt: row.createdAt as UserDTO["createdAt"],
 		updatedAt: row.updatedAt as UserDTO["updatedAt"]
@@ -69,9 +70,10 @@ export async function POST(request: NextRequest) {
 		}
 
 		const jwtPayload = {
-			id: user.id,
+			userId: user.id,
 			role: user.role,
-			companyId: user.companyId
+			companyId: user.companyId,
+			email: user.email
 		};
 
 		const token = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: "24h" });

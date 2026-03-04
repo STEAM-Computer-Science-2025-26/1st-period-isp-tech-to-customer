@@ -257,52 +257,65 @@ export function getJob(fastify: FastifyInstance) {
 }
 
 export function updateJobStatus(fastify: FastifyInstance) {
-	fastify.put("/jobs/:jobId/status", async (request, reply) => {
-		const user = getAuthUser(request);
-		const dev = isDev(user);
-		const companyId = requireCompanyId(user);
+  fastify.put("/jobs/:jobId/status", async (request, reply) => {
+    const user = getAuthUser(request);
+    const dev = isDev(user);
+    const companyId = requireCompanyId(user);
 
-		const parsed = updateJobStatusSchema.safeParse(request.body);
-		if (!parsed.success) {
-			return reply.code(400).send({
-				error: "Invalid request body",
-				details: parsed.error.flatten().fieldErrors
-			});
-		}
+    const parsed = updateJobStatusSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: "Invalid request body",
+        details: parsed.error.flatten().fieldErrors
+      });
+    }
 
-		const { jobId } = request.params as { jobId: string };
-		const { status, completionNotes } = parsed.data;
+    const { jobId } = request.params as { jobId: string };
+    const { status, completionNotes } = parsed.data;
 
-		const setCompletedAt =
-			status === "completed" ? ", completed_at = NOW()" : "";
-		const values: (string | null)[] = [status, completionNotes ?? null];
+    const setCompletedAt = status === "completed" ? ", completed_at = NOW()" : "";
+    const values: (string | null)[] = [status, completionNotes ?? null];
 
-		values.push(jobId);
-		let where = `WHERE id = $${values.length}`;
+    values.push(jobId);
+    let where = `WHERE id = $${values.length}`;
 
-		if (!dev) {
-			if (!companyId) {
-				return reply
-					.code(403)
-					.send({ error: "Forbidden - Missing company in token" });
-			}
-			values.push(companyId);
-			where += ` AND company_id = $${values.length}`;
-		}
+    if (!dev) {
+      if (!companyId) {
+        return reply.code(403).send({ error: "Forbidden - Missing company in token" });
+      }
+      values.push(companyId);
+      where += ` AND company_id = $${values.length}`;
+    }
 
-		const result = (await runQuery(
-			`UPDATE jobs
-			 SET status = $1, completion_notes = $2${setCompletedAt}, updated_at = NOW()
-			 ${where}
-			 RETURNING id`,
-			values
-		)) as any[];
+    const result = (await runQuery(
+      `UPDATE jobs
+       SET status = $1, completion_notes = $2${setCompletedAt}, updated_at = NOW()
+       ${where}
+       RETURNING id, company_id`,
+      values
+    )) as any[];
 
-		if (!result[0]) {
-			return reply.code(404).send({ error: "Job not found" });
-		}
-		return { message: "Job status updated", jobId: result[0].id };
-	});
+    if (!result[0]) {
+      return reply.code(404).send({ error: "Job not found" });
+    }
+
+    // Broadcast real-time update to all connected WebSocket clients
+    const payload = JSON.stringify({
+      event: "job:statusUpdated",
+      jobId: result[0].id,
+      companyId: result[0].company_id,
+      status,
+      updatedAt: new Date().toISOString()
+    });
+
+    fastify.websocketServer?.clients.forEach((client: any) => {
+      if (client.readyState === 1) {
+        client.send(payload);
+      }
+    });
+
+    return { message: "Job status updated", jobId: result[0].id };
+  });
 }
 
 export function updateJob(fastify: FastifyInstance) {

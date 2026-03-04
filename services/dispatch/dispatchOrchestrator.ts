@@ -6,6 +6,7 @@ import { dispatch } from "../../algo/main-dispatch";
 import { filterEligibleTechnicians } from "../../algo/stage1-eligibility";
 import { type JobRecord } from "../repositories/JobRepository";
 import { Pool } from "pg";
+import { sendPushNotification } from "../notifications/fcm";
 
 const pool = new Pool();
 export type DispatchOptions = {
@@ -215,6 +216,24 @@ export class DispatchOrchestrator {
 			);
 
 			await client.query("COMMIT");
+
+			try {
+  const techResult2 = await pool.query(
+    `SELECT name, fcm_token FROM employees WHERE id = $1`,
+    [techId]
+  );
+  const tech = techResult2.rows[0];
+  if (tech?.fcm_token) {
+    await sendPushNotification({
+      token: tech.fcm_token,
+      title: "New Job Assigned",
+      body: `You have a new ${job.jobType} job at ${job.address}`,
+      data: { jobId, type: "job_assigned" }
+    });
+  }
+} catch (err) {
+  console.error("Push notification failed:", err);
+}
 		} catch (error) {
 			await client.query("ROLLBACK");
 			throw error;

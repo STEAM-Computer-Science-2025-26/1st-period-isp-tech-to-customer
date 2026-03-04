@@ -8,6 +8,7 @@ import { getSql } from "../../db";
 import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 
+
 // ============================================================
 // Schemas
 // ============================================================
@@ -18,7 +19,7 @@ const onboardingSchema = z.object({
 
 	// Owner account
 	ownerName: z.string().min(1, "Owner name is required"),
-	ownerEmail: z.string().email("Invalid email"),
+	ownerEmail: z.email("Invalid email"),
 	ownerPassword: z.string().min(8, "Password must be at least 8 characters"),
 	ownerPhone: z.string().optional(),
 
