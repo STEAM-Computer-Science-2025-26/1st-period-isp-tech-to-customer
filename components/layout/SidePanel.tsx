@@ -2,8 +2,24 @@ import React from "react";
 import { cn } from "@/lib/utils/index";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const SidePanel = () => {
-	const [isOpen, setIsOpen] = React.useState(false);
+type SidePanelProps = {
+	isOpen?: boolean;
+	onOpenChange?: (isOpen: boolean) => void;
+};
+
+const SidePanel = ({
+	isOpen: controlledOpen,
+	onOpenChange
+}: SidePanelProps) => {
+	const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+	const isOpen = controlledOpen ?? uncontrolledOpen;
+
+	const setIsOpen = (nextOpen: boolean) => {
+		onOpenChange?.(nextOpen);
+		if (controlledOpen === undefined) {
+			setUncontrolledOpen(nextOpen);
+		}
+	};
 
 	return (
 		<aside

@@ -1,11 +1,12 @@
 "use client";
 
 import clsx from "clsx";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useBreakpoints } from "@/app/hooks/useBreakpoints";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
+import type { SidebarFlags } from "@/components/layout/sidebar/Sidebar";
 import type { SidebarItemParams } from "@/app/types/types";
 
 type MainContentProps = {
@@ -20,6 +21,7 @@ type MainContentProps = {
 	hideMobileToggleButton?: boolean;
 	showHeader?: boolean;
 	showSidebar?: boolean;
+	onSidebarFlagsChange?: (flags: SidebarFlags) => void;
 };
 
 export default function MainContent({
@@ -28,12 +30,13 @@ export default function MainContent({
 	headerTitle = "Dashboard",
 	sidebarTitle = "Tech to Customer",
 	sidebarItems = defaultSidebarItems,
-	sidebarAutoCollapseDefault = false,
+	sidebarAutoCollapseDefault = true,
 	sidebarAutoCollapse,
 	sidebarIsStrip,
 	hideMobileToggleButton = true,
 	showHeader = true,
-	showSidebar = true
+	showSidebar = true,
+	onSidebarFlagsChange
 }: MainContentProps) {
 	const { lgUp } = useBreakpoints();
 	const [sidebarAutoCollapseState, setSidebarAutoCollapse] = useState(
@@ -44,6 +47,23 @@ export default function MainContent({
 	const effectiveSidebarAutoCollapse =
 		sidebarAutoCollapse ?? sidebarAutoCollapseState;
 	const effectiveSidebarIsStrip = sidebarIsStrip ?? sidebarIsStripState;
+	const desktopPaddingLeft = effectiveSidebarAutoCollapse
+		? "calc(4.5rem + 1rem)"
+		: "calc(var(--sidebar-desktop-width) + 1rem)";
+	const mobilePaddingLeft = effectiveSidebarIsStrip ? "5.5rem" : "2rem";
+
+	useEffect(() => {
+		onSidebarFlagsChange?.({
+			autoCollapse: effectiveSidebarAutoCollapse,
+			isStrip: effectiveSidebarIsStrip,
+			desktopExpanded: false
+		});
+	}, [
+		effectiveSidebarAutoCollapse,
+		effectiveSidebarIsStrip,
+		onSidebarFlagsChange
+	]);
+
 	return (
 		<>
 			{showHeader ? (
@@ -58,15 +78,11 @@ export default function MainContent({
 			<main
 				className={clsx(
 					className,
-					"bg-background-main text-text-main w-full max-w-full min-h-screen py-4 pt-26 transition-[padding] duration-300 absolute mb-6 px-6 overflow-x-hidden",
-					lgUp
-						? effectiveSidebarAutoCollapse
-							? "pl-6"
-							: "pl-[calc(var(--sidebar-desktop-width)-var(--sidebar-main-gap))]"
-						: effectiveSidebarIsStrip
-							? "pl-22"
-							: "pl-8"
+					"bg-background-main text-text-main w-full max-w-full min-h-screen py-4 pt-26 transition-[padding] duration-300 absolute mb-6 px-6 overflow-x-hidden"
 				)}
+				style={{
+					paddingLeft: lgUp ? desktopPaddingLeft : mobilePaddingLeft
+				}}
 			>
 				{children}
 			</main>
@@ -78,9 +94,14 @@ export default function MainContent({
 					mobileOpen={mobileSidebarOpen}
 					onMobileOpenChange={setMobileSidebarOpen}
 					hideMobileToggleButton={hideMobileToggleButton}
-					onFlagsChange={({ autoCollapse, isStrip }) => {
+					onFlagsChange={({ autoCollapse, isStrip, desktopExpanded }) => {
 						setSidebarAutoCollapse(autoCollapse);
 						setSidebarIsStrip(isStrip);
+						onSidebarFlagsChange?.({
+							autoCollapse,
+							isStrip,
+							desktopExpanded
+						});
 					}}
 				/>
 			) : null}

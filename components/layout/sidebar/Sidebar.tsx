@@ -27,6 +27,7 @@ import { defaultSidebarItems } from "./SidebarItems";
 export type SidebarFlags = {
 	autoCollapse: boolean;
 	isStrip: boolean;
+	desktopExpanded: boolean;
 };
 
 export default function Sidebar({
@@ -40,6 +41,7 @@ export default function Sidebar({
 	onFlagsChange
 }: SidebarParams & { onFlagsChange?: (flags: SidebarFlags) => void } = {}) {
 	const [isAutoCollapse, setIsAutoCollapse] = useState(autoCollapse);
+	const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
 
 	useEffect(() => {
 		setIsAutoCollapse(autoCollapse);
@@ -67,9 +69,19 @@ export default function Sidebar({
 	const desktopVisibilityClass = mobile === false ? "" : "hidden lg:block";
 
 	useEffect(() => {
+		if (!isAutoCollapse) {
+			setIsDesktopExpanded(false);
+		}
+	}, [isAutoCollapse]);
+
+	useEffect(() => {
 		if (activeVariant !== "desktop") return;
-		onFlagsChange?.({ autoCollapse: isAutoCollapse, isStrip: false });
-	}, [activeVariant, isAutoCollapse, onFlagsChange]);
+		onFlagsChange?.({
+			autoCollapse: isAutoCollapse,
+			isStrip: false,
+			desktopExpanded: isDesktopExpanded
+		});
+	}, [activeVariant, isAutoCollapse, isDesktopExpanded, onFlagsChange]);
 
 	return (
 		<>
@@ -95,6 +107,7 @@ export default function Sidebar({
 					items={sidebarItems}
 					isAutoCollapse={isAutoCollapse}
 					setIsAutoCollapse={setIsAutoCollapse}
+					onExpandedChange={setIsDesktopExpanded}
 				/>
 			) : null}
 		</>
@@ -106,47 +119,74 @@ function DesktopSidebar({
 	title,
 	items,
 	isAutoCollapse,
-	setIsAutoCollapse
+	setIsAutoCollapse,
+	onExpandedChange
 }: {
 	visibilityClass: string;
 	title: string;
 	items: Array<SidebarItemParams & { icon: LucideIcon }>;
 	isAutoCollapse: boolean;
 	setIsAutoCollapse: React.Dispatch<React.SetStateAction<boolean>>;
+	onExpandedChange?: (expanded: boolean) => void;
 }) {
+	const [isHovered, setIsHovered] = useState(false);
+	const isStripMode = isAutoCollapse;
+	const isExpanded = !isStripMode || isHovered;
+
+	useEffect(() => {
+		onExpandedChange?.(isStripMode && isHovered);
+	}, [isHovered, isStripMode, onExpandedChange]);
+
 	return (
 		<aside
 			className={clsx(
-				"z-50 w-(--sidebar-desktop-width) fixed inset-y-0 left-0 px-4 pr-8 py-4 pointer-events-auto",
-				visibilityClass,
-				isAutoCollapse
-					? "pointer-events-auto -translate-x-[calc(100%-1rem)] hover:translate-x-0 transition-transform duration-300"
-					: ""
+				"z-50 fixed inset-y-0 left-0 px-2 py-4 pointer-events-auto transition-[width] duration-300",
+				visibilityClass
 			)}
+			style={{ width: isExpanded ? "var(--sidebar-desktop-width)" : "4.5rem" }}
+			onMouseEnter={() => {
+				setIsHovered(true);
+			}}
+			onMouseLeave={() => {
+				setIsHovered(false);
+			}}
 		>
-			<div className="border border-accent-text/50 shadow-md w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3 px-1.5 py-2">
-				<div className="flex items-center gap-1 px-2 pt-1">
-					<button
-						type="button"
-						onClick={() => setIsAutoCollapse((v) => !v)}
-						className="h-8 w-8 grid place-items-center text-accent-text-dark-3 rounded-md hover:bg-background-secondary/50 transition-colors duration-200"
-						aria-label="Toggle sidebar"
-						title={isAutoCollapse ? "Pin sidebar open" : "Enable auto-collapse"}
-					>
-						{isAutoCollapse ? (
-							<PanelLeftOpen className="h-5 w-5" />
-						) : (
-							<PanelLeft className="h-5 w-5" />
+			<div className="border border-accent-text/50 shadow-md w-full h-full bg-background-secondary/50 rounded-xl backdrop-blur-md pointer-events-auto flex flex-col gap-3 px-1.5 py-2 overflow-hidden">
+				<div className="grid grid-cols-[2rem_minmax(0,1fr)] items-center px-2 pt-1">
+					<div className="grid place-items-center">
+						<button
+							type="button"
+							onClick={() => setIsAutoCollapse((v) => !v)}
+							className="h-8 w-8 -ml-1.25 grid place-items-center text-accent-text-dark-3 rounded-md group transition-colors duration-200"
+							aria-label="Toggle sidebar"
+							title={
+								isAutoCollapse ? "Pin sidebar open" : "Enable auto-collapse"
+							}
+						>
+							{isAutoCollapse ? (
+								<PanelLeftOpen className="h-5 w-5 text-text-tertiary group-hover:text-text-primary transition-colors" />
+							) : (
+								<PanelLeft className="h-5 w-5" />
+							)}
+						</button>
+					</div>
+					<div
+						className={clsx(
+							"min-w-0 overflow-hidden transition-[max-width,opacity] duration-200",
+							isExpanded ? "max-w-full opacity-100" : "max-w-0 opacity-0"
 						)}
-					</button>
-					<div className="flex items-center min-w-0">
-						<h2 className="text-sm text-accent-text-dark-3 font-semibold tracking-wide opacity-90 truncate">
+					>
+						<h2 className="text-sm text-accent-text-dark-3 font-semibold tracking-wide opacity-90 truncate whitespace-nowrap">
 							{title}
 						</h2>
 					</div>
 				</div>
 
-				<ul className="grid grid-cols-[2rem_1fr] gap-2 w-full px-1">
+				<ul
+					className={clsx(
+						"w-full px-1 grid grid-cols-[2rem_minmax(0,1fr)] -ml-0.75 gap-2"
+					)}
+				>
 					{items.map((item) => (
 						<SidebarItem
 							id={item.id}
@@ -154,13 +194,14 @@ function DesktopSidebar({
 							title={item.title}
 							icon={item.icon}
 							onClick={item.onClick}
+							showLabel={isExpanded}
 						/>
 					))}
 				</ul>
 
-				<div className="mt-auto px-1">
+				<div className="mt-auto">
 					<div className="h-px w-full bg-background-secondary/50 my-2" />
-					<AccountItem />
+					<AccountItem showLabel={isExpanded} />
 				</div>
 			</div>
 		</aside>
@@ -208,7 +249,8 @@ function MobileSidebar({
 		if (!isActive) return;
 		onFlagsChange?.({
 			autoCollapse: isAutoCollapse,
-			isStrip: isStripCollapsed
+			isStrip: isStripCollapsed,
+			desktopExpanded: false
 		});
 	}, [isActive, isAutoCollapse, isStripCollapsed, onFlagsChange]);
 
@@ -362,21 +404,24 @@ function AccountItem({ showLabel = true }: { showLabel?: boolean }) {
 	return (
 		<div
 			className={clsx(
-				"group w-full h-12 items-center rounded-md px-2 hover:bg-background-secondary/50 transition-colors duration-200 cursor-pointer",
-				showLabel ? "grid grid-cols-[2rem_1fr] gap-2" : "flex justify-center"
+				"group grid gap-0 grid-cols-[3rem_1fr] w-full h-12 items-center rounded-md px-2 hover:bg-background-secondary/50 transition-colors duration-200 cursor-pointer"
 			)}
 			title={!showLabel ? "Account" : undefined}
 			aria-label={!showLabel ? "Account" : undefined}
 		>
-			<div className="grid place-items-center">
-				<div className="h-7 w-7 rounded-full group-hover:bg-background-tertiary/50 bg-background-secondary/60 border group-hover:border-background-tertiary/70 ease duration-300 border-background-secondary/80" />
+			<div className="h-8 w-8  -ml-0.5 rounded-full group-hover:bg-background-tertiary/50 bg-background-secondary/60 border group-hover:border-background-tertiary/70 ease duration-300 border-background-secondary/80" />
+			<div
+				className={clsx(
+					" -ml-2 flex min-w-0 flex-col  items-start leading-tight overflow-hidden transition-[max-width,opacity] duration-150"
+				)}
+			>
+				<span className="text-sm font-medium truncate whitespace-nowrap">
+					Account
+				</span>
+				<span className="text-xs opacity-70 truncate whitespace-nowrap">
+					Profile & settings
+				</span>
 			</div>
-			{showLabel ? (
-				<div className="flex flex-col leading-tight">
-					<span className="text-sm font-medium">Account</span>
-					<span className="text-xs opacity-70">Profile & settings</span>
-				</div>
-			) : null}
 		</div>
 	);
 }
@@ -392,7 +437,7 @@ function SidebarItem({
 			onClick={onClick}
 			className={clsx(
 				"cursor-pointer group overflow-hidden relative hover:bg-accent-text/10 w-full transition-colors duration-200 h-9 items-center rounded-md px-2",
-				showLabel ? "grid col-span-2 grid-cols-subgrid" : "flex justify-center"
+				"grid col-span-2 grid-cols-subgrid"
 			)}
 			title={!showLabel ? title : undefined}
 			aria-label={!showLabel ? title : undefined}
@@ -401,11 +446,14 @@ function SidebarItem({
 			<div className="grid group-hover:text-accent-text-dark place-items-center text-text-primary">
 				{Icon ? <Icon className="h-5 w-5" /> : null}
 			</div>
-			{showLabel ? (
-				<p className="text-sm text-text-primary group-hover:text-accent-text-dark">
-					{title}
-				</p>
-			) : null}
+			<p
+				className={clsx(
+					"text-sm text-text-primary group-hover:text-accent-text-dark truncate whitespace-nowrap transition-opacity duration-150",
+					showLabel ? "opacity-100" : "opacity-0 pointer-events-none"
+				)}
+			>
+				{title}
+			</p>
 		</li>
 	);
 }

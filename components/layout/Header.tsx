@@ -18,18 +18,18 @@ export default function Header({
 	title = "Dashboard"
 }: HeaderProps) {
 	const { lgUp } = useBreakpoints();
+	const desktopPaddingLeft = sidebarAutoCollapse
+		? "calc(4.5rem + 0.75rem)"
+		: "calc(var(--sidebar-desktop-width) + 0.75rem)";
+	const mobilePaddingLeft = sidebarIsStrip ? "5rem" : "1.5rem";
 	return (
 		<div
 			className={clsx(
-				"fixed ease duration-300 transition-all top-0 z-40 inset-x-0 h-20 pt-4 px-4 bg-linear-to-t from-transparent to-background-main to-50%",
-				lgUp
-					? sidebarAutoCollapse
-						? "pl-4"
-						: "pl-[calc(var(--sidebar-desktop-width)-var(--sidebar-main-gap)-0.5rem)]"
-					: sidebarIsStrip
-						? "pl-20"
-						: "pl-6"
+				"fixed ease duration-300 transition-all top-0 z-40 inset-x-0 h-20 pt-4 px-4 bg-linear-to-t from-transparent to-background-main to-50%"
 			)}
+			style={{
+				paddingLeft: lgUp ? desktopPaddingLeft : mobilePaddingLeft
+			}}
 		>
 			<header className="border border-background-secondary w-full px-4 flex flex-row items-center justify-between rounded-xl h-full bg-background-secondary/50 shadow-sm backdrop-blur-md">
 				<h1 className="text-lg font-semibold text-text-main">{title}</h1>
