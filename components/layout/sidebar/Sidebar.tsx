@@ -9,6 +9,7 @@ import {
 	Calendar,
 	ChevronLeft,
 	ChevronRight,
+	X,
 	Headset,
 	History,
 	Home,
@@ -311,15 +312,20 @@ function MobileSidebar({
 						)}
 					>
 						{lgDown ? (
-							<button
-								type="button"
-								onClick={() => setExpanded(false)}
-								className="h-8 w-8 grid place-items-center rounded-md hover:bg-background-secondary/50 transition-colors duration-200"
-								aria-label="Collapse sidebar"
-								title="Collapse sidebar"
-							>
-								<ChevronLeft className="h-5 w-5" />
-							</button>
+							<div className="w-full flex items-center justify-between px-2">
+								<h2 className="text-sm font-semibold tracking-wide opacity-90 truncate whitespace-nowrap">
+									{title}
+								</h2>
+								<button
+									type="button"
+									onClick={() => setExpanded(false)}
+									className="h-8 w-8 grid place-items-center rounded-md hover:bg-background-secondary/50 transition-colors duration-200"
+									aria-label="Close sidebar"
+									title="Close sidebar"
+								>
+									<X className="h-5 w-5" />
+								</button>
+							</div>
 						) : null}
 
 						{isMobileStripMode ? (
@@ -361,7 +367,7 @@ function MobileSidebar({
 							</button>
 						)}
 
-						{showLabels ? (
+						{showLabels && !lgDown ? (
 							<div className="flex items-center min-w-0 ml-1 flex-1 justify-between">
 								<h2 className="text-sm font-semibold tracking-wide opacity-90 truncate">
 									{title}

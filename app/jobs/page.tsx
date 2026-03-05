@@ -125,7 +125,7 @@ const JobsPage = () => {
 					<p className={cn("mx-2 text-sm text-red-600")}>{jobsError}</p>
 				)}
 				<Fab
-					size={lgUp ? "md" : "sm"}
+					size={lgUp ? "md" : "lg"}
 					icon="plus"
 					className={cn("bottom-4 right-4")}
 					title="Add New Job"

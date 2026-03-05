@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
 import MainContent from "@/components/layout/MainContent";
 import SidePanel from "@/components/layout/SidePanel";
 import FadeEnd from "@/components/ui/FadeEnd";
+import type { JobDTO } from "@/app/types/types";
 
 type EventTone = "urgent" | "normal" | "info";
 
@@ -19,67 +20,66 @@ type CalendarEvent = {
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const dayEvents: Record<string, CalendarEvent[]> = {
-	Sun: [
-		{
-			id: "sun-1",
-			title: "Emergency Furnace No-Heat",
-			duration: "45m",
-			tech: "A. Rivera",
-			window: "8:00 AM - 8:45 AM",
-			tone: "urgent"
-		}
-	],
-	Mon: [
-		{
-			id: "mon-1",
-			title: "Seasonal HVAC Tune-Up",
-			duration: "30m",
-			tech: "T. Nguyen",
-			window: "9:00 AM - 9:30 AM",
-			tone: "normal"
-		},
-		{
-			id: "mon-2",
-			title: "Leaking Water Heater Inspection",
-			duration: "60m",
-			tech: "M. Patel",
-			window: "1:00 PM - 2:00 PM",
-			tone: "info"
-		}
-	],
+const createEmptyDayEvents = (): Record<string, CalendarEvent[]> => ({
+	Sun: [],
+	Mon: [],
 	Tue: [],
-	Wed: [
-		{
-			id: "wed-1",
-			title: "New Thermostat Install",
-			duration: "75m",
-			tech: "J. Martinez",
-			window: "11:15 AM - 12:30 PM",
-			tone: "normal"
-		}
-	],
-	Thu: [
-		{
-			id: "thu-1",
-			title: "After-Hours Electrical Safety Check",
-			duration: "40m",
-			tech: "D. Kim",
-			window: "5:30 PM - 6:10 PM",
-			tone: "urgent"
-		}
-	],
-	Fri: [
-		{
-			id: "fri-1",
-			title: "Drain Line Clean + Flow Test",
-			duration: "35m",
-			tech: "K. Lee",
-			window: "2:30 PM - 3:05 PM",
-			tone: "info"
-		}
-	],
+	Wed: [],
+	Thu: [],
+	Fri: [],
 	Sat: []
+});
+
+const getJobTitle = (job: JobDTO): string => {
+	const explicitTitle = (job as JobDTO & { title?: string }).title?.trim();
+	if (explicitTitle) return explicitTitle;
+	if (job.address?.trim()) return job.address.trim();
+	if (job.customerName?.trim()) return job.customerName.trim();
+	return "Untitled Job";
+};
+
+const toEventTone = (job: JobDTO): EventTone => {
+	if (job.priority === "emergency" || job.priority === "high") return "urgent";
+	if (job.priority === "medium") return "normal";
+	return "info";
+};
+
+const formatWindow = (iso?: string): string => {
+	if (!iso) return "Unscheduled";
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) return "Unscheduled";
+	return date.toLocaleTimeString("en-US", {
+		hour: "numeric",
+		minute: "2-digit"
+	});
+};
+
+const mapJobsToDayEvents = (jobs: JobDTO[]): Record<string, CalendarEvent[]> => {
+	const grouped = createEmptyDayEvents();
+
+	for (const job of jobs) {
+		const sourceTime = job.scheduledTime ?? job.createdAt;
+		const sourceDate = sourceTime ? new Date(sourceTime) : null;
+		if (!sourceDate || Number.isNaN(sourceDate.getTime())) continue;
+
+		const dayKey = sourceDate.toLocaleDateString("en-US", {
+			weekday: "short"
+		});
+		if (!(dayKey in grouped)) continue;
+
+		grouped[dayKey].push({
+			id: String(job.id),
+			title: getJobTitle(job),
+			duration: job.jobType.replace("_", " "),
+			tech: job.assignedTechId
+				? `Tech #${job.assignedTechId}`
+				: "Unassigned",
+			window: formatWindow(job.scheduledTime),
+			tone: toEventTone(job)
+		});
+	}
+
+	return grouped;
 };
 
 const toneClasses: Record<EventTone, string> = {
@@ -92,7 +92,36 @@ const toneClasses: Record<EventTone, string> = {
 
 const CalendarPage = () => {
 	const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
+	const [dayEvents, setDayEvents] = useState<Record<string, CalendarEvent[]>>(
+		createEmptyDayEvents()
+	);
 	const rightPanelOffset = isSidePanelOpen ? "16rem" : "0px";
+
+	useEffect(() => {
+		let isMounted = true;
+
+		const loadJobs = async () => {
+			try {
+				const response = await fetch("/api/jobs", { method: "GET" });
+				if (!response.ok) {
+					if (isMounted) setDayEvents(createEmptyDayEvents());
+					return;
+				}
+
+				const payload = (await response.json()) as { jobs?: JobDTO[] };
+				const jobs = payload.jobs ?? [];
+				if (isMounted) setDayEvents(mapJobsToDayEvents(jobs));
+			} catch {
+				if (isMounted) setDayEvents(createEmptyDayEvents());
+			}
+		};
+
+		void loadJobs();
+
+		return () => {
+			isMounted = false;
+		};
+	}, []);
 
 	return (
 		<MainContent>
