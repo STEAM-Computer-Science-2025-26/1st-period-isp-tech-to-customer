@@ -24,7 +24,7 @@ const SidePanel = ({
 	return (
 		<aside
 			className={cn(
-				`w-72 translate-x-full z-20 rounded-l-3xl bg-background-secondary/50 border-y border-l fixed top-24 bottom-4 right-0 border-accent-text/50 backdrop-blur-md transition-transform duration-300 ease-in-out`,
+				`w-72 translate-x-full z-50 rounded-l-3xl bg-background-secondary/50 border-y border-l fixed top-24 bottom-4 right-0 border-accent-text/50 backdrop-blur-md transition-transform duration-300 ease-in-out`,
 				isOpen && "translate-x-0"
 			)}
 		>
@@ -36,7 +36,7 @@ const SidePanel = ({
 			>
 				<div
 					className={cn(
-						`w-full h-12 z-20 cursor-pointer rounded-l-xl border-y border-l backdrop-blur-md translate-x-8 border-accent-text/50 p-1 py-1.5`,
+						`w-full h-12 z-40 cursor-pointer rounded-l-xl border-y border-l backdrop-blur-md translate-x-8 border-accent-text/50 p-1 py-1.5`,
 						isOpen
 							? "border-none bg-transparent translate-x-0"
 							: "backdrop-blur-md bg-background-secondary/50 duration-200 hover:translate-x-0"
