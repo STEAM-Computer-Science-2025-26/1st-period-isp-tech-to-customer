@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils/index";
 import MainContent from "@/components/layout/MainContent";
 import SidePanel from "@/components/layout/SidePanel";
 import type { JobDTO } from "@/app/types/types";
+import Fab from "@/components/ui/Fab"
+import { useBreakpoints } from "../hooks/useBreakpoints";
 
 // Types
 type EventTone = "urgent" | "normal" | "info";
+
 
 type CalendarEvent = {
 	id: string;
@@ -30,7 +33,6 @@ type EventLayout = CalendarEvent & {
 
 // Constants
 const [START_HOUR, END_HOUR, PX_PER_HOUR, MIN_HEIGHT] = [6, 22, 60, 40];
-const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * PX_PER_HOUR;
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 // Default job durations in hours by type
@@ -103,10 +105,10 @@ const mapJobs = (jobs: JobDTO[]): Record<string, CalendarEvent[]> => {
 // Layout Calcs
 
 // calc pixel position and height for an event 
-const getPos = (e: CalendarEvent) => {
-	const top = (clamp(toHours(e.startTime), START_HOUR, END_HOUR) - START_HOUR) * PX_PER_HOUR;
+const getPos = (e: CalendarEvent, pxPerHour: number) => {
+	const top = (clamp(toHours(e.startTime), START_HOUR, END_HOUR) - START_HOUR) * pxPerHour;
 	const height = Math.max(
-		(clamp(toHours(e.endTime), START_HOUR, END_HOUR) - clamp(toHours(e.startTime), START_HOUR, END_HOUR)) * PX_PER_HOUR,
+		(clamp(toHours(e.endTime), START_HOUR, END_HOUR) - clamp(toHours(e.startTime), START_HOUR, END_HOUR)) * pxPerHour,
 		MIN_HEIGHT
 	);
 	return { top, height };
@@ -118,7 +120,7 @@ const getPos = (e: CalendarEvent) => {
 	Same-start events are staggered horizontally
 */
 
-const layoutEvents = (events: CalendarEvent[]): EventLayout[] => {
+const layoutEvents = (events: CalendarEvent[], pxPerHour: number): EventLayout[] => {
 	if (!events.length) return [];
 
 	const sorted = [...events].sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
@@ -126,7 +128,7 @@ const layoutEvents = (events: CalendarEvent[]): EventLayout[] => {
 	const active: { end: number; col: number }[] = [];
 
 	for (const [i, ev] of sorted.entries()) {
-		const { top, height } = getPos(ev);
+		const { top, height } = getPos(ev, pxPerHour);
 		const end = top + height;
 
 		// Remove expired events from active list
@@ -153,9 +155,9 @@ const layoutEvents = (events: CalendarEvent[]): EventLayout[] => {
 };
 
 // Get Y position for current time indicator, or null if outside visible hours
-const getCurrentTimeY = () => {
+const getCurrentTimeY = (pxPerHour: number) => {
 	const h = toHours(new Date());
-	return h >= START_HOUR && h <= END_HOUR ? (h - START_HOUR) * PX_PER_HOUR : null;
+	return h >= START_HOUR && h <= END_HOUR ? (h - START_HOUR) * pxPerHour : null;
 };
 
 const getCurrentTimeLabel = () =>
@@ -171,8 +173,10 @@ const getCurrentTimeLabel = () =>
 const CalendarPage = () => {
 	const [sideOpen, setSideOpen] = useState(false);
 	const [dayEvents, setDayEvents] = useState(emptyDays);
-	const [timeY, setTimeY] = useState(getCurrentTimeY);
+	const [timeY, setTimeY] = useState(() => getCurrentTimeY(PX_PER_HOUR));
 	const [timeLabel, setTimeLabel] = useState(getCurrentTimeLabel);
+	const [gridHeight, setGridHeight] = useState(0);
+	const gridRef = useRef<HTMLDivElement | null>(null);
 
 	// Fetch jobs on mount
 	useEffect(() => {
@@ -184,14 +188,43 @@ const CalendarPage = () => {
 		return () => { mounted = false; };
 	}, []);
 
+	const pxPerHour = useMemo(() => {
+		if (!gridHeight) return PX_PER_HOUR;
+		const stretch = gridHeight / (END_HOUR - START_HOUR);
+		return Math.max(PX_PER_HOUR, stretch);
+	}, [gridHeight]);
+
+	const totalHeight = useMemo(
+		() => (END_HOUR - START_HOUR) * pxPerHour,
+		[pxPerHour]
+	);
+
+	// Track grid viewport height
+	useEffect(() => {
+		const el = gridRef.current;
+		if (!el) return;
+		const update = () => setGridHeight(el.clientHeight);
+		update();
+		const observer = new ResizeObserver(update);
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, []);
+
 	// Update current time indicator every minute
 	useEffect(() => {
 		const id = setInterval(() => {
-			setTimeY(getCurrentTimeY());
+			setTimeY(getCurrentTimeY(pxPerHour));
 			setTimeLabel(getCurrentTimeLabel());
 		}, 60000);
 		return () => clearInterval(id);
-	}, []);
+	}, [pxPerHour]);
+
+	useEffect(() => {
+		setTimeY(getCurrentTimeY(pxPerHour));
+	}, [pxPerHour]);
+
+	const { lgUp } = useBreakpoints();
+
 
 	return (
 		<MainContent>
@@ -216,28 +249,31 @@ const CalendarPage = () => {
 						</div>
 
 						{/* Scrollable grid area (vertical only) */}
-						<div className="relative no-scrollbar h-[calc(100%-2.25rem)] overflow-y-auto">
-							<div className="relative flex" style={{ height: TOTAL_HEIGHT }}>
+							<div ref={gridRef} className="relative no-scrollbar h-[calc(100%-2.25rem)] overflow-y-auto">
+								<div className="relative flex" style={{ height: totalHeight, minHeight: gridHeight }}>
 								{/* Time labels column */}
 								<div className="w-16 shrink-0 border-r border-accent-text/80 relative">
 									{TIME_LABELS.map(({ hour, label }) => (
 										<span
 											key={hour}
 											className="absolute left-2 text-[10px] font-medium text-text-secondary"
-											style={{ top: (hour - START_HOUR) * PX_PER_HOUR }}
+												style={{ top: (hour - START_HOUR) * pxPerHour }}
 										>
 											{label}
 										</span>
 									))}
 								</div>
 
-								<div className="flex flex-1 relative">
+								<div
+									className="flex flex-1 relative"
+									style={{ height: "100%", minHeight: totalHeight }}
+								>
 									{/* Dashed 2-hour interval lines */}
 									{TIME_LABELS.map(({ hour }) => (
 										<div
 											key={`line-${hour}`}
 											className="absolute inset-x-0 border-t border-dashed border-accent-text/30 pointer-events-none"
-											style={{ top: (hour - START_HOUR) * PX_PER_HOUR }}
+											style={{ top: (hour - START_HOUR) * pxPerHour }}
 										/>
 									))}
 
@@ -247,7 +283,7 @@ const CalendarPage = () => {
 											className="absolute inset-x-0 border-t-2 border-red-500 z-50 pointer-events-none"
 											style={{ top: timeY }}
 										>
-											<div className="absolute -left-6 -top-1.5 h-3 w-7 rounded bg-red-500" >
+											<div className="absolute -left-6 -top-1.5 h-3 w-7 rounded bg-red-500">
 												<span className="text-[0.5rem] absolute top-0 left-1 text-white">{timeLabel}</span>
 											</div>
 										</div>
@@ -255,7 +291,7 @@ const CalendarPage = () => {
 
 									{/* Day columns */}
 									{DAYS.map((d, i) => (
-										<DayColumn key={d} events={dayEvents[d]} isLast={i === 6} />
+										<DayColumn key={d} events={dayEvents[d]} isLast={i === 6} pxPerHour={pxPerHour} totalHeight={totalHeight} />
 									))}
 								</div>
 							</div>
@@ -263,19 +299,34 @@ const CalendarPage = () => {
 					</div>
 				</div>
 			</div>
-
+			<Fab 
+				size={lgUp ? "md" : "lg"}
+				icon="plus"
+				className={cn("bottom-4 right-4")}
+				title="Add New Customer"
+			/>
 			<SidePanel isOpen={sideOpen} onOpenChange={setSideOpen} />
 		</MainContent>
 	);
 };
 
-const DayColumn = ({ events, isLast }: { events: CalendarEvent[]; isLast: boolean }) => {
-	const layouts = useMemo(() => layoutEvents(events), [events]);
+const DayColumn = ({
+	events,
+	isLast,
+	pxPerHour,
+	totalHeight
+}: {
+	events: CalendarEvent[];
+	isLast: boolean;
+	pxPerHour: number;
+	totalHeight: number;
+}) => {
+	const layouts = useMemo(() => layoutEvents(events, pxPerHour), [events, pxPerHour]);
 
 	return (
 		<div
 			className={cn("flex-1 relative", !isLast && "border-r border-accent-text/80")}
-			style={{ height: TOTAL_HEIGHT }}
+			style={{ height: totalHeight, minHeight: "100%" }}
 		>
 			{layouts.length ? (
 				layouts.map((l) => <EventCard key={l.id} layout={l} />)
