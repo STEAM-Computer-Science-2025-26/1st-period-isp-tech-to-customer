@@ -7,6 +7,7 @@ import SidePanel from "@/components/layout/SidePanel";
 import type { JobDTO } from "@/app/types/types";
 import Fab from "@/components/ui/Fab"
 import { useBreakpoints } from "../hooks/useBreakpoints";
+import { ClassValue } from "clsx";
 
 // Types
 type EventTone = "urgent" | "normal" | "info";
@@ -170,8 +171,36 @@ const getCurrentTimeLabel = () =>
 		.replace(/\s?[AP]M$/i, "");
 
 // Components
+
 const CalendarPage = () => {
+	const { lgUp } = useBreakpoints();
 	const [sideOpen, setSideOpen] = useState(false);
+
+
+	return (
+		<MainContent className={cn(`flex flex-col gap-4`)}>
+			<CalendarToolbar sideOpen={sideOpen} setSideOpen={setSideOpen} />
+			<Calendar sideOpen={sideOpen} setSideOpen={setSideOpen} height="h-[calc(100vh-12rem)]"/>
+			<Fab 
+				size={lgUp ? "md" : "lg"}
+				icon="plus"
+				className={cn("bottom-4 right-4")}
+				title="Add New Customer"
+			/>
+			<SidePanel isOpen={sideOpen} onOpenChange={setSideOpen} />
+		</MainContent>
+	);
+}
+
+const CalendarToolbar = ({ sideOpen, setSideOpen }: { sideOpen: boolean; setSideOpen: (open: boolean) => void; }) => {
+	return(
+		<div className={cn(`h-12 dev w-full flex flex-row items-center`)}>
+			This will be a toolbar just dont have time rn to add the stuff
+		</div>
+	)
+}
+
+const Calendar = ({ sideOpen, setSideOpen, height }: { sideOpen: boolean; setSideOpen: (open: boolean) => void; height: ClassValue }) => {
 	const [dayEvents, setDayEvents] = useState(emptyDays);
 	const [timeY, setTimeY] = useState(() => getCurrentTimeY(PX_PER_HOUR));
 	const [timeLabel, setTimeLabel] = useState(getCurrentTimeLabel);
@@ -223,12 +252,8 @@ const CalendarPage = () => {
 		setTimeY(getCurrentTimeY(pxPerHour));
 	}, [pxPerHour]);
 
-	const { lgUp } = useBreakpoints();
-
-
 	return (
-		<MainContent>
-			<div className="relative h-[calc(100vh-8rem)]">
+			<div className={cn("relative", height)}>
 				{/* Outer wrapper - shrinks when sidebar opens, allows horizontal scroll */}
 				<div
 					className="h-full overflow-x-auto no-scrollbar -ml-4 transition-all duration-300"
@@ -299,14 +324,6 @@ const CalendarPage = () => {
 					</div>
 				</div>
 			</div>
-			<Fab 
-				size={lgUp ? "md" : "lg"}
-				icon="plus"
-				className={cn("bottom-4 right-4")}
-				title="Add New Customer"
-			/>
-			<SidePanel isOpen={sideOpen} onOpenChange={setSideOpen} />
-		</MainContent>
 	);
 };
 
