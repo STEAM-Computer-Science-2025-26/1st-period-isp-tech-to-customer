@@ -7,7 +7,6 @@ import { KpiCard } from "@/components/ui/Card";
 import { JobDTO } from "@/app/types/types";
 import ListPanel from "@/components/ui/ListPanel";
 import FadeEnd from "@/components/ui/FadeEnd";
-import Fab from "@/components/ui/Fab";
 import { useBreakpoints } from "../hooks/useBreakpoints";
 const FASTIFY_BASE_URL =
 	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
@@ -124,13 +123,6 @@ const JobsPage = () => {
 				{jobsError && (
 					<p className={cn("mx-2 text-sm text-red-600")}>{jobsError}</p>
 				)}
-				<Fab
-					size={lgUp ? "md" : "lg"}
-					icon="plus"
-					className={cn("bottom-4 right-4")}
-					title="Add New Job"
-					onClick={() => console.log("Fab clicked!")}
-				/>
 			</MainContent>
 		</>
 	);

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
 import { KpiCard } from "@/components/ui/Card";
 import FadeEnd from "@/components/ui/FadeEnd";
-import Fab from "@/components/ui/Fab";
 import { useBreakpoints } from "../hooks/useBreakpoints";
 import {
 	X,
@@ -726,14 +725,6 @@ export default function EmployeesPage() {
 						}}
 					/>
 				)}
-
-				<Fab
-					size={lgUp ? "md" : "sm"}
-					icon="plus"
-					className={cn("bottom-4 right-4")}
-					title="Add New Employee"
-					onClick={() => setShowAddModal(true)}
-				/>
 			</MainContent>
 
 			{showAddModal && (

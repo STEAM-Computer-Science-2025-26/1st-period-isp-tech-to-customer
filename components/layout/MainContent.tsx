@@ -8,6 +8,8 @@ import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import type { SidebarFlags } from "@/components/layout/sidebar/Sidebar";
 import type { SidebarItemParams } from "@/app/types/types";
+import Fab from "../ui/Fab";
+import { cn } from "@/lib/utils";
 
 type MainContentProps = {
 	children: React.ReactNode;
@@ -22,6 +24,7 @@ type MainContentProps = {
 	showHeader?: boolean;
 	showSidebar?: boolean;
 	onSidebarFlagsChange?: (flags: SidebarFlags) => void;
+	showFab?: boolean;
 };
 
 export default function MainContent({
@@ -36,7 +39,8 @@ export default function MainContent({
 	hideMobileToggleButton = true,
 	showHeader = true,
 	showSidebar = true,
-	onSidebarFlagsChange
+	onSidebarFlagsChange,
+	showFab = true
 }: MainContentProps) {
 	const { lgUp } = useBreakpoints();
 	const [sidebarAutoCollapseState, setSidebarAutoCollapse] = useState(
@@ -86,6 +90,14 @@ export default function MainContent({
 			>
 				{children}
 			</main>
+			{ showFab && (
+				<Fab 
+					size={lgUp ? "md" : "lg"}
+					icon="plus"
+					className={cn("bottom-4 right-4")}
+					title="Add New Customer"
+				/>
+			)}
 			{showSidebar ? (
 				<Sidebar
 					title={sidebarTitle}

@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
 import { KpiCard } from "@/components/ui/Card";
 import FadeEnd from "@/components/ui/FadeEnd";
-import Fab from "@/components/ui/Fab";
 import { useBreakpoints } from "../hooks/useBreakpoints";
 import { useRouter } from "next/navigation";
 
@@ -192,13 +191,6 @@ export default function CustomersPage() {
 
 				{error && <p className={cn("mx-2 text-sm text-red-600")}>{error}</p>}
 
-				<Fab
-					size={lgUp ? "md" : "lg"}
-					icon="plus"
-					className={cn("bottom-4 right-4")}
-					title="Add New Customer"
-					onClick={() => console.log("Add customer")}
-				/>
 			</MainContent>
 			<Sidebar
 				title="Tech to Customer"
