@@ -26,97 +26,97 @@ import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 const createVehicleSchema = z.object({
-	vehicleId: z.string().min(1).max(40), // internal ID / plate / unit number
-	make: z.string().max(60).optional(),
-	model: z.string().max(60).optional(),
-	year: z.number().int().min(1990).max(2030).optional(),
-	vin: z.string().max(20).optional(),
-	licensePlate: z.string().max(20).optional(),
-	color: z.string().max(40).optional(),
-	notes: z.string().max(500).optional(),
-	branchId: z.string().uuid().optional(),
-	companyId: z.string().uuid().optional()
+    vehicleId: z.string().min(1).max(40), // internal ID / plate / unit number
+    make: z.string().max(60).optional(),
+    model: z.string().max(60).optional(),
+    year: z.number().int().min(1990).max(2030).optional(),
+    vin: z.string().max(20).optional(),
+    licensePlate: z.string().max(20).optional(),
+    color: z.string().max(40).optional(),
+    notes: z.string().max(500).optional(),
+    branchId: z.string().uuid().optional(),
+    companyId: z.string().uuid().optional()
 });
 const updateVehicleSchema = z
-	.object({
-		make: z.string().max(60).optional().nullable(),
-		model: z.string().max(60).optional().nullable(),
-		year: z.number().int().min(1990).max(2030).optional().nullable(),
-		vin: z.string().max(20).optional().nullable(),
-		licensePlate: z.string().max(20).optional().nullable(),
-		color: z.string().max(40).optional().nullable(),
-		notes: z.string().max(500).optional().nullable(),
-		branchId: z.string().uuid().optional().nullable(),
-		isActive: z.boolean().optional()
-	})
-	.refine((d) => Object.keys(d).length > 0, {
-		message: "At least one field required"
-	});
+    .object({
+    make: z.string().max(60).optional().nullable(),
+    model: z.string().max(60).optional().nullable(),
+    year: z.number().int().min(1990).max(2030).optional().nullable(),
+    vin: z.string().max(20).optional().nullable(),
+    licensePlate: z.string().max(20).optional().nullable(),
+    color: z.string().max(40).optional().nullable(),
+    notes: z.string().max(500).optional().nullable(),
+    branchId: z.string().uuid().optional().nullable(),
+    isActive: z.boolean().optional()
+})
+    .refine((d) => Object.keys(d).length > 0, {
+    message: "At least one field required"
+});
 const listVehiclesSchema = z.object({
-	companyId: z.string().uuid().optional(),
-	branchId: z.string().uuid().optional(),
-	isActive: z.coerce.boolean().optional(),
-	limit: z.coerce.number().int().min(1).max(100).default(50),
-	offset: z.coerce.number().int().min(0).default(0)
+    companyId: z.string().uuid().optional(),
+    branchId: z.string().uuid().optional(),
+    isActive: z.coerce.boolean().optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    offset: z.coerce.number().int().min(0).default(0)
 });
 const assignVehicleSchema = z.object({
-	employeeId: z.string().uuid().nullable() // null = unassign
+    employeeId: z.string().uuid().nullable() // null = unassign
 });
 const crossTruckTransferSchema = z.object({
-	fromVehicleId: z.string().min(1),
-	toVehicleId: z.string().min(1),
-	partId: z.string().uuid(),
-	quantity: z.number().int().min(1),
-	notes: z.string().max(500).optional(),
-	companyId: z.string().uuid().optional()
+    fromVehicleId: z.string().min(1),
+    toVehicleId: z.string().min(1),
+    partId: z.string().uuid(),
+    quantity: z.number().int().min(1),
+    notes: z.string().max(500).optional(),
+    companyId: z.string().uuid().optional()
 });
 const restockSchema = z.object({
-	// Array of { partId, quantity } to pull from warehouse
-	items: z
-		.array(
-			z.object({
-				partId: z.string().uuid(),
-				quantity: z.number().int().min(1)
-			})
-		)
-		.min(1),
-	notes: z.string().max(500).optional(),
-	companyId: z.string().uuid().optional()
+    // Array of { partId, quantity } to pull from warehouse
+    items: z
+        .array(z.object({
+        partId: z.string().uuid(),
+        quantity: z.number().int().min(1)
+    }))
+        .min(1),
+    notes: z.string().max(500).optional(),
+    companyId: z.string().uuid().optional()
 });
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getUser(req) {
-	return req.user;
+    return req.user;
 }
 function resolveCompanyId(user, bodyId) {
-	if (user.role === "dev") return bodyId ?? user.companyId ?? null;
-	return user.companyId ?? null;
+    if (user.role === "dev")
+        return bodyId ?? user.companyId ?? null;
+    return user.companyId ?? null;
 }
 // ─── Routes ──────────────────────────────────────────────────────────────────
 export async function truckInventoryRoutes(fastify) {
-	fastify.register(async (r) => {
-		r.addHook("onRequest", authenticate);
-		// ── POST /vehicles ────────────────────────────────────────────────────
-		r.post("/vehicles", async (request, reply) => {
-			const user = getUser(request);
-			const parsed = createVehicleSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({
-					error: "Invalid body",
-					details: parsed.error.flatten().fieldErrors
-				});
-			}
-			const body = parsed.data;
-			const companyId = resolveCompanyId(user, body.companyId);
-			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
-			const sql = getSql();
-			const [existing] = await sql`
+    fastify.register(async (r) => {
+        r.addHook("onRequest", authenticate);
+        // ── POST /vehicles ────────────────────────────────────────────────────
+        r.post("/vehicles", async (request, reply) => {
+            const user = getUser(request);
+            const parsed = createVehicleSchema.safeParse(request.body);
+            if (!parsed.success) {
+                return reply.code(400).send({
+                    error: "Invalid body",
+                    details: parsed.error.flatten().fieldErrors
+                });
+            }
+            const body = parsed.data;
+            const companyId = resolveCompanyId(user, body.companyId);
+            if (!companyId)
+                return reply.code(403).send({ error: "Forbidden" });
+            const sql = getSql();
+            const [existing] = (await sql `
 				SELECT id FROM vehicles WHERE company_id = ${companyId} AND vehicle_id = ${body.vehicleId}
-			`;
-			if (existing)
-				return reply
-					.code(409)
-					.send({ error: "Vehicle ID already exists in this company" });
-			const [vehicle] = await sql`
+			`);
+            if (existing)
+                return reply
+                    .code(409)
+                    .send({ error: "Vehicle ID already exists in this company" });
+            const [vehicle] = (await sql `
 				INSERT INTO vehicles (
 					company_id, branch_id, vehicle_id, make, model, year,
 					vin, license_plate, color, notes
@@ -137,21 +137,21 @@ export async function truckInventoryRoutes(fastify) {
 					is_active        AS "isActive",
 					assigned_employee_id AS "assignedEmployeeId",
 					created_at       AS "createdAt"
-			`;
-			return reply.code(201).send({ vehicle });
-		});
-		// ── GET /vehicles ─────────────────────────────────────────────────────
-		r.get("/vehicles", async (request, reply) => {
-			const user = getUser(request);
-			const parsed = listVehiclesSchema.safeParse(request.query);
-			if (!parsed.success)
-				return reply.code(400).send({ error: "Invalid query" });
-			const { branchId, isActive, limit, offset } = parsed.data;
-			const companyId = resolveCompanyId(user, parsed.data.companyId);
-			if (!companyId && user.role !== "dev")
-				return reply.code(403).send({ error: "Forbidden" });
-			const sql = getSql();
-			const vehicles = await sql`
+			`);
+            return reply.code(201).send({ vehicle });
+        });
+        // ── GET /vehicles ─────────────────────────────────────────────────────
+        r.get("/vehicles", async (request, reply) => {
+            const user = getUser(request);
+            const parsed = listVehiclesSchema.safeParse(request.query);
+            if (!parsed.success)
+                return reply.code(400).send({ error: "Invalid query" });
+            const { branchId, isActive, limit, offset } = parsed.data;
+            const companyId = resolveCompanyId(user, parsed.data.companyId);
+            if (!companyId && user.role !== "dev")
+                return reply.code(403).send({ error: "Forbidden" });
+            const sql = getSql();
+            const vehicles = (await sql `
 				SELECT
 					v.id,
 					v.vehicle_id             AS "vehicleId",
@@ -179,18 +179,18 @@ export async function truckInventoryRoutes(fastify) {
 				GROUP BY v.id, b.name, e.name
 				ORDER BY v.vehicle_id
 				LIMIT ${limit} OFFSET ${offset}
-			`;
-			return { vehicles };
-		});
-		// ── GET /vehicles/:id ─────────────────────────────────────────────────
-		r.get("/vehicles/:id", async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev")
-				return reply.code(403).send({ error: "Forbidden" });
-			const sql = getSql();
-			const [vehicle] = await sql`
+			`);
+            return { vehicles };
+        });
+        // ── GET /vehicles/:id ─────────────────────────────────────────────────
+        r.get("/vehicles/:id", async (request, reply) => {
+            const user = getUser(request);
+            const { id } = request.params;
+            const companyId = resolveCompanyId(user);
+            if (!companyId && user.role !== "dev")
+                return reply.code(403).send({ error: "Forbidden" });
+            const sql = getSql();
+            const [vehicle] = (await sql `
 				SELECT
 					v.id, v.vehicle_id AS "vehicleId", v.company_id AS "companyId",
 					v.branch_id AS "branchId", b.name AS "branchName",
@@ -205,31 +205,33 @@ export async function truckInventoryRoutes(fastify) {
 				LEFT JOIN employees e ON e.id = v.assigned_employee_id
 				WHERE v.id = ${id}
 				  AND (${companyId}::uuid IS NULL OR v.company_id = ${companyId})
-			`;
-			if (!vehicle) return reply.code(404).send({ error: "Vehicle not found" });
-			return { vehicle };
-		});
-		// ── PUT /vehicles/:id ─────────────────────────────────────────────────
-		r.put("/vehicles/:id", async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
-			const parsed = updateVehicleSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({
-					error: "Invalid body",
-					details: parsed.error.flatten().fieldErrors
-				});
-			}
-			const sql = getSql();
-			const [existing] = await sql`
+			`);
+            if (!vehicle)
+                return reply.code(404).send({ error: "Vehicle not found" });
+            return { vehicle };
+        });
+        // ── PUT /vehicles/:id ─────────────────────────────────────────────────
+        r.put("/vehicles/:id", async (request, reply) => {
+            const user = getUser(request);
+            const { id } = request.params;
+            const companyId = resolveCompanyId(user);
+            if (!companyId)
+                return reply.code(403).send({ error: "Forbidden" });
+            const parsed = updateVehicleSchema.safeParse(request.body);
+            if (!parsed.success) {
+                return reply.code(400).send({
+                    error: "Invalid body",
+                    details: parsed.error.flatten().fieldErrors
+                });
+            }
+            const sql = getSql();
+            const [existing] = (await sql `
 				SELECT id FROM vehicles WHERE id = ${id} AND company_id = ${companyId}
-			`;
-			if (!existing)
-				return reply.code(404).send({ error: "Vehicle not found" });
-			const b = parsed.data;
-			const [updated] = await sql`
+			`);
+            if (!existing)
+                return reply.code(404).send({ error: "Vehicle not found" });
+            const b = parsed.data;
+            const [updated] = (await sql `
 				UPDATE vehicles SET
 					make          = CASE WHEN ${b.make !== undefined ? "true" : "false"} = 'true' THEN ${b.make ?? null} ELSE make END,
 					model         = CASE WHEN ${b.model !== undefined ? "true" : "false"} = 'true' THEN ${b.model ?? null} ELSE model END,
@@ -244,70 +246,76 @@ export async function truckInventoryRoutes(fastify) {
 				WHERE id = ${id}
 				RETURNING id, vehicle_id AS "vehicleId", make, model, year,
 				          is_active AS "isActive", updated_at AS "updatedAt"
-			`;
-			return { vehicle: updated };
-		});
-		// ── DELETE /vehicles/:id ──────────────────────────────────────────────
-		r.delete("/vehicles/:id", async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
-			const sql = getSql();
-			const [updated] = await sql`
+			`);
+            return { vehicle: updated };
+        });
+        // ── DELETE /vehicles/:id ──────────────────────────────────────────────
+        r.delete("/vehicles/:id", async (request, reply) => {
+            const user = getUser(request);
+            const { id } = request.params;
+            const companyId = resolveCompanyId(user);
+            if (!companyId)
+                return reply.code(403).send({ error: "Forbidden" });
+            const sql = getSql();
+            const [updated] = (await sql `
 				UPDATE vehicles SET is_active = false, updated_at = NOW()
 				WHERE id = ${id} AND company_id = ${companyId}
 				RETURNING id
-			`;
-			if (!updated) return reply.code(404).send({ error: "Vehicle not found" });
-			return { deactivated: true };
-		});
-		// ── POST /vehicles/:id/assign ─────────────────────────────────────────
-		r.post("/vehicles/:id/assign", async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
-			const parsed = assignVehicleSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({ error: "Invalid body" });
-			}
-			const { employeeId } = parsed.data;
-			const sql = getSql();
-			if (employeeId) {
-				const [emp] = await sql`
+			`);
+            if (!updated)
+                return reply.code(404).send({ error: "Vehicle not found" });
+            return { deactivated: true };
+        });
+        // ── POST /vehicles/:id/assign ─────────────────────────────────────────
+        r.post("/vehicles/:id/assign", async (request, reply) => {
+            const user = getUser(request);
+            const { id } = request.params;
+            const companyId = resolveCompanyId(user);
+            if (!companyId)
+                return reply.code(403).send({ error: "Forbidden" });
+            const parsed = assignVehicleSchema.safeParse(request.body);
+            if (!parsed.success) {
+                return reply.code(400).send({ error: "Invalid body" });
+            }
+            const { employeeId } = parsed.data;
+            const sql = getSql();
+            if (employeeId) {
+                const [emp] = (await sql `
 					SELECT id FROM employees WHERE id = ${employeeId} AND company_id = ${companyId} AND is_active = true
-				`;
-				if (!emp) return reply.code(404).send({ error: "Employee not found" });
-			}
-			const [updated] = await sql`
+				`);
+                if (!emp)
+                    return reply.code(404).send({ error: "Employee not found" });
+            }
+            const [updated] = (await sql `
 				UPDATE vehicles SET
 					assigned_employee_id = ${employeeId},
 					updated_at = NOW()
 				WHERE id = ${id} AND company_id = ${companyId}
 				RETURNING id, vehicle_id AS "vehicleId", assigned_employee_id AS "assignedEmployeeId"
-			`;
-			if (!updated) return reply.code(404).send({ error: "Vehicle not found" });
-			return { vehicle: updated };
-		});
-		// ── GET /vehicles/:id/manifest ────────────────────────────────────────
-		// Full stock manifest for a truck.
-		r.get("/vehicles/:id/manifest", async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev")
-				return reply.code(403).send({ error: "Forbidden" });
-			const sql = getSql();
-			// Resolve vehicle_id string from UUID
-			const [vehicle] = await sql`
+			`);
+            if (!updated)
+                return reply.code(404).send({ error: "Vehicle not found" });
+            return { vehicle: updated };
+        });
+        // ── GET /vehicles/:id/manifest ────────────────────────────────────────
+        // Full stock manifest for a truck.
+        r.get("/vehicles/:id/manifest", async (request, reply) => {
+            const user = getUser(request);
+            const { id } = request.params;
+            const companyId = resolveCompanyId(user);
+            if (!companyId && user.role !== "dev")
+                return reply.code(403).send({ error: "Forbidden" });
+            const sql = getSql();
+            // Resolve vehicle_id string from UUID
+            const [vehicle] = (await sql `
 				SELECT id, vehicle_id AS "vehicleId", make, model, year,
 				       assigned_employee_id AS "assignedEmployeeId"
 				FROM vehicles
 				WHERE id = ${id} AND (${companyId}::uuid IS NULL OR company_id = ${companyId})
-			`;
-			if (!vehicle) return reply.code(404).send({ error: "Vehicle not found" });
-			const manifest = await sql`
+			`);
+            if (!vehicle)
+                return reply.code(404).send({ error: "Vehicle not found" });
+            const manifest = (await sql `
 				SELECT
 					ti.part_id              AS "partId",
 					p.part_number           AS "partNumber",
@@ -324,37 +332,35 @@ export async function truckInventoryRoutes(fastify) {
 				JOIN parts_inventory p ON p.id = ti.part_id
 				WHERE ti.vehicle_id = ${vehicle.vehicleId}
 				ORDER BY (ti.quantity <= ti.min_quantity) DESC, p.part_name ASC
-			`;
-			const totalValue = manifest.reduce(
-				(s, r) => s + Number(r.stockValue ?? 0),
-				0
-			);
-			const lowStockCount = manifest.filter((r) => r.isLowStock).length;
-			return {
-				vehicle,
-				manifest,
-				summary: {
-					uniqueParts: manifest.length,
-					totalUnits: manifest.reduce((s, r) => s + Number(r.quantity), 0),
-					totalValue: Math.round(totalValue * 100) / 100,
-					lowStockCount
-				}
-			};
-		});
-		// ── GET /vehicles/:id/low-stock ───────────────────────────────────────
-		r.get("/vehicles/:id/low-stock", async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const companyId = resolveCompanyId(user);
-			if (!companyId && user.role !== "dev")
-				return reply.code(403).send({ error: "Forbidden" });
-			const sql = getSql();
-			const [vehicle] = await sql`
+			`);
+            const totalValue = manifest.reduce((s, r) => s + Number(r.stockValue ?? 0), 0);
+            const lowStockCount = manifest.filter((r) => r.isLowStock).length;
+            return {
+                vehicle,
+                manifest,
+                summary: {
+                    uniqueParts: manifest.length,
+                    totalUnits: manifest.reduce((s, r) => s + Number(r.quantity), 0),
+                    totalValue: Math.round(totalValue * 100) / 100,
+                    lowStockCount
+                }
+            };
+        });
+        // ── GET /vehicles/:id/low-stock ───────────────────────────────────────
+        r.get("/vehicles/:id/low-stock", async (request, reply) => {
+            const user = getUser(request);
+            const { id } = request.params;
+            const companyId = resolveCompanyId(user);
+            if (!companyId && user.role !== "dev")
+                return reply.code(403).send({ error: "Forbidden" });
+            const sql = getSql();
+            const [vehicle] = (await sql `
 				SELECT id, vehicle_id AS "vehicleId" FROM vehicles
 				WHERE id = ${id} AND (${companyId}::uuid IS NULL OR company_id = ${companyId})
-			`;
-			if (!vehicle) return reply.code(404).send({ error: "Vehicle not found" });
-			const lowStock = await sql`
+			`);
+            if (!vehicle)
+                return reply.code(404).send({ error: "Vehicle not found" });
+            const lowStock = (await sql `
 				SELECT
 					ti.part_id           AS "partId",
 					p.part_number        AS "partNumber",
@@ -368,137 +374,140 @@ export async function truckInventoryRoutes(fastify) {
 				WHERE ti.vehicle_id = ${vehicle.vehicleId}
 				  AND ti.quantity <= ti.min_quantity
 				ORDER BY ti.quantity ASC
-			`;
-			return { vehicleId: vehicle.vehicleId, lowStockParts: lowStock };
-		});
-		// ── POST /vehicles/transfer ───────────────────────────────────────────
-		// Move parts between two trucks (not from warehouse).
-		r.post("/vehicles/transfer", async (request, reply) => {
-			const user = getUser(request);
-			const parsed = crossTruckTransferSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({
-					error: "Invalid body",
-					details: parsed.error.flatten().fieldErrors
-				});
-			}
-			const body = parsed.data;
-			const companyId = resolveCompanyId(user, body.companyId);
-			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
-			if (body.fromVehicleId === body.toVehicleId) {
-				return reply
-					.code(400)
-					.send({ error: "Source and destination trucks must be different" });
-			}
-			const sql = getSql();
-			// Verify both vehicles belong to company
-			const [fromV] = await sql`
+			`);
+            return { vehicleId: vehicle.vehicleId, lowStockParts: lowStock };
+        });
+        // ── POST /vehicles/transfer ───────────────────────────────────────────
+        // Move parts between two trucks (not from warehouse).
+        r.post("/vehicles/transfer", async (request, reply) => {
+            const user = getUser(request);
+            const parsed = crossTruckTransferSchema.safeParse(request.body);
+            if (!parsed.success) {
+                return reply.code(400).send({
+                    error: "Invalid body",
+                    details: parsed.error.flatten().fieldErrors
+                });
+            }
+            const body = parsed.data;
+            const companyId = resolveCompanyId(user, body.companyId);
+            if (!companyId)
+                return reply.code(403).send({ error: "Forbidden" });
+            if (body.fromVehicleId === body.toVehicleId) {
+                return reply
+                    .code(400)
+                    .send({ error: "Source and destination trucks must be different" });
+            }
+            const sql = getSql();
+            // Verify both vehicles belong to company
+            const [fromV] = (await sql `
 				SELECT id FROM vehicles WHERE vehicle_id = ${body.fromVehicleId} AND company_id = ${companyId}
-			`;
-			if (!fromV)
-				return reply.code(404).send({ error: "Source vehicle not found" });
-			const [toV] = await sql`
+			`);
+            if (!fromV)
+                return reply.code(404).send({ error: "Source vehicle not found" });
+            const [toV] = (await sql `
 				SELECT id FROM vehicles WHERE vehicle_id = ${body.toVehicleId} AND company_id = ${companyId}
-			`;
-			if (!toV)
-				return reply.code(404).send({ error: "Destination vehicle not found" });
-			// Check source stock
-			const [fromStock] = await sql`
+			`);
+            if (!toV)
+                return reply.code(404).send({ error: "Destination vehicle not found" });
+            // Check source stock
+            const [fromStock] = (await sql `
 				SELECT quantity FROM truck_inventory
 				WHERE vehicle_id = ${body.fromVehicleId} AND part_id = ${body.partId}
-			`;
-			if (!fromStock || Number(fromStock.quantity) < body.quantity) {
-				return reply.code(409).send({
-					error: `Insufficient stock on source truck. Available: ${fromStock?.quantity ?? 0}, requested: ${body.quantity}`
-				});
-			}
-			// Deduct from source
-			const newFromQty = Number(fromStock.quantity) - body.quantity;
-			await sql`
+			`);
+            if (!fromStock || Number(fromStock.quantity) < body.quantity) {
+                return reply.code(409).send({
+                    error: `Insufficient stock on source truck. Available: ${fromStock?.quantity ?? 0}, requested: ${body.quantity}`
+                });
+            }
+            // Deduct from source
+            const newFromQty = Number(fromStock.quantity) - body.quantity;
+            await sql `
 				UPDATE truck_inventory SET quantity = ${newFromQty}, updated_at = NOW()
 				WHERE vehicle_id = ${body.fromVehicleId} AND part_id = ${body.partId}
 			`;
-			// Add to destination
-			await sql`
+            // Add to destination
+            await sql `
 				INSERT INTO truck_inventory (vehicle_id, part_id, quantity, min_quantity)
 				VALUES (${body.toVehicleId}, ${body.partId}, ${body.quantity}, 1)
 				ON CONFLICT (vehicle_id, part_id)
 				DO UPDATE SET quantity = truck_inventory.quantity + ${body.quantity}, updated_at = NOW()
 			`;
-			return {
-				success: true,
-				partId: body.partId,
-				fromVehicleId: body.fromVehicleId,
-				toVehicleId: body.toVehicleId,
-				quantityTransferred: body.quantity,
-				fromVehicleQtyAfter: newFromQty
-			};
-		});
-		// ── POST /vehicles/:id/restock ────────────────────────────────────────
-		// Bulk restock a truck from the warehouse.
-		r.post("/vehicles/:id/restock", async (request, reply) => {
-			const user = getUser(request);
-			const { id } = request.params;
-			const parsed = restockSchema.safeParse(request.body);
-			if (!parsed.success) {
-				return reply.code(400).send({
-					error: "Invalid body",
-					details: parsed.error.flatten().fieldErrors
-				});
-			}
-			const body = parsed.data;
-			const companyId = resolveCompanyId(user, body.companyId);
-			if (!companyId) return reply.code(403).send({ error: "Forbidden" });
-			const sql = getSql();
-			const [vehicle] = await sql`
+            return {
+                success: true,
+                partId: body.partId,
+                fromVehicleId: body.fromVehicleId,
+                toVehicleId: body.toVehicleId,
+                quantityTransferred: body.quantity,
+                fromVehicleQtyAfter: newFromQty
+            };
+        });
+        // ── POST /vehicles/:id/restock ────────────────────────────────────────
+        // Bulk restock a truck from the warehouse.
+        r.post("/vehicles/:id/restock", async (request, reply) => {
+            const user = getUser(request);
+            const { id } = request.params;
+            const parsed = restockSchema.safeParse(request.body);
+            if (!parsed.success) {
+                return reply.code(400).send({
+                    error: "Invalid body",
+                    details: parsed.error.flatten().fieldErrors
+                });
+            }
+            const body = parsed.data;
+            const companyId = resolveCompanyId(user, body.companyId);
+            if (!companyId)
+                return reply.code(403).send({ error: "Forbidden" });
+            const sql = getSql();
+            const [vehicle] = (await sql `
 				SELECT id, vehicle_id AS "vehicleId" FROM vehicles
 				WHERE id = ${id} AND company_id = ${companyId} AND is_active = true
-			`;
-			if (!vehicle) return reply.code(404).send({ error: "Vehicle not found" });
-			const results = [];
-			const errors = [];
-			for (const item of body.items) {
-				const [part] = await sql`
+			`);
+            if (!vehicle)
+                return reply.code(404).send({ error: "Vehicle not found" });
+            const results = [];
+            const errors = [];
+            for (const item of body.items) {
+                const [part] = (await sql `
 					SELECT id, quantity, part_name AS name FROM parts_inventory
 					WHERE id = ${item.partId} AND company_id = ${companyId}
-				`;
-				if (!part) {
-					errors.push({ partId: item.partId, error: "Part not found" });
-					continue;
-				}
-				if (Number(part.quantity) < item.quantity) {
-					errors.push({
-						partId: item.partId,
-						name: part.name,
-						error: `Insufficient warehouse stock. Available: ${part.quantity}, requested: ${item.quantity}`
-					});
-					continue;
-				}
-				// Deduct from warehouse
-				const newWarehouseQty = Number(part.quantity) - item.quantity;
-				await sql`
+				`);
+                if (!part) {
+                    errors.push({ partId: item.partId, error: "Part not found" });
+                    continue;
+                }
+                if (Number(part.quantity) < item.quantity) {
+                    errors.push({
+                        partId: item.partId,
+                        name: part.name,
+                        error: `Insufficient warehouse stock. Available: ${part.quantity}, requested: ${item.quantity}`
+                    });
+                    continue;
+                }
+                // Deduct from warehouse
+                const newWarehouseQty = Number(part.quantity) - item.quantity;
+                await sql `
 					UPDATE parts_inventory SET quantity = ${newWarehouseQty}, updated_at = NOW()
 					WHERE id = ${item.partId}
 				`;
-				// Add to truck
-				await sql`
+                // Add to truck
+                await sql `
 					INSERT INTO truck_inventory (vehicle_id, part_id, quantity, min_quantity)
 					VALUES (${vehicle.vehicleId}, ${item.partId}, ${item.quantity}, 1)
 					ON CONFLICT (vehicle_id, part_id)
 					DO UPDATE SET quantity = truck_inventory.quantity + ${item.quantity}, updated_at = NOW()
 				`;
-				results.push({
-					partId: item.partId,
-					name: part.name,
-					quantityAdded: item.quantity
-				});
-			}
-			return {
-				vehicleId: vehicle.vehicleId,
-				restocked: results,
-				errors,
-				notes: body.notes ?? null
-			};
-		});
-	});
+                results.push({
+                    partId: item.partId,
+                    name: part.name,
+                    quantityAdded: item.quantity
+                });
+            }
+            return {
+                vehicleId: vehicle.vehicleId,
+                restocked: results,
+                errors,
+                notes: body.notes ?? null
+            };
+        });
+    });
 }
