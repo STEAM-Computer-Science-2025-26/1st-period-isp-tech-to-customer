@@ -42,4 +42,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.github/workflows
+.github/workflowsdist/
