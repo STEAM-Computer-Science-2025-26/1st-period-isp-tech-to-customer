@@ -25,6 +25,7 @@
 		"@fastify/jwt": "^10.0.0",
 		"@googlemaps/js-api-loader": "^2.0.2",
 		"@neondatabase/serverless": "^1.0.2",
+		"@vis.gl/react-google-maps": "^1.7.1",
 		"bcryptjs": "^3.0.3",
 		"clsx": "^2.1.1",
 		"concurrently": "^9.2.1",
