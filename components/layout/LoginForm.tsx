@@ -1,6 +1,7 @@
 "use client";
 
 import type { Email, Password } from "@/app/types/types";
+import { setToken } from "@/lib/auth";
 import { useEffect, useRef, useState } from "react";
 import { FormButton, FormInput, type PanelProps } from "./loginForm/controls";
 import { useStackedPanels } from "./loginForm/stackedPanels";
@@ -498,7 +499,7 @@ export default function LoginForm({
 					return;
 				}
 
-				localStorage.setItem("authToken", payload.token);
+				setToken(payload.token);
 				window.location.href = "/jobs";
 			} catch (error) {
 				const message =
@@ -555,7 +556,7 @@ export default function LoginForm({
 					return;
 				}
 
-				localStorage.setItem("authToken", payload.token);
+				setToken(payload.token);
 				window.location.href = "/jobs";
 			} catch (error) {
 				const message =

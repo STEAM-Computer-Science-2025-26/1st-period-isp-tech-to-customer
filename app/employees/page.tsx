@@ -3,6 +3,7 @@
 import MainContent from "@/components/layout/MainContent";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
+import { getToken, authHeaders } from "@/lib/auth";
 import { KpiCard } from "@/components/ui/Card";
 import FadeEnd from "@/components/ui/FadeEnd";
 import { useBreakpoints } from "../hooks/useBreakpoints";
@@ -76,14 +77,6 @@ const SKILL_LABELS: Record<EmployeeSkill, string> = {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getToken() {
-	return (
-		localStorage.getItem("authToken") ??
-		localStorage.getItem("token") ??
-		localStorage.getItem("jwt")
-	);
-}
 
 function initials(name: string) {
 	return name

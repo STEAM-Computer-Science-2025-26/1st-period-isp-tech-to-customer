@@ -3,6 +3,7 @@
 import MainContent from "@/components/layout/MainContent";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
+import { getToken, authHeaders } from "@/lib/auth";
 import { useParams, useRouter } from "next/navigation";
 import {
 	ArrowLeft,
@@ -107,14 +108,6 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getToken() {
-	return (
-		localStorage.getItem("authToken") ??
-		localStorage.getItem("token") ??
-		localStorage.getItem("jwt")
-	);
-}
 
 function initials(name: string) {
 	return name

@@ -6,6 +6,7 @@ import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
+import { getToken, authHeaders } from "@/lib/auth";
 import { KpiCard } from "@/components/ui/Card";
 import FadeEnd from "@/components/ui/FadeEnd";
 import { useBreakpoints } from "../hooks/useBreakpoints";
@@ -30,14 +31,6 @@ type Customer = {
 	noShowCount: number;
 	createdAt: string;
 };
-
-function getToken() {
-	return (
-		localStorage.getItem("authToken") ??
-		localStorage.getItem("token") ??
-		localStorage.getItem("jwt")
-	);
-}
 
 export default function CustomersPage() {
 	const [customers, setCustomers] = useState<Customer[]>([]);

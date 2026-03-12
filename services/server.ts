@@ -55,6 +55,9 @@ import { crmRoutes } from "./routes/crmRoutes";
 import { reportingRoutes } from "./routes/reportingRoutes";
 import { tipRoutes } from "./routes/tipRoutes";
 import { terminalRoutes } from "./routes/terminalRoutes";
+import { verifyRoutes } from "./routes/verifyRoutes";
+import { leadsRoutes } from "./routes/leadsRoutes";
+import { devRoutes } from "./routes/devRoutes";
 
 const envLocalPath = path.resolve(process.cwd(), ".env.local");
 if (fs.existsSync(envLocalPath)) {
@@ -212,6 +215,9 @@ await fastify.register(crmRoutes);
 await fastify.register(reportingRoutes);
 await fastify.register(tipRoutes);
 await fastify.register(terminalRoutes);
+await fastify.register(verifyRoutes);
+await fastify.register(leadsRoutes);
+await fastify.register(devRoutes);
 // ============================================================
 // Root
 // ============================================================

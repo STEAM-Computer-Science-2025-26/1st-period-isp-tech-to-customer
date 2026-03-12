@@ -3,6 +3,7 @@
 import MainContent from "@/components/layout/MainContent";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
+import { getToken } from "@/lib/auth";
 import { KpiCard } from "@/components/ui/Card";
 import { JobDTO } from "@/app/types/types";
 import ListPanel from "@/components/ui/ListPanel";
@@ -29,9 +30,7 @@ const JobsPage = () => {
 
 			try {
 				const token =
-					localStorage.getItem("authToken") ??
-					localStorage.getItem("token") ??
-					localStorage.getItem("jwt");
+					getToken();
 
 				const headers: HeadersInit = {};
 				if (token) {

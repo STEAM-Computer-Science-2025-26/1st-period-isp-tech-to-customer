@@ -6,6 +6,7 @@ import MainContent from "@/components/layout/MainContent";
 import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import { cn } from "@/lib/utils/index";
+import { getToken, authHeaders } from "@/lib/auth";
 import {
 	AlertTriangle,
 	MapPin,
@@ -50,21 +51,6 @@ type DispatchRecommendation = {
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getToken() {
-	return (
-		localStorage.getItem("authToken") ??
-		localStorage.getItem("token") ??
-		localStorage.getItem("jwt")
-	);
-}
-
-function authHeaders(): HeadersInit {
-	const token = getToken();
-	return token
-		? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-		: { "Content-Type": "application/json" };
-}
 
 function timeAgo(iso: string): string {
 	const diff = Date.now() - new Date(iso).getTime();
