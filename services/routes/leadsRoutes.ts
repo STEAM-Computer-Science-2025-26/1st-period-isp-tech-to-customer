@@ -1,6 +1,6 @@
 // services/routes/leadsRoutes.ts
 //
-// POST /leads — public endpoint for capturing resource hub leads.
+// POST /public/leads — public endpoint for capturing resource hub leads.
 // No auth required. Upserts into resource_leads on conflict (email).
 
 import type { FastifyInstance } from "fastify";
@@ -20,9 +20,7 @@ export async function leadsRoutes(fastify: FastifyInstance): Promise<void> {
 		};
 
 		const email =
-			typeof body.email === "string"
-				? body.email.trim().toLowerCase()
-				: null;
+			typeof body.email === "string" ? body.email.trim().toLowerCase() : null;
 
 		if (!email || !email.includes("@") || email.length > 254) {
 			return reply.code(400).send({ error: "Valid email required" });
@@ -45,9 +43,7 @@ export async function leadsRoutes(fastify: FastifyInstance): Promise<void> {
 
 		const rawTechCount = body.techCount;
 		const techCount =
-			rawTechCount != null
-				? parseInt(String(rawTechCount), 10)
-				: null;
+			rawTechCount != null ? parseInt(String(rawTechCount), 10) : null;
 
 		if (
 			techCount !== null &&

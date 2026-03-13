@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useBreakpoints } from "@/app/hooks/useBreakpoints";
 import Header from "@/components/layout/Header";
 import Sidebar from "@/components/layout/sidebar/Sidebar";
@@ -10,6 +10,7 @@ import type { SidebarFlags } from "@/components/layout/sidebar/Sidebar";
 import type { SidebarItemParams } from "@/app/types/types";
 import Fab from "../ui/Fab";
 import { cn } from "@/lib/utils";
+import { useUiStore } from "@/lib/stores/uiStore";
 
 type MainContentProps = {
 	children: React.ReactNode;
@@ -43,11 +44,22 @@ export default function MainContent({
 	showFab = true
 }: MainContentProps) {
 	const { lgUp } = useBreakpoints();
-	const [sidebarAutoCollapseState, setSidebarAutoCollapse] = useState(
-		sidebarAutoCollapseDefault
+	const initializeUi = useUiStore((state) => state.initialize);
+	const sidebarAutoCollapseState = useUiStore(
+		(state) => state.sidebarAutoCollapse
 	);
-	const [sidebarIsStripState, setSidebarIsStrip] = useState(false);
-	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+	const sidebarIsStripState = useUiStore((state) => state.sidebarIsStrip);
+	const mobileSidebarOpen = useUiStore((state) => state.mobileSidebarOpen);
+	const setSidebarAutoCollapse = useUiStore(
+		(state) => state.setSidebarAutoCollapse
+	);
+	const setSidebarIsStrip = useUiStore((state) => state.setSidebarIsStrip);
+	const setMobileSidebarOpen = useUiStore(
+		(state) => state.setMobileSidebarOpen
+	);
+
+	const shouldSyncAutoCollapse = sidebarAutoCollapse === undefined;
+	const shouldSyncStrip = sidebarIsStrip === undefined;
 	const effectiveSidebarAutoCollapse =
 		sidebarAutoCollapse ?? sidebarAutoCollapseState;
 	const effectiveSidebarIsStrip = sidebarIsStrip ?? sidebarIsStripState;
@@ -55,6 +67,10 @@ export default function MainContent({
 		? "calc(4.5rem + 1rem)"
 		: "calc(var(--sidebar-desktop-width) + 1rem)";
 	const mobilePaddingLeft = effectiveSidebarIsStrip ? "5.5rem" : "2rem";
+
+	useEffect(() => {
+		initializeUi({ sidebarAutoCollapse: sidebarAutoCollapseDefault });
+	}, [initializeUi, sidebarAutoCollapseDefault]);
 
 	useEffect(() => {
 		onSidebarFlagsChange?.({
@@ -74,7 +90,7 @@ export default function MainContent({
 				<Header
 					sidebarAutoCollapse={effectiveSidebarAutoCollapse}
 					sidebarIsStrip={effectiveSidebarIsStrip}
-					onMobileMenuClick={() => setMobileSidebarOpen((open) => !open)}
+					onMobileMenuClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
 					mobileMenuOpen={mobileSidebarOpen}
 					title={headerTitle}
 				/>
@@ -90,8 +106,8 @@ export default function MainContent({
 			>
 				{children}
 			</main>
-			{ showFab && (
-				<Fab 
+			{showFab && (
+				<Fab
 					size={lgUp ? "md" : "lg"}
 					icon="plus"
 					className={cn("bottom-4 right-4")}
@@ -107,8 +123,12 @@ export default function MainContent({
 					onMobileOpenChange={setMobileSidebarOpen}
 					hideMobileToggleButton={hideMobileToggleButton}
 					onFlagsChange={({ autoCollapse, isStrip, desktopExpanded }) => {
-						setSidebarAutoCollapse(autoCollapse);
-						setSidebarIsStrip(isStrip);
+						if (shouldSyncAutoCollapse) {
+							setSidebarAutoCollapse(autoCollapse);
+						}
+						if (shouldSyncStrip) {
+							setSidebarIsStrip(isStrip);
+						}
 						onSidebarFlagsChange?.({
 							autoCollapse,
 							isStrip,

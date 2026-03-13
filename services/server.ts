@@ -216,7 +216,7 @@ await fastify.register(reportingRoutes);
 await fastify.register(tipRoutes);
 await fastify.register(terminalRoutes);
 await fastify.register(verifyRoutes);
-await fastify.register(leadsRoutes);
+await fastify.register(leadsRoutes, { prefix: "/public" });
 await fastify.register(devRoutes);
 // ============================================================
 // Root

@@ -4,71 +4,21 @@ import Header from "@/components/layout/Header";
 import MainContent from "@/components/layout/MainContent";
 import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils/index";
-import { getToken, authHeaders } from "@/lib/auth";
 import { KpiCard } from "@/components/ui/Card";
 import FadeEnd from "@/components/ui/FadeEnd";
 import { useBreakpoints } from "../hooks/useBreakpoints";
 import { useRouter } from "next/navigation";
-
-const FASTIFY_BASE_URL =
-	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
-
-type Customer = {
-	id: string;
-	firstName: string;
-	lastName: string;
-	companyName?: string;
-	customerType: string;
-	email: string;
-	phone: string;
-	address: string;
-	city: string;
-	state: string;
-	zip: string;
-	isActive: boolean;
-	noShowCount: number;
-	createdAt: string;
-};
+import { useCustomers } from "@/lib/hooks/useCustomers";
 
 export default function CustomersPage() {
-	const [customers, setCustomers] = useState<Customer[]>([]);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const { data: customers = [], isLoading: loading, error } = useCustomers();
 	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
 	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 	const { lgUp } = useBreakpoints();
 	const router = useRouter();
-
-	useEffect(() => {
-		let mounted = true;
-		setLoading(true);
-		setError(null);
-
-		void (async () => {
-			try {
-				const token = getToken();
-				const res = await fetch(`${FASTIFY_BASE_URL}/customers`, {
-					headers: token ? { Authorization: `Bearer ${token}` } : {}
-				});
-				if (!res.ok)
-					throw new Error(`Failed to load customers (${res.status})`);
-				const data = (await res.json()) as { customers?: Customer[] };
-				if (mounted) setCustomers(data.customers ?? []);
-			} catch (e) {
-				if (mounted)
-					setError(e instanceof Error ? e.message : "Failed to load customers");
-			} finally {
-				if (mounted) setLoading(false);
-			}
-		})();
-
-		return () => {
-			mounted = false;
-		};
-	}, []);
 
 	const active = customers.filter((c) => c.isActive).length;
 	const residential = customers.filter(
@@ -182,8 +132,9 @@ export default function CustomersPage() {
 					</ul>
 				</div>
 
-				{error && <p className={cn("mx-2 text-sm text-red-600")}>{error}</p>}
-
+				{error && (
+					<p className={cn("mx-2 text-sm text-red-600")}>{error.message}</p>
+				)}
 			</MainContent>
 			<Sidebar
 				title="Tech to Customer"

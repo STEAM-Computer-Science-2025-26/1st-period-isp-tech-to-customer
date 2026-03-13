@@ -25,7 +25,10 @@ function generateCode(): string {
 	return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
-function getClientIp(request: { ip: string; headers: Record<string, string | string[] | undefined> }): string {
+function getClientIp(request: {
+	ip: string;
+	headers: Record<string, string | string[] | undefined>;
+}): string {
 	const xff = request.headers["x-forwarded-for"];
 	if (xff) {
 		const first = Array.isArray(xff) ? xff[0] : xff.split(",")[0];
@@ -36,13 +39,45 @@ function getClientIp(request: { ip: string; headers: Record<string, string | str
 	return request.ip || "unknown";
 }
 
-function getCookie(cookieHeader: string | undefined, name: string): string | undefined {
+function getCookie(
+	cookieHeader: string | undefined,
+	name: string
+): string | undefined {
 	if (!cookieHeader) return undefined;
 	for (const part of cookieHeader.split(";")) {
 		const [k, ...rest] = part.trim().split("=");
 		if (k === name) return rest.join("=");
 	}
 	return undefined;
+}
+
+function getHeaderValue(
+	headers: Record<string, string | string[] | undefined>,
+	name: string
+): string | undefined {
+	const value = headers[name];
+	if (!value) return undefined;
+	return Array.isArray(value) ? value[0] : value;
+}
+
+function getPublicOrigin(request: {
+	protocol?: string;
+	hostname?: string;
+	headers: Record<string, string | string[] | undefined>;
+}): string {
+	const envOrigin = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
+	if (envOrigin) return envOrigin.replace(/\/+$/, "");
+
+	const proto =
+		getHeaderValue(request.headers, "x-forwarded-proto") ??
+		request.protocol ??
+		"http";
+	const host =
+		getHeaderValue(request.headers, "x-forwarded-host") ??
+		getHeaderValue(request.headers, "host") ??
+		request.hostname;
+
+	return host ? `${proto}://${host}` : `${proto}://localhost:3000`;
 }
 
 function sessionCookie(sessionToken: string): string {
@@ -81,10 +116,17 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 		const sql = getSql();
 		const ip = getClientIp(request as any);
 
-		const ipLimit = await enforceRateLimit(sql, `verify:send:ip:${ip}`, 10, 60 * 30);
+		const ipLimit = await enforceRateLimit(
+			sql,
+			`verify:send:ip:${ip}`,
+			10,
+			60 * 30
+		);
 		if (!ipLimit.allowed) {
 			reply.header("Retry-After", String(ipLimit.retryAfterSeconds));
-			return reply.code(429).send({ message: "Too many requests. Please wait and try again." });
+			return reply
+				.code(429)
+				.send({ message: "Too many requests. Please wait and try again." });
 		}
 
 		const emailLimit = await enforceRateLimit(
@@ -96,7 +138,8 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 		if (!emailLimit.allowed) {
 			reply.header("Retry-After", String(emailLimit.retryAfterSeconds));
 			return reply.code(429).send({
-				message: "Too many verification emails sent recently. Please wait a bit and try again."
+				message:
+					"Too many verification emails sent recently. Please wait a bit and try again."
 			});
 		}
 
@@ -104,7 +147,9 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 		const shouldUseCode = mode === "code";
 		const code = shouldUseCode ? generateCode() : null;
 		const codeEncrypted = code ? encryptVerificationCode(code) : null;
-		const codeExpiresAt = shouldUseCode ? new Date(Date.now() + 10 * 60_000) : null;
+		const codeExpiresAt = shouldUseCode
+			? new Date(Date.now() + 10 * 60_000)
+			: null;
 
 		let token = createMagicToken();
 		let tokenHash = hashMagicToken(token);
@@ -127,13 +172,14 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 				verificationId = (inserted[0] as any)?.id as string | undefined;
 				break;
 			} catch {
-				if (attempt === 2) throw new Error("Failed to create verification record");
+				if (attempt === 2)
+					throw new Error("Failed to create verification record");
 				token = createMagicToken();
 				tokenHash = hashMagicToken(token);
 			}
 		}
 
-		const origin = `${request.protocol}://${request.hostname}`;
+		const origin = getPublicOrigin(request as any);
 		const magicLink = `${origin}/verify?token=${token}`;
 
 		reply.header("set-cookie", sessionCookie(sessionToken));
@@ -150,8 +196,7 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 		const body = request.body as { verificationId?: unknown; code?: unknown };
 		const verificationId =
 			typeof body.verificationId === "string" ? body.verificationId : null;
-		const code =
-			typeof body.code === "string" ? body.code.trim() : null;
+		const code = typeof body.code === "string" ? body.code.trim() : null;
 
 		if (!verificationId || !/^[0-9a-f-]{36}$/.test(verificationId)) {
 			return reply.code(400).send({ message: "Invalid verificationId" });
@@ -175,7 +220,12 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 			return reply.code(429).send({ message: "Too many requests" });
 		}
 
-		const rlPer = await enforceRateLimit(sql, `verify:code:vid:${verificationId}`, 30, 60);
+		const rlPer = await enforceRateLimit(
+			sql,
+			`verify:code:vid:${verificationId}`,
+			30,
+			60
+		);
 		if (!rlPer.allowed) {
 			reply.header("Retry-After", String(rlPer.retryAfterSeconds));
 			return reply.code(429).send({ message: "Too many requests" });
@@ -194,15 +244,20 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 		if (!row.session_hash || row.session_hash !== sessionHash) {
 			return reply.code(403).send({ message: "Invalid verification session" });
 		}
-		if (row.verified) return reply.code(409).send({ message: "Already verified" });
+		if (row.verified)
+			return reply.code(409).send({ message: "Already verified" });
 		if (new Date(row.expires_at) <= new Date()) {
 			return reply.code(410).send({ message: "Token expired" });
 		}
 		if (!row.use_code) {
-			return reply.code(409).send({ message: "This verification is not in code mode" });
+			return reply
+				.code(409)
+				.send({ message: "This verification is not in code mode" });
 		}
 		if (row.code_expires_at && new Date(row.code_expires_at) <= new Date()) {
-			return reply.code(410).send({ message: "Code expired. Request a new code." });
+			return reply
+				.code(410)
+				.send({ message: "Code expired. Request a new code." });
 		}
 
 		const MAX_ATTEMPTS = 5;
@@ -212,7 +267,9 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 
 		let storedCode: string | null = null;
 		try {
-			storedCode = row.code_encrypted ? decryptVerificationCode(row.code_encrypted) : null;
+			storedCode = row.code_encrypted
+				? decryptVerificationCode(row.code_encrypted)
+				: null;
 		} catch {
 			storedCode = null;
 		}
@@ -227,8 +284,13 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 				UPDATE email_verifications SET code_attempts = code_attempts + 1
 				WHERE id = ${verificationId}
 			`;
-			const remaining = Math.max(0, MAX_ATTEMPTS - ((row.code_attempts ?? 0) + 1));
-			return reply.code(400).send({ message: "Incorrect code", remainingAttempts: remaining });
+			const remaining = Math.max(
+				0,
+				MAX_ATTEMPTS - ((row.code_attempts ?? 0) + 1)
+			);
+			return reply
+				.code(400)
+				.send({ message: "Incorrect code", remainingAttempts: remaining });
 		}
 
 		await sql`
@@ -260,15 +322,27 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 		}
 		const sessionHash = hashVerificationSessionToken(sessionToken);
 
-		const rl = await enforceRateLimit(sql, `verify:request-code:ip:${ip}`, 60, 60);
+		const rl = await enforceRateLimit(
+			sql,
+			`verify:request-code:ip:${ip}`,
+			60,
+			60
+		);
 		if (!rl.allowed) {
 			reply.header("Retry-After", String(rl.retryAfterSeconds));
 			return reply.code(429).send({ message: "Too many requests" });
 		}
-		const rlPer = await enforceRateLimit(sql, `verify:request-code:vid:${verificationId}`, 3, 60 * 10);
+		const rlPer = await enforceRateLimit(
+			sql,
+			`verify:request-code:vid:${verificationId}`,
+			3,
+			60 * 10
+		);
 		if (!rlPer.allowed) {
 			reply.header("Retry-After", String(rlPer.retryAfterSeconds));
-			return reply.code(429).send({ message: "Too many code requests. Please wait and try again." });
+			return reply.code(429).send({
+				message: "Too many code requests. Please wait and try again."
+			});
 		}
 
 		const rows = await sql`
@@ -280,7 +354,8 @@ export async function verifyRoutes(fastify: FastifyInstance): Promise<void> {
 		if (!row.session_hash || row.session_hash !== sessionHash) {
 			return reply.code(403).send({ message: "Invalid verification session" });
 		}
-		if (row.verified) return reply.code(409).send({ message: "Already verified" });
+		if (row.verified)
+			return reply.code(409).send({ message: "Already verified" });
 		if (new Date(row.expires_at) <= new Date()) {
 			return reply.code(410).send({ message: "Token expired" });
 		}

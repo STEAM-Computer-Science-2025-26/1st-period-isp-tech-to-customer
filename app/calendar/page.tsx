@@ -6,6 +6,7 @@ import MainContent from "@/components/layout/MainContent";
 import SidePanel from "@/components/layout/SidePanel";
 import FadeEnd from "@/components/ui/FadeEnd";
 import type { JobDTO } from "@/app/types/types";
+import { useUiStore } from "@/lib/stores/uiStore";
 
 type EventTone = "urgent" | "normal" | "info";
 
@@ -91,7 +92,8 @@ const toneClasses: Record<EventTone, string> = {
 };
 
 const CalendarPage = () => {
-	const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
+	const isSidePanelOpen = useUiStore((state) => state.sidePanelOpen);
+	const setSidePanelOpen = useUiStore((state) => state.setSidePanelOpen);
 	const [dayEvents, setDayEvents] = useState<Record<string, CalendarEvent[]>>(
 		createEmptyDayEvents()
 	);
@@ -174,7 +176,7 @@ const CalendarPage = () => {
 					</div>
 				</div>
 			</div>
-			<SidePanel isOpen={isSidePanelOpen} onOpenChange={setIsSidePanelOpen} />
+			<SidePanel isOpen={isSidePanelOpen} onOpenChange={setSidePanelOpen} />
 		</MainContent>
 	);
 };

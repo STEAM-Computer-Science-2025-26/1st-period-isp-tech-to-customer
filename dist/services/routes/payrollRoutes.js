@@ -30,60 +30,67 @@ import { z } from "zod";
 import { authenticate } from "../middleware/auth";
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getUser(r) {
-    return r.user;
+	return r.user;
 }
 function isDev(u) {
-    return u.role === "dev";
+	return u.role === "dev";
 }
 function resolveCompanyId(u) {
-    return u.companyId ?? null;
+	return u.companyId ?? null;
 }
 function isManager(u) {
-    return ["owner", "admin", "manager", "dev"].includes(u.role);
+	return ["owner", "admin", "manager", "dev"].includes(u.role);
 }
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const createRunSchema = z.object({
-    periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    payDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    payFrequency: z
-        .enum(["weekly", "biweekly", "semimonthly", "monthly"])
-        .default("biweekly"),
-    overtimeThresholdHours: z.number().min(1).max(60).default(40),
-    notes: z.string().max(500).optional()
+	periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+	periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+	payDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+	payFrequency: z
+		.enum(["weekly", "biweekly", "semimonthly", "monthly"])
+		.default("biweekly"),
+	overtimeThresholdHours: z.number().min(1).max(60).default(40),
+	notes: z.string().max(500).optional()
 });
 const markPaidSchema = z.object({
-    paymentMethod: z
-        .enum(["direct_deposit", "check", "cash", "other"])
-        .default("direct_deposit"),
-    checkNumber: z.string().max(30).optional(),
-    referenceNumber: z.string().max(80).optional()
+	paymentMethod: z
+		.enum(["direct_deposit", "check", "cash", "other"])
+		.default("direct_deposit"),
+	checkNumber: z.string().max(30).optional(),
+	referenceNumber: z.string().max(80).optional()
 });
 const createDeductionSchema = z.object({
-    name: z.string().min(1).max(100),
-    type: z.enum(["flat", "percent"]),
-    defaultAmount: z.number().min(0).optional(),
-    description: z.string().max(300).optional(),
-    isTaxable: z.boolean().default(false)
+	name: z.string().min(1).max(100),
+	type: z.enum(["flat", "percent"]),
+	defaultAmount: z.number().min(0).optional(),
+	description: z.string().max(300).optional(),
+	isTaxable: z.boolean().default(false)
 });
 const employeeDeductionSchema = z.object({
-    employeeId: z.string().uuid(),
-    deductionTypeId: z.string().uuid(),
-    amount: z.number().min(0),
-    effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+	employeeId: z.string().uuid(),
+	deductionTypeId: z.string().uuid(),
+	amount: z.number().min(0),
+	effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 });
 const listRunsSchema = z.object({
-    companyId: z.string().uuid().optional(),
-    status: z
-        .enum(["draft", "approved", "processing", "completed", "voided"])
-        .optional(),
-    limit: z.coerce.number().int().min(1).max(50).default(20),
-    offset: z.coerce.number().int().min(0).default(0)
+	companyId: z.string().uuid().optional(),
+	status: z
+		.enum(["draft", "approved", "processing", "completed", "voided"])
+		.optional(),
+	limit: z.coerce.number().int().min(1).max(50).default(20),
+	offset: z.coerce.number().int().min(0).default(0)
 });
 // ─── Pay computation ──────────────────────────────────────────────────────────
-async function computePayForEmployee(sql, employeeId, companyId, periodStart, periodEnd, otThreshold) {
-    // Get time totals for the period
-    const [timeData] = (await sql `
+async function computePayForEmployee(
+	sql,
+	employeeId,
+	companyId,
+	periodStart,
+	periodEnd,
+	otThreshold
+) {
+	// Get time totals for the period
+	const [timeData] = await sql`
 		SELECT
 			e.id,
 			COALESCE(
@@ -106,26 +113,26 @@ async function computePayForEmployee(sql, employeeId, companyId, periodStart, pe
 		LEFT JOIN job_time_tracking jtt ON jtt.job_id = j.id
 		WHERE e.id = ${employeeId}
 		GROUP BY e.id
-	`);
-    // Get pay rate
-    const [rate] = (await sql `
+	`;
+	// Get pay rate
+	const [rate] = await sql`
 		SELECT hourly_rate, overtime_rate
 		FROM tech_pay_rates
 		WHERE employee_id = ${employeeId}
 			AND effective_date <= ${periodEnd}::date
 		ORDER BY effective_date DESC
 		LIMIT 1
-	`);
-    const totalHours = Number(timeData?.total_hours ?? 0);
-    const hourlyRate = Number(rate?.hourly_rate ?? 0);
-    const overtimeRate = Number(rate?.overtime_rate ?? hourlyRate * 1.5);
-    const regularHours = Math.min(totalHours, otThreshold);
-    const overtimeHours = Math.max(0, totalHours - otThreshold);
-    const regularPay = Math.round(regularHours * hourlyRate * 100) / 100;
-    const overtimePay = Math.round(overtimeHours * overtimeRate * 100) / 100;
-    const grossPay = regularPay + overtimePay;
-    // Get deductions
-    const deductions = (await sql `
+	`;
+	const totalHours = Number(timeData?.total_hours ?? 0);
+	const hourlyRate = Number(rate?.hourly_rate ?? 0);
+	const overtimeRate = Number(rate?.overtime_rate ?? hourlyRate * 1.5);
+	const regularHours = Math.min(totalHours, otThreshold);
+	const overtimeHours = Math.max(0, totalHours - otThreshold);
+	const regularPay = Math.round(regularHours * hourlyRate * 100) / 100;
+	const overtimePay = Math.round(overtimeHours * overtimeRate * 100) / 100;
+	const grossPay = regularPay + overtimePay;
+	// Get deductions
+	const deductions = await sql`
 		SELECT
 			ed.id, dt.name, dt.type, ed.amount,
 			CASE
@@ -137,53 +144,69 @@ async function computePayForEmployee(sql, employeeId, companyId, periodStart, pe
 		WHERE ed.employee_id = ${employeeId}
 			AND ed.effective_date <= ${periodEnd}::date
 			AND (ed.end_date IS NULL OR ed.end_date >= ${periodStart}::date)
-	`);
-    const totalDeductions = deductions.reduce((sum, d) => sum + Number(d.computed_amount ?? 0), 0);
-    const netPay = Math.max(0, Math.round((grossPay - totalDeductions) * 100) / 100);
-    return {
-        employeeId,
-        regularHours: Math.round(regularHours * 100) / 100,
-        overtimeHours: Math.round(overtimeHours * 100) / 100,
-        regularPay,
-        overtimePay,
-        grossPay,
-        totalDeductions: Math.round(totalDeductions * 100) / 100,
-        netPay,
-        jobsCompleted: Number(timeData?.jobs_completed ?? 0),
-        deductions
-    };
+	`;
+	const totalDeductions = deductions.reduce(
+		(sum, d) => sum + Number(d.computed_amount ?? 0),
+		0
+	);
+	const netPay = Math.max(
+		0,
+		Math.round((grossPay - totalDeductions) * 100) / 100
+	);
+	return {
+		employeeId,
+		regularHours: Math.round(regularHours * 100) / 100,
+		overtimeHours: Math.round(overtimeHours * 100) / 100,
+		regularPay,
+		overtimePay,
+		grossPay,
+		totalDeductions: Math.round(totalDeductions * 100) / 100,
+		netPay,
+		jobsCompleted: Number(timeData?.jobs_completed ?? 0),
+		deductions
+	};
 }
 // ─── Routes ──────────────────────────────────────────────────────────────────
 export async function payrollRoutes(fastify) {
-    // ── POST /payroll/runs ────────────────────────────────────────────────────
-    // Compute payroll for all active techs in the period.
-    fastify.post("/payroll/runs", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        if (!companyId && !isDev(user))
-            return reply.code(403).send({ error: "Forbidden" });
-        if (!isManager(user))
-            return reply.code(403).send({ error: "Managers only" });
-        const parsed = createRunSchema.safeParse(request.body);
-        if (!parsed.success) {
-            return reply.code(400).send({
-                error: "Invalid body",
-                details: parsed.error.flatten().fieldErrors
-            });
-        }
-        const { periodStart, periodEnd, payDate, payFrequency, overtimeThresholdHours, notes } = parsed.data;
-        const sql = getSql();
-        // Get all active employees
-        const employees = (await sql `
+	// ── POST /payroll/runs ────────────────────────────────────────────────────
+	// Compute payroll for all active techs in the period.
+	fastify.post(
+		"/payroll/runs",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			if (!companyId && !isDev(user))
+				return reply.code(403).send({ error: "Forbidden" });
+			if (!isManager(user))
+				return reply.code(403).send({ error: "Managers only" });
+			const parsed = createRunSchema.safeParse(request.body);
+			if (!parsed.success) {
+				return reply.code(400).send({
+					error: "Invalid body",
+					details: parsed.error.flatten().fieldErrors
+				});
+			}
+			const {
+				periodStart,
+				periodEnd,
+				payDate,
+				payFrequency,
+				overtimeThresholdHours,
+				notes
+			} = parsed.data;
+			const sql = getSql();
+			// Get all active employees
+			const employees = await sql`
 				SELECT id, name, email FROM employees
 				WHERE company_id = ${companyId}
 					AND is_active = TRUE
-			`);
-        if (employees.length === 0) {
-            return reply.code(422).send({ error: "No active employees found" });
-        }
-        // Create the payroll run
-        const [run] = (await sql `
+			`;
+			if (employees.length === 0) {
+				return reply.code(422).send({ error: "No active employees found" });
+			}
+			// Create the payroll run
+			const [run] = await sql`
 				INSERT INTO payroll_runs (
 					company_id, period_start, period_end, pay_date,
 					pay_frequency, overtime_threshold_hours,
@@ -195,14 +218,21 @@ export async function payrollRoutes(fastify) {
 				)
 				RETURNING id, period_start AS "periodStart", period_end AS "periodEnd",
 					pay_date AS "payDate", status
-			`);
-        // Compute pay for each employee and store line items
-        let totalGross = 0;
-        let totalNet = 0;
-        const lineItems = [];
-        for (const emp of employees) {
-            const pay = await computePayForEmployee(sql, emp.id, companyId, periodStart, periodEnd, overtimeThresholdHours);
-            const [lineItem] = (await sql `
+			`;
+			// Compute pay for each employee and store line items
+			let totalGross = 0;
+			let totalNet = 0;
+			const lineItems = [];
+			for (const emp of employees) {
+				const pay = await computePayForEmployee(
+					sql,
+					emp.id,
+					companyId,
+					periodStart,
+					periodEnd,
+					overtimeThresholdHours
+				);
+				const [lineItem] = await sql`
 					INSERT INTO payroll_run_employees (
 						payroll_run_id, employee_id,
 						regular_hours, overtime_hours,
@@ -217,40 +247,44 @@ export async function payrollRoutes(fastify) {
 						${pay.jobsCompleted}, 'pending'
 					)
 					RETURNING id
-				`);
-            totalGross += pay.grossPay;
-            totalNet += pay.netPay;
-            lineItems.push({
-                ...pay,
-                employeeName: emp.name,
-                lineItemId: lineItem.id
-            });
-        }
-        // Update run totals
-        await sql `
+				`;
+				totalGross += pay.grossPay;
+				totalNet += pay.netPay;
+				lineItems.push({
+					...pay,
+					employeeName: emp.name,
+					lineItemId: lineItem.id
+				});
+			}
+			// Update run totals
+			await sql`
 				UPDATE payroll_runs SET
 					total_gross = ${Math.round(totalGross * 100) / 100},
 					total_net   = ${Math.round(totalNet * 100) / 100},
 					employee_count = ${employees.length}
 				WHERE id = ${run.id}
 			`;
-        return reply.code(201).send({
-            run: { ...run, totalGross, totalNet, employeeCount: employees.length },
-            lineItems
-        });
-    });
-    // ── GET /payroll/runs ─────────────────────────────────────────────────────
-    fastify.get("/payroll/runs", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        if (!isManager(user))
-            return reply.code(403).send({ error: "Managers only" });
-        const parsed = listRunsSchema.safeParse(request.query);
-        if (!parsed.success)
-            return reply.code(400).send({ error: "Invalid query" });
-        const { status, limit, offset } = parsed.data;
-        const sql = getSql();
-        const runs = (await sql `
+			return reply.code(201).send({
+				run: { ...run, totalGross, totalNet, employeeCount: employees.length },
+				lineItems
+			});
+		}
+	);
+	// ── GET /payroll/runs ─────────────────────────────────────────────────────
+	fastify.get(
+		"/payroll/runs",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			if (!isManager(user))
+				return reply.code(403).send({ error: "Managers only" });
+			const parsed = listRunsSchema.safeParse(request.query);
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid query" });
+			const { status, limit, offset } = parsed.data;
+			const sql = getSql();
+			const runs = await sql`
 				SELECT
 					id,
 					period_start     AS "periodStart",
@@ -269,25 +303,28 @@ export async function payrollRoutes(fastify) {
 					AND (${status ?? null}::text IS NULL OR status = ${status ?? null})
 				ORDER BY period_start DESC
 				LIMIT ${limit} OFFSET ${offset}
-			`);
-        return reply.send({ runs, limit, offset });
-    });
-    // ── GET /payroll/runs/:id ─────────────────────────────────────────────────
-    fastify.get("/payroll/runs/:id", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const { id } = request.params;
-        const companyId = resolveCompanyId(user);
-        if (!isManager(user))
-            return reply.code(403).send({ error: "Managers only" });
-        const sql = getSql();
-        const [run] = (await sql `
+			`;
+			return reply.send({ runs, limit, offset });
+		}
+	);
+	// ── GET /payroll/runs/:id ─────────────────────────────────────────────────
+	fastify.get(
+		"/payroll/runs/:id",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const { id } = request.params;
+			const companyId = resolveCompanyId(user);
+			if (!isManager(user))
+				return reply.code(403).send({ error: "Managers only" });
+			const sql = getSql();
+			const [run] = await sql`
 				SELECT * FROM payroll_runs
 				WHERE id = ${id}
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
-			`);
-        if (!run)
-            return reply.code(404).send({ error: "Payroll run not found" });
-        const employees = (await sql `
+			`;
+			if (!run) return reply.code(404).send({ error: "Payroll run not found" });
+			const employees = await sql`
 				SELECT
 					pre.*,
 					e.name AS "employeeName",
@@ -296,18 +333,22 @@ export async function payrollRoutes(fastify) {
 				JOIN employees e ON e.id = pre.employee_id
 				WHERE pre.payroll_run_id = ${id}
 				ORDER BY e.name
-			`);
-        return reply.send({ run, employees });
-    });
-    // ── POST /payroll/runs/:id/approve ────────────────────────────────────────
-    fastify.post("/payroll/runs/:id/approve", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const { id } = request.params;
-        const companyId = resolveCompanyId(user);
-        if (!isManager(user))
-            return reply.code(403).send({ error: "Managers only" });
-        const sql = getSql();
-        const [run] = (await sql `
+			`;
+			return reply.send({ run, employees });
+		}
+	);
+	// ── POST /payroll/runs/:id/approve ────────────────────────────────────────
+	fastify.post(
+		"/payroll/runs/:id/approve",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const { id } = request.params;
+			const companyId = resolveCompanyId(user);
+			if (!isManager(user))
+				return reply.code(403).send({ error: "Managers only" });
+			const sql = getSql();
+			const [run] = await sql`
 				UPDATE payroll_runs SET
 					status      = 'approved',
 					approved_by = ${user.userId ?? user.id ?? null},
@@ -317,25 +358,29 @@ export async function payrollRoutes(fastify) {
 					AND status = 'draft'
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
 				RETURNING id, status, approved_at AS "approvedAt"
-			`);
-        if (!run)
-            return reply.code(404).send({ error: "Run not found or not in draft" });
-        return reply.send({ run });
-    });
-    // ── POST /payroll/runs/:id/pay/:empId ─────────────────────────────────────
-    // Mark an individual employee as paid within this run.
-    fastify.post("/payroll/runs/:id/pay/:empId", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const { id, empId } = request.params;
-        const companyId = resolveCompanyId(user);
-        if (!isManager(user))
-            return reply.code(403).send({ error: "Managers only" });
-        const parsed = markPaidSchema.safeParse(request.body ?? {});
-        if (!parsed.success)
-            return reply.code(400).send({ error: "Invalid body" });
-        const b = parsed.data;
-        const sql = getSql();
-        const [lineItem] = (await sql `
+			`;
+			if (!run)
+				return reply.code(404).send({ error: "Run not found or not in draft" });
+			return reply.send({ run });
+		}
+	);
+	// ── POST /payroll/runs/:id/pay/:empId ─────────────────────────────────────
+	// Mark an individual employee as paid within this run.
+	fastify.post(
+		"/payroll/runs/:id/pay/:empId",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const { id, empId } = request.params;
+			const companyId = resolveCompanyId(user);
+			if (!isManager(user))
+				return reply.code(403).send({ error: "Managers only" });
+			const parsed = markPaidSchema.safeParse(request.body ?? {});
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid body" });
+			const b = parsed.data;
+			const sql = getSql();
+			const [lineItem] = await sql`
 				UPDATE payroll_run_employees SET
 					status           = 'paid',
 					payment_method   = ${b.paymentMethod},
@@ -346,22 +391,26 @@ export async function payrollRoutes(fastify) {
 					AND employee_id = ${empId}
 					AND status = 'pending'
 				RETURNING id, status, paid_at AS "paidAt"
-			`);
-        if (!lineItem)
-            return reply
-                .code(404)
-                .send({ error: "Employee not found in this run or already paid" });
-        return reply.send({ lineItem });
-    });
-    // ── POST /payroll/runs/:id/complete ───────────────────────────────────────
-    fastify.post("/payroll/runs/:id/complete", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const { id } = request.params;
-        const companyId = resolveCompanyId(user);
-        if (!isManager(user))
-            return reply.code(403).send({ error: "Managers only" });
-        const sql = getSql();
-        const [run] = (await sql `
+			`;
+			if (!lineItem)
+				return reply
+					.code(404)
+					.send({ error: "Employee not found in this run or already paid" });
+			return reply.send({ lineItem });
+		}
+	);
+	// ── POST /payroll/runs/:id/complete ───────────────────────────────────────
+	fastify.post(
+		"/payroll/runs/:id/complete",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const { id } = request.params;
+			const companyId = resolveCompanyId(user);
+			if (!isManager(user))
+				return reply.code(403).send({ error: "Managers only" });
+			const sql = getSql();
+			const [run] = await sql`
 				UPDATE payroll_runs SET
 					status       = 'completed',
 					completed_at = NOW(),
@@ -370,42 +419,50 @@ export async function payrollRoutes(fastify) {
 					AND status = 'approved'
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
 				RETURNING id, status, completed_at AS "completedAt"
-			`);
-        if (!run)
-            return reply.code(404).send({ error: "Run not found or not approved" });
-        return reply.send({ run });
-    });
-    // ── DELETE /payroll/runs/:id ──────────────────────────────────────────────
-    fastify.delete("/payroll/runs/:id", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const { id } = request.params;
-        const companyId = resolveCompanyId(user);
-        if (!isManager(user))
-            return reply.code(403).send({ error: "Managers only" });
-        const sql = getSql();
-        const [run] = (await sql `
+			`;
+			if (!run)
+				return reply.code(404).send({ error: "Run not found or not approved" });
+			return reply.send({ run });
+		}
+	);
+	// ── DELETE /payroll/runs/:id ──────────────────────────────────────────────
+	fastify.delete(
+		"/payroll/runs/:id",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const { id } = request.params;
+			const companyId = resolveCompanyId(user);
+			if (!isManager(user))
+				return reply.code(403).send({ error: "Managers only" });
+			const sql = getSql();
+			const [run] = await sql`
 				UPDATE payroll_runs SET status = 'voided', updated_at = NOW()
 				WHERE id = ${id}
 					AND status = 'draft'
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
 				RETURNING id
-			`);
-        if (!run)
-            return reply.code(404).send({ error: "Run not found or not voidable" });
-        return reply.send({ voided: true });
-    });
-    // ── POST /payroll/deductions ──────────────────────────────────────────────
-    fastify.post("/payroll/deductions", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        if (!isManager(user))
-            return reply.code(403).send({ error: "Managers only" });
-        const parsed = createDeductionSchema.safeParse(request.body);
-        if (!parsed.success)
-            return reply.code(400).send({ error: "Invalid body" });
-        const b = parsed.data;
-        const sql = getSql();
-        const [deduction] = (await sql `
+			`;
+			if (!run)
+				return reply.code(404).send({ error: "Run not found or not voidable" });
+			return reply.send({ voided: true });
+		}
+	);
+	// ── POST /payroll/deductions ──────────────────────────────────────────────
+	fastify.post(
+		"/payroll/deductions",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			if (!isManager(user))
+				return reply.code(403).send({ error: "Managers only" });
+			const parsed = createDeductionSchema.safeParse(request.body);
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid body" });
+			const b = parsed.data;
+			const sql = getSql();
+			const [deduction] = await sql`
 				INSERT INTO payroll_deduction_types (
 					company_id, name, type, default_amount, description, is_taxable
 				) VALUES (
@@ -413,35 +470,43 @@ export async function payrollRoutes(fastify) {
 					${b.defaultAmount ?? null}, ${b.description ?? null}, ${b.isTaxable}
 				)
 				RETURNING id, name, type, default_amount AS "defaultAmount", is_taxable AS "isTaxable"
-			`);
-        return reply.code(201).send({ deduction });
-    });
-    // ── GET /payroll/deductions ───────────────────────────────────────────────
-    fastify.get("/payroll/deductions", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        const sql = getSql();
-        const deductions = (await sql `
+			`;
+			return reply.code(201).send({ deduction });
+		}
+	);
+	// ── GET /payroll/deductions ───────────────────────────────────────────────
+	fastify.get(
+		"/payroll/deductions",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			const sql = getSql();
+			const deductions = await sql`
 				SELECT id, name, type, default_amount AS "defaultAmount",
 					description, is_taxable AS "isTaxable", is_active AS "isActive"
 				FROM payroll_deduction_types
 				WHERE company_id = ${companyId}
 				ORDER BY name
-			`);
-        return reply.send({ deductions });
-    });
-    // ── POST /payroll/employee-deductions ─────────────────────────────────────
-    fastify.post("/payroll/employee-deductions", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const companyId = resolveCompanyId(user);
-        if (!isManager(user))
-            return reply.code(403).send({ error: "Managers only" });
-        const parsed = employeeDeductionSchema.safeParse(request.body);
-        if (!parsed.success)
-            return reply.code(400).send({ error: "Invalid body" });
-        const b = parsed.data;
-        const sql = getSql();
-        const [assignment] = (await sql `
+			`;
+			return reply.send({ deductions });
+		}
+	);
+	// ── POST /payroll/employee-deductions ─────────────────────────────────────
+	fastify.post(
+		"/payroll/employee-deductions",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			if (!isManager(user))
+				return reply.code(403).send({ error: "Managers only" });
+			const parsed = employeeDeductionSchema.safeParse(request.body);
+			if (!parsed.success)
+				return reply.code(400).send({ error: "Invalid body" });
+			const b = parsed.data;
+			const sql = getSql();
+			const [assignment] = await sql`
 				INSERT INTO employee_deduction_assignments (
 					employee_id, deduction_type_id, amount, effective_date, company_id
 				) VALUES (
@@ -449,7 +514,8 @@ export async function payrollRoutes(fastify) {
 					${b.effectiveDate}, ${companyId}
 				)
 				RETURNING id, employee_id AS "employeeId", amount, effective_date AS "effectiveDate"
-			`);
-        return reply.code(201).send({ assignment });
-    });
+			`;
+			return reply.code(201).send({ assignment });
+		}
+	);
 }

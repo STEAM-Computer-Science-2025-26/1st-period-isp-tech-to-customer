@@ -1,6 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils/index";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useUiStore } from "@/lib/stores/uiStore";
 
 type SidePanelProps = {
 	isOpen?: boolean;
@@ -11,13 +12,14 @@ const SidePanel = ({
 	isOpen: controlledOpen,
 	onOpenChange
 }: SidePanelProps) => {
-	const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
-	const isOpen = controlledOpen ?? uncontrolledOpen;
+	const storedOpen = useUiStore((state) => state.sidePanelOpen);
+	const setStoredOpen = useUiStore((state) => state.setSidePanelOpen);
+	const isOpen = controlledOpen ?? storedOpen;
 
 	const setIsOpen = (nextOpen: boolean) => {
 		onOpenChange?.(nextOpen);
 		if (controlledOpen === undefined) {
-			setUncontrolledOpen(nextOpen);
+			setStoredOpen(nextOpen);
 		}
 	};
 

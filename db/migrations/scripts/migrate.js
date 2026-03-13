@@ -61,7 +61,9 @@ async function ensureMigrationsTable(client) {
 	const columnSet = new Set(columns.map((col) => col.column_name));
 
 	if (!columnSet.has("filename")) {
-		await client.query("ALTER TABLE schema_migrations ADD COLUMN filename TEXT");
+		await client.query(
+			"ALTER TABLE schema_migrations ADD COLUMN filename TEXT"
+		);
 		const fallback = [
 			"name",
 			"migration",
@@ -163,7 +165,9 @@ async function status() {
 	await ensureMigrationsTable(client);
 	const migrationColumn = await getMigrationColumn(client);
 	if (!migrationColumn) {
-		console.error("❌  schema_migrations has no recognizable migration column.");
+		console.error(
+			"❌  schema_migrations has no recognizable migration column."
+		);
 		await client.end();
 		process.exit(1);
 	}
@@ -191,7 +195,9 @@ async function up() {
 	await ensureMigrationsTable(client);
 	const migrationColumn = await getMigrationColumn(client);
 	if (!migrationColumn) {
-		console.error("❌  schema_migrations has no recognizable migration column.");
+		console.error(
+			"❌  schema_migrations has no recognizable migration column."
+		);
 		await client.end();
 		process.exit(1);
 	}
@@ -221,7 +227,9 @@ async function up() {
 			if (migrationColumn === "version") {
 				const version = parseMigrationVersion(filename);
 				if (version === null) {
-					throw new Error(`Migration filename ${filename} has no numeric prefix`);
+					throw new Error(
+						`Migration filename ${filename} has no numeric prefix`
+					);
 				}
 				insertValues.push(version);
 			} else {
@@ -235,7 +243,9 @@ async function up() {
 			) {
 				const version = parseMigrationVersion(filename);
 				if (version === null) {
-					throw new Error(`Migration filename ${filename} has no numeric prefix`);
+					throw new Error(
+						`Migration filename ${filename} has no numeric prefix`
+					);
 				}
 				insertColumns.push("version");
 				insertValues.push(version);
@@ -265,7 +275,9 @@ async function down() {
 	await ensureMigrationsTable(client);
 	const migrationColumn = await getMigrationColumn(client);
 	if (!migrationColumn) {
-		console.error("❌  schema_migrations has no recognizable migration column.");
+		console.error(
+			"❌  schema_migrations has no recognizable migration column."
+		);
 		await client.end();
 		process.exit(1);
 	}
@@ -282,9 +294,7 @@ async function down() {
 	const last = appliedList.sort().at(-1);
 	const lastFilename =
 		migrationColumn === "version"
-			? getMigrationFiles().find(
-					(file) => parseMigrationVersion(file) === last
-			  )
+			? getMigrationFiles().find((file) => parseMigrationVersion(file) === last)
 			: last;
 	const downFile = lastFilename.replace(/\.sql$/, ".down.sql");
 	const downPath = path.join(MIGRATIONS_DIR, downFile);
@@ -303,8 +313,7 @@ async function down() {
 		await client.query("BEGIN");
 		await client.query(sql);
 		const column = migrationColumn ?? "filename";
-		const deleteValue =
-			migrationColumn === "version" ? last : lastFilename;
+		const deleteValue = migrationColumn === "version" ? last : lastFilename;
 		await client.query(`DELETE FROM schema_migrations WHERE ${column} = $1`, [
 			deleteValue
 		]);

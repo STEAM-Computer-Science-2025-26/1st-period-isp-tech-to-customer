@@ -1,9 +1,9 @@
 "use client";
 
 import MainContent from "@/components/layout/MainContent";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils/index";
-import { getToken, authHeaders } from "@/lib/auth";
+import { getToken } from "@/lib/auth";
 import { KpiCard } from "@/components/ui/Card";
 import FadeEnd from "@/components/ui/FadeEnd";
 import { useBreakpoints } from "../hooks/useBreakpoints";
@@ -19,6 +19,8 @@ import {
 	AlertCircle,
 	ChevronRight
 } from "lucide-react";
+import { useEmployees, employeesQueryKey } from "@/lib/hooks/useEmployees";
+import { useQueryClient } from "@tanstack/react-query";
 
 const FASTIFY_BASE_URL =
 	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
@@ -149,7 +151,7 @@ function AddEmployeeModal({
 	onCreated
 }: {
 	onClose: () => void;
-	onCreated: (emp: Employee) => void;
+	onCreated: () => void;
 }) {
 	const [form, setForm] = useState<AddEmployeeForm>({
 		name: "",
@@ -274,12 +276,10 @@ function AddEmployeeModal({
 						headers,
 						body: JSON.stringify({ latitude: lat, longitude: lng })
 					});
-					empData.employee.latitude = lat;
-					empData.employee.longitude = lng;
 				}
 			}
 
-			onCreated(empData.employee);
+			onCreated();
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Something went wrong");
 		} finally {
@@ -527,44 +527,13 @@ function Field({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function EmployeesPage() {
-	const [employees, setEmployees] = useState<Employee[]>([]);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const { data: employees = [], isLoading: loading, error } = useEmployees();
+	const queryClient = useQueryClient();
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
 		null
 	);
 	const { lgUp } = useBreakpoints();
-
-	const loadEmployees = () => {
-		let mounted = true;
-		setLoading(true);
-		setError(null);
-
-		void (async () => {
-			try {
-				const token = getToken();
-				const res = await fetch(`${FASTIFY_BASE_URL}/employees`, {
-					headers: token ? { Authorization: `Bearer ${token}` } : {}
-				});
-				if (!res.ok)
-					throw new Error(`Failed to load employees (${res.status})`);
-				const data = (await res.json()) as { employees?: Employee[] };
-				if (mounted) setEmployees(data.employees ?? []);
-			} catch (e) {
-				if (mounted)
-					setError(e instanceof Error ? e.message : "Failed to load employees");
-			} finally {
-				if (mounted) setLoading(false);
-			}
-		})();
-
-		return () => {
-			mounted = false;
-		};
-	};
-
-	useEffect(loadEmployees, []);
 
 	const active = employees.filter((e) => e.isActive).length;
 	const available = employees.filter((e) => e.isAvailable).length;
@@ -646,7 +615,7 @@ export default function EmployeesPage() {
 							<li
 								key={emp.id}
 								className="grid grid-cols-[2fr_1fr_2fr_1fr_1fr_1.5rem] items-center px-4 py-3 cursor-pointer hover:bg-background-secondary/30 rounded-lg transition-colors"
-								onClick={() => setSelectedEmployee(emp)}
+								onClick={() => setSelectedEmployee(emp as Employee)}
 							>
 								{/* Name + address */}
 								<div className="flex items-center gap-3 min-w-0">
@@ -673,7 +642,7 @@ export default function EmployeesPage() {
 								{/* Skills */}
 								<div className="flex flex-wrap gap-1 min-w-0">
 									{emp.skills.slice(0, 3).map((s) => (
-										<SkillBadge key={s} skill={s} />
+										<SkillBadge key={s} skill={s as EmployeeSkill} />
 									))}
 									{emp.skills.length > 3 && (
 										<span className="text-xs text-text-tertiary">
@@ -703,7 +672,9 @@ export default function EmployeesPage() {
 					</ul>
 				</div>
 
-				{error && <p className={cn("mx-2 text-sm text-red-600")}>{error}</p>}
+				{error && (
+					<p className={cn("mx-2 text-sm text-red-600")}>{error.message}</p>
+				)}
 
 				{/* Employee Detail Slide-in */}
 				{selectedEmployee && (
@@ -711,9 +682,11 @@ export default function EmployeesPage() {
 						employee={selectedEmployee}
 						onClose={() => setSelectedEmployee(null)}
 						onUpdated={(updated) => {
-							setEmployees((prev) =>
-								prev.map((e) => (e.id === updated.id ? updated : e))
-							);
+							// Invalidate the employees list cache so the list refetches,
+							// and update the open detail panel with the fresh employee data.
+							void queryClient.invalidateQueries({
+								queryKey: employeesQueryKey
+							});
 							setSelectedEmployee(updated);
 						}}
 					/>
@@ -723,8 +696,9 @@ export default function EmployeesPage() {
 			{showAddModal && (
 				<AddEmployeeModal
 					onClose={() => setShowAddModal(false)}
-					onCreated={(emp) => {
-						setEmployees((prev) => [emp, ...prev]);
+					onCreated={() => {
+						// Invalidate cache so the new employee appears in the list.
+						void queryClient.invalidateQueries({ queryKey: employeesQueryKey });
 						setShowAddModal(false);
 					}}
 				/>

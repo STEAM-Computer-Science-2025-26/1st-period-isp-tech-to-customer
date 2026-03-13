@@ -27,9 +27,7 @@ const existing = fs
 	.sort();
 
 const lastNum =
-	existing.length > 0
-		? parseInt(existing.at(-1).match(/^(\d+)/)[1], 10)
-		: 0;
+	existing.length > 0 ? parseInt(existing.at(-1).match(/^(\d+)/)[1], 10) : 0;
 
 const nextNum = String(lastNum + 1).padStart(3, "0");
 const slug = name.toLowerCase().replace(/\s+/g, "_");

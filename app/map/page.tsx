@@ -12,7 +12,7 @@ const MapPage = () => {
 			<APIProvider apiKey={MAPS_API_KEY}>
 				<Map
 					className={cn(`fixed h-dvh w-dvw top-0 left-0`)}
-					defaultCenter={{ lat: 22.54992, lng: 0 }}	
+					defaultCenter={{ lat: 22.54992, lng: 0 }}
 					defaultZoom={3}
 					gestureHandling="greedy"
 					disableDefaultUI

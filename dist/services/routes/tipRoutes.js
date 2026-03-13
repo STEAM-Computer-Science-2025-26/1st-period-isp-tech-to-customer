@@ -46,56 +46,58 @@ import { authenticate } from "../middleware/auth";
 import Stripe from "stripe";
 // ─── Stripe singleton ────────────────────────────────────────────────────────
 function getStripe() {
-    const key = process.env.STRIPE_SECRET_KEY;
-    if (!key)
-        throw new Error("STRIPE_SECRET_KEY not configured");
-    return new Stripe(key, { apiVersion: "2026-01-28.clover" });
+	const key = process.env.STRIPE_SECRET_KEY;
+	if (!key) throw new Error("STRIPE_SECRET_KEY not configured");
+	return new Stripe(key, { apiVersion: "2026-01-28.clover" });
 }
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getUser(request) {
-    return request.user;
+	return request.user;
 }
 function isDev(user) {
-    return user.role === "dev";
+	return user.role === "dev";
 }
 function resolveCompanyId(user) {
-    return user.companyId ?? null;
+	return user.companyId ?? null;
 }
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const createTipSchema = z.object({
-    jobId: z.string().uuid(),
-    amount: z.number().positive().max(500), // sanity cap — $500 max tip
-    note: z.string().max(500).optional(),
-    // Optional: pass a payment method ID if the frontend already has one
-    paymentMethodId: z.string().optional()
+	jobId: z.string().uuid(),
+	amount: z.number().positive().max(500), // sanity cap — $500 max tip
+	note: z.string().max(500).optional(),
+	// Optional: pass a payment method ID if the frontend already has one
+	paymentMethodId: z.string().optional()
 });
 const techTipHistorySchema = z.object({
-    limit: z.coerce.number().int().min(1).max(100).default(50),
-    offset: z.coerce.number().int().min(0).default(0),
-    status: z.enum(["pending", "succeeded", "failed", "cancelled"]).optional()
+	limit: z.coerce.number().int().min(1).max(100).default(50),
+	offset: z.coerce.number().int().min(0).default(0),
+	status: z.enum(["pending", "succeeded", "failed", "cancelled"]).optional()
 });
 // ─── Routes ──────────────────────────────────────────────────────────────────
 export async function tipRoutes(fastify) {
-    // ── POST /tips ────────────────────────────────────────────────────────────
-    // Create a tip for the technician on a completed job.
-    // Returns a Stripe client_secret so the frontend can confirm the payment.
-    fastify.post("/tips", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const parsed = createTipSchema.safeParse(request.body);
-        if (!parsed.success) {
-            return reply.code(400).send({
-                error: "Invalid request body",
-                details: parsed.error.flatten().fieldErrors
-            });
-        }
-        const { jobId, amount, note, paymentMethodId } = parsed.data;
-        const companyId = resolveCompanyId(user);
-        if (!companyId && !isDev(user)) {
-            return reply.code(403).send({ error: "Forbidden" });
-        }
-        const sql = getSql();
-        // Load job — must be completed and have a tech
-        const [job] = (await sql `
+	// ── POST /tips ────────────────────────────────────────────────────────────
+	// Create a tip for the technician on a completed job.
+	// Returns a Stripe client_secret so the frontend can confirm the payment.
+	fastify.post(
+		"/tips",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const parsed = createTipSchema.safeParse(request.body);
+			if (!parsed.success) {
+				return reply.code(400).send({
+					error: "Invalid request body",
+					details: parsed.error.flatten().fieldErrors
+				});
+			}
+			const { jobId, amount, note, paymentMethodId } = parsed.data;
+			const companyId = resolveCompanyId(user);
+			if (!companyId && !isDev(user)) {
+				return reply.code(403).send({ error: "Forbidden" });
+			}
+			const sql = getSql();
+			// Load job — must be completed and have a tech
+			const [job] = await sql`
 				SELECT
 					j.id,
 					j.company_id,
@@ -107,54 +109,53 @@ export async function tipRoutes(fastify) {
 				LEFT JOIN employees e ON e.id = j.assigned_tech_id
 				WHERE j.id = ${jobId}
 					AND (${isDev(user) && !companyId} OR j.company_id = ${companyId})
-			`);
-        if (!job)
-            return reply.code(404).send({ error: "Job not found" });
-        if (job.status !== "completed") {
-            return reply.code(409).send({
-                error: "Tips can only be added to completed jobs"
-            });
-        }
-        if (!job.assigned_tech_id) {
-            return reply.code(409).send({
-                error: "Job has no assigned technician to tip"
-            });
-        }
-        // Check for an existing tip on this job — one tip per job
-        const [existing] = (await sql `
+			`;
+			if (!job) return reply.code(404).send({ error: "Job not found" });
+			if (job.status !== "completed") {
+				return reply.code(409).send({
+					error: "Tips can only be added to completed jobs"
+				});
+			}
+			if (!job.assigned_tech_id) {
+				return reply.code(409).send({
+					error: "Job has no assigned technician to tip"
+				});
+			}
+			// Check for an existing tip on this job — one tip per job
+			const [existing] = await sql`
 				SELECT id, status FROM tech_tips WHERE job_id = ${jobId}
-			`);
-        if (existing) {
-            if (existing.status === "succeeded") {
-                return reply.code(409).send({
-                    error: "A tip has already been collected for this job"
-                });
-            }
-            // If pending or failed, allow re-attempt — fall through to create new intent
-        }
-        const amountCents = Math.round(amount * 100);
-        // Create Stripe PaymentIntent
-        const stripe = getStripe();
-        const intentParams = {
-            amount: amountCents,
-            currency: "usd",
-            payment_method_types: ["card"],
-            metadata: {
-                type: "technician_tip",
-                jobId,
-                techId: job.assigned_tech_id,
-                techName: job.tech_name ?? "",
-                companyId: job.company_id
-            },
-            description: `Tip for technician${job.tech_name ? ` ${job.tech_name}` : ""} — Job ${jobId}`
-        };
-        if (paymentMethodId) {
-            intentParams.payment_method = paymentMethodId;
-            intentParams.confirm = true;
-        }
-        const intent = await stripe.paymentIntents.create(intentParams);
-        // Upsert tip record
-        const [tip] = (await sql `
+			`;
+			if (existing) {
+				if (existing.status === "succeeded") {
+					return reply.code(409).send({
+						error: "A tip has already been collected for this job"
+					});
+				}
+				// If pending or failed, allow re-attempt — fall through to create new intent
+			}
+			const amountCents = Math.round(amount * 100);
+			// Create Stripe PaymentIntent
+			const stripe = getStripe();
+			const intentParams = {
+				amount: amountCents,
+				currency: "usd",
+				payment_method_types: ["card"],
+				metadata: {
+					type: "technician_tip",
+					jobId,
+					techId: job.assigned_tech_id,
+					techName: job.tech_name ?? "",
+					companyId: job.company_id
+				},
+				description: `Tip for technician${job.tech_name ? ` ${job.tech_name}` : ""} — Job ${jobId}`
+			};
+			if (paymentMethodId) {
+				intentParams.payment_method = paymentMethodId;
+				intentParams.confirm = true;
+			}
+			const intent = await stripe.paymentIntents.create(intentParams);
+			// Upsert tip record
+			const [tip] = await sql`
 				INSERT INTO tech_tips (
 					company_id, job_id, tech_id, customer_id,
 					amount, currency, status,
@@ -190,21 +191,25 @@ export async function tipRoutes(fastify) {
 					stripe_client_secret     AS "clientSecret",
 					note,
 					created_at          AS "createdAt"
-			`);
-        return reply.code(201).send({
-            tip,
-            clientSecret: intent.client_secret,
-            paymentIntentId: intent.id
-        });
-    });
-    // ── GET /jobs/:jobId/tip ──────────────────────────────────────────────────
-    // Fetch the tip record for a job (for polling after payment confirmation).
-    fastify.get("/jobs/:jobId/tip", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const { jobId } = request.params;
-        const companyId = resolveCompanyId(user);
-        const sql = getSql();
-        const [tip] = (await sql `
+			`;
+			return reply.code(201).send({
+				tip,
+				clientSecret: intent.client_secret,
+				paymentIntentId: intent.id
+			});
+		}
+	);
+	// ── GET /jobs/:jobId/tip ──────────────────────────────────────────────────
+	// Fetch the tip record for a job (for polling after payment confirmation).
+	fastify.get(
+		"/jobs/:jobId/tip",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const { jobId } = request.params;
+			const companyId = resolveCompanyId(user);
+			const sql = getSql();
+			const [tip] = await sql`
 				SELECT
 					t.id,
 					t.job_id              AS "jobId",
@@ -222,33 +227,36 @@ export async function tipRoutes(fastify) {
 				JOIN jobs j ON j.id = t.job_id
 				WHERE t.job_id = ${jobId}
 					AND (${isDev(user) && !companyId} OR j.company_id = ${companyId})
-			`);
-        if (!tip) {
-            return reply.code(404).send({ error: "No tip found for this job" });
-        }
-        return reply.send({ tip });
-    });
-    // ── GET /tips/tech/:techId ────────────────────────────────────────────────
-    // Tip history + earnings total for a technician.
-    fastify.get("/tips/tech/:techId", { preHandler: [authenticate] }, async (request, reply) => {
-        const user = getUser(request);
-        const { techId } = request.params;
-        const companyId = resolveCompanyId(user);
-        const parsed = techTipHistorySchema.safeParse(request.query);
-        if (!parsed.success) {
-            return reply.code(400).send({ error: "Invalid query params" });
-        }
-        const { limit, offset, status } = parsed.data;
-        const sql = getSql();
-        // Verify tech belongs to this company
-        const [tech] = (await sql `
+			`;
+			if (!tip) {
+				return reply.code(404).send({ error: "No tip found for this job" });
+			}
+			return reply.send({ tip });
+		}
+	);
+	// ── GET /tips/tech/:techId ────────────────────────────────────────────────
+	// Tip history + earnings total for a technician.
+	fastify.get(
+		"/tips/tech/:techId",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const { techId } = request.params;
+			const companyId = resolveCompanyId(user);
+			const parsed = techTipHistorySchema.safeParse(request.query);
+			if (!parsed.success) {
+				return reply.code(400).send({ error: "Invalid query params" });
+			}
+			const { limit, offset, status } = parsed.data;
+			const sql = getSql();
+			// Verify tech belongs to this company
+			const [tech] = await sql`
 				SELECT id, name FROM employees
 				WHERE id = ${techId}
 					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
-			`);
-        if (!tech)
-            return reply.code(404).send({ error: "Technician not found" });
-        const tips = (await sql `
+			`;
+			if (!tech) return reply.code(404).send({ error: "Technician not found" });
+			const tips = await sql`
 				SELECT
 					t.id,
 					t.job_id    AS "jobId",
@@ -262,25 +270,26 @@ export async function tipRoutes(fastify) {
 					AND (${status == null} OR t.status = ${status ?? null})
 				ORDER BY t.created_at DESC
 				LIMIT ${limit} OFFSET ${offset}
-			`);
-        const [totals] = (await sql `
+			`;
+			const [totals] = await sql`
 				SELECT
 					COUNT(*)                                          AS total_tips,
 					COALESCE(SUM(amount) FILTER (WHERE status = 'succeeded'), 0) AS total_earned,
 					COALESCE(SUM(amount) FILTER (WHERE status = 'pending'),   0) AS total_pending
 				FROM tech_tips
 				WHERE tech_id = ${techId}
-			`);
-        return reply.send({
-            tech: { id: tech.id, name: tech.name },
-            summary: {
-                totalTips: Number(totals.total_tips),
-                totalEarned: Number(totals.total_earned),
-                totalPending: Number(totals.total_pending)
-            },
-            tips,
-            limit,
-            offset
-        });
-    });
+			`;
+			return reply.send({
+				tech: { id: tech.id, name: tech.name },
+				summary: {
+					totalTips: Number(totals.total_tips),
+					totalEarned: Number(totals.total_earned),
+					totalPending: Number(totals.total_pending)
+				},
+				tips,
+				limit,
+				offset
+			});
+		}
+	);
 }
