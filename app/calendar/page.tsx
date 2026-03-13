@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils/index";
 import MainContent from "@/components/layout/MainContent";
 import SidePanel from "@/components/layout/SidePanel";
 import FadeEnd from "@/components/ui/FadeEnd";
 import type { JobDTO } from "@/app/types/types";
 import { useUiStore } from "@/lib/stores/uiStore";
+import { Eye, Settings, Filter } from "lucide-react";
 
 type EventTone = "urgent" | "normal" | "info";
 
@@ -18,6 +19,8 @@ type CalendarEvent = {
 	window: string;
 	tone: EventTone;
 };
+
+type FilterOption = { value: string; label: string };
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -94,9 +97,14 @@ const toneClasses: Record<EventTone, string> = {
 const CalendarPage = () => {
 	const isSidePanelOpen = useUiStore((state) => state.sidePanelOpen);
 	const setSidePanelOpen = useUiStore((state) => state.setSidePanelOpen);
-	const [dayEvents, setDayEvents] = useState<Record<string, CalendarEvent[]>>(
-		createEmptyDayEvents()
-	);
+	const [jobs, setJobs] = useState<JobDTO[]>([]);
+	const [filterOpen, setFilterOpen] = useState(false);
+	const [viewOpen, setViewOpen] = useState(false);
+	const [filterQuery, setFilterQuery] = useState("");
+	const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+	const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
+	const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+	const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([]);
 	const rightPanelOffset = isSidePanelOpen ? "16rem" : "0px";
 
 	useEffect(() => {
@@ -106,15 +114,15 @@ const CalendarPage = () => {
 			try {
 				const response = await fetch("/api/jobs", { method: "GET" });
 				if (!response.ok) {
-					if (isMounted) setDayEvents(createEmptyDayEvents());
+					if (isMounted) setJobs([]);
 					return;
 				}
 
 				const payload = (await response.json()) as { jobs?: JobDTO[] };
 				const jobs = payload.jobs ?? [];
-				if (isMounted) setDayEvents(mapJobsToDayEvents(jobs));
+				if (isMounted) setJobs(jobs);
 			} catch {
-				if (isMounted) setDayEvents(createEmptyDayEvents());
+				if (isMounted) setJobs([]);
 			}
 		};
 
@@ -125,8 +133,309 @@ const CalendarPage = () => {
 		};
 	}, []);
 
+	const employeeOptions = useMemo<FilterOption[]>(() => {
+		const unique = new Map<string, string>();
+		let hasUnassigned = false;
+
+		for (const job of jobs) {
+			if (job.assignedTechId) {
+				const shortId = String(job.assignedTechId).slice(0, 8);
+				unique.set(String(job.assignedTechId), `Tech #${shortId}`);
+			} else {
+				hasUnassigned = true;
+			}
+		}
+
+		const options = Array.from(unique.entries())
+			.map(([value, label]) => ({ value, label }))
+			.sort((a, b) => a.label.localeCompare(b.label));
+
+		if (hasUnassigned) {
+			options.unshift({ value: "unassigned", label: "Unassigned" });
+		}
+
+		return options;
+	}, [jobs]);
+
+	const priorityOrder = ["emergency", "high", "medium", "low"];
+	const priorityOptions = useMemo<FilterOption[]>(() => {
+		const unique = new Set<string>();
+		for (const job of jobs) {
+			if (job.priority) unique.add(job.priority);
+		}
+		return Array.from(unique)
+			.sort((a, b) => priorityOrder.indexOf(a) - priorityOrder.indexOf(b))
+			.map((value) => ({
+				value,
+				label: value.replace(/_/g, " ")
+			}));
+	}, [jobs]);
+
+	const statusOrder = [
+		"unassigned",
+		"assigned",
+		"in_progress",
+		"completed",
+		"cancelled"
+	];
+	const statusOptions = useMemo<FilterOption[]>(() => {
+		const unique = new Set<string>();
+		for (const job of jobs) {
+			if (job.status) unique.add(job.status);
+		}
+		return Array.from(unique)
+			.sort((a, b) => statusOrder.indexOf(a) - statusOrder.indexOf(b))
+			.map((value) => ({
+				value,
+				label: value.replace(/_/g, " ")
+			}));
+	}, [jobs]);
+
+	const jobTypeOptions = useMemo<FilterOption[]>(() => {
+		const unique = new Set<string>();
+		for (const job of jobs) {
+			if (job.jobType) unique.add(job.jobType);
+		}
+		return Array.from(unique)
+			.sort()
+			.map((value) => ({
+				value,
+				label: value.replace(/_/g, " ")
+			}));
+	}, [jobs]);
+
+	const normalizedQuery = filterQuery.trim().toLowerCase();
+	const filterOptionsByQuery = (options: FilterOption[]) => {
+		if (!normalizedQuery) return options;
+		return options.filter((option) =>
+			option.label.toLowerCase().includes(normalizedQuery)
+		);
+	};
+
+	const toggleSelection = (
+		value: string,
+		selected: string[],
+		setSelected: (next: string[]) => void
+	) => {
+		setSelected(
+			selected.includes(value)
+				? selected.filter((item) => item !== value)
+				: [...selected, value]
+		);
+	};
+
+	const filteredJobs = useMemo(() => {
+		return jobs.filter((job) => {
+			if (selectedEmployees.length > 0) {
+				const techId = job.assignedTechId
+					? String(job.assignedTechId)
+					: "unassigned";
+				if (!selectedEmployees.includes(techId)) return false;
+			}
+
+			if (selectedPriorities.length > 0) {
+				const priority = job.priority ?? "unknown";
+				if (!selectedPriorities.includes(priority)) return false;
+			}
+
+			if (selectedStatuses.length > 0) {
+				const status = job.status ?? "unknown";
+				if (!selectedStatuses.includes(status)) return false;
+			}
+
+			if (selectedJobTypes.length > 0) {
+				const jobType = job.jobType ?? "unknown";
+				if (!selectedJobTypes.includes(jobType)) return false;
+			}
+
+			return true;
+		});
+	}, [
+		jobs,
+		selectedEmployees,
+		selectedPriorities,
+		selectedStatuses,
+		selectedJobTypes
+	]);
+
+	const dayEvents = useMemo(
+		() => mapJobsToDayEvents(filteredJobs),
+		[filteredJobs]
+	);
+
 	return (
 		<MainContent>
+			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+				<div className="flex items-center gap-2">
+					<div className="relative">
+						<button
+							type="button"
+							className="rounded-md border border-background-secondary/60 bg-background-primary/60 px-1.5 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:bg-background-secondary"
+							onClick={() => setFilterOpen((open) => !open)}
+						>
+							<Filter className="h-4 w-4" />
+						</button>
+						{filterOpen ? (
+							<div className="absolute left-0 z-30 mt-2 w-72 rounded-lg border border-background-secondary/60 bg-background-main p-3 shadow-lg">
+								<input
+									type="text"
+									value={filterQuery}
+									onChange={(event) => setFilterQuery(event.target.value)}
+									placeholder="Search filters..."
+									className="w-full rounded-md border border-background-secondary/60 bg-background-primary/60 px-2 py-1 text-xs text-text-main"
+								/>
+
+								<div className="mt-3 space-y-3 text-xs">
+									<div>
+										<p className="mb-1 text-[11px] font-semibold uppercase text-text-tertiary">
+											Employees
+										</p>
+										<div className="space-y-1">
+											{filterOptionsByQuery(employeeOptions).map((option) => (
+												<label
+													key={option.value}
+													className="flex items-center gap-2 text-text-secondary"
+												>
+													<input
+														type="checkbox"
+														checked={selectedEmployees.includes(option.value)}
+														onChange={() =>
+															toggleSelection(
+																option.value,
+																selectedEmployees,
+																setSelectedEmployees
+															)
+														}
+													/>
+													{option.label}
+												</label>
+											))}
+										</div>
+									</div>
+
+									<div>
+										<p className="mb-1 text-[11px] font-semibold uppercase text-text-tertiary">
+											Priorities
+										</p>
+										<div className="space-y-1">
+											{filterOptionsByQuery(priorityOptions).map((option) => (
+												<label
+													key={option.value}
+													className="flex items-center gap-2 text-text-secondary"
+												>
+													<input
+														type="checkbox"
+														checked={selectedPriorities.includes(option.value)}
+														onChange={() =>
+															toggleSelection(
+																option.value,
+																selectedPriorities,
+																setSelectedPriorities
+															)
+														}
+													/>
+													{option.label}
+												</label>
+											))}
+										</div>
+									</div>
+
+									<div>
+										<p className="mb-1 text-[11px] font-semibold uppercase text-text-tertiary">
+											Status
+										</p>
+										<div className="space-y-1">
+											{filterOptionsByQuery(statusOptions).map((option) => (
+												<label
+													key={option.value}
+													className="flex items-center gap-2 text-text-secondary"
+												>
+													<input
+														type="checkbox"
+														checked={selectedStatuses.includes(option.value)}
+														onChange={() =>
+															toggleSelection(
+																option.value,
+																selectedStatuses,
+																setSelectedStatuses
+															)
+														}
+													/>
+													{option.label}
+												</label>
+											))}
+										</div>
+									</div>
+
+									<div>
+										<p className="mb-1 text-[11px] font-semibold uppercase text-text-tertiary">
+											Job Type
+										</p>
+										<div className="space-y-1">
+											{filterOptionsByQuery(jobTypeOptions).map((option) => (
+												<label
+													key={option.value}
+													className="flex items-center gap-2 text-text-secondary"
+												>
+													<input
+														type="checkbox"
+														checked={selectedJobTypes.includes(option.value)}
+														onChange={() =>
+															toggleSelection(
+																option.value,
+																selectedJobTypes,
+																setSelectedJobTypes
+															)
+														}
+													/>
+													{option.label}
+												</label>
+											))}
+										</div>
+									</div>
+								</div>
+							</div>
+						) : null}
+					</div>
+					<button className="rounded-md border border-background-secondary/60 bg-background-primary/60 px-1.5 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:bg-background-secondary">
+						<Settings className="h-4 w-4" />
+					</button>
+				</div>
+				<div className="hidden items-center rounded-lg border border-background-secondary/60 bg-background-primary/60 overflow-hidden text-xs font-semibold sm:flex">
+					<button className="px-3 py-1.5 text-text-secondary transition-colors hover:text-text-main">
+						Day
+					</button>
+					<button className=" px-3 py-1.5 text-text-secondary transition-colors hover:text-text-main">
+						Month
+					</button>
+					<button className="bg-background-secondary/75 px-3 py-1.5 text-text-main shadow-sm">
+						Week
+					</button>
+				</div>
+				<div className="relative sm:hidden">
+					<button
+						type="button"
+						className="flex items-center gap-2 rounded-md border border-background-secondary/60 bg-background-primary/60 px-3 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:bg-background-secondary"
+						onClick={() => setViewOpen((open) => !open)}
+					>
+						<Eye className="h-4 w-4" />
+						View
+					</button>
+					{viewOpen ? (
+						<div className="absolute right-0 z-30 mt-2 w-32 rounded-lg border border-background-secondary/60 bg-background-main p-1 shadow-lg">
+							<button className="flex w-full items-center rounded-md px-2 py-1 text-left text-xs text-text-secondary hover:bg-background-primary/60">
+								Day
+							</button>
+							<button className="flex w-full items-center rounded-md px-2 py-1 text-left text-xs text-text-secondary hover:bg-background-primary/60">
+								Month
+							</button>
+							<button className="flex w-full items-center rounded-md bg-background-primary/60 px-2 py-1 text-left text-xs font-semibold text-text-main">
+								Week
+							</button>
+						</div>
+					) : null}
+				</div>
+			</div>
 			<div className="h-[calc(100vh-8rem)] overflow-hidden">
 				<div
 					className={cn(

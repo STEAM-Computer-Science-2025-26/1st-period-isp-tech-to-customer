@@ -35,7 +35,7 @@ function ListBody({ items, ordered = false, children }: ListCardProps) {
 		<ListTag
 			className={clsx(
 				"flex flex-col gap-1",
-				ordered ? "list-decimal pl-4" : "list-none"
+				ordered ? "list-none" : "list-none"
 			)}
 		>
 			{(items ?? []).map((item, index) => {
@@ -49,7 +49,12 @@ function ListBody({ items, ordered = false, children }: ListCardProps) {
 							"flex items-center justify-between gap-3"
 						)}
 					>
-						<div className="min-w-0">
+						{ordered && (
+							<span className="mr-2 text-xs font-semibold text-text-tertiary min-w-[1.5em] text-right">
+								{index + 1}.
+							</span>
+						)}
+						<div className="min-w-0 w-full">
 							<div className="text-sm text-text-main truncate">
 								{item.label}
 							</div>

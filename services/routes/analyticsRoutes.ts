@@ -409,4 +409,179 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 			return { days, techs: rows };
 		}
 	);
+
+	// -------------------------------------------------------------------------
+	// GET /analytics/dashboard
+	// Dashboard rollups for cards (jobs today, response time, volume, open jobs).
+	// Query params: ?days=30
+	// -------------------------------------------------------------------------
+	fastify.get(
+		"/analytics/dashboard",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			if (!companyId && !isDev(user)) {
+				return reply.code(403).send({ error: "Forbidden" });
+			}
+
+			const days = parseLookback(request.query);
+			const sql = getSql();
+
+			const [jobCounts] = (await sql`
+				SELECT
+					COUNT(*) FILTER (
+						WHERE created_at >= DATE_TRUNC('day', NOW())
+					) AS jobs_today,
+					COUNT(*) FILTER (
+						WHERE created_at >= DATE_TRUNC('day', NOW()) - INTERVAL '1 day'
+						  AND created_at < DATE_TRUNC('day', NOW())
+					) AS jobs_yesterday
+				FROM jobs
+				WHERE company_id = ${companyId}
+			`) as any[];
+
+			const [responseCurrent] = (await sql`
+				WITH first_assignments AS (
+					SELECT
+						j.id,
+						j.created_at,
+						MIN(ja.created_at) AS first_assigned_at
+					FROM jobs j
+					LEFT JOIN job_assignments ja ON ja.job_id = j.id
+					WHERE j.company_id = ${companyId}
+					  AND j.created_at >= NOW() - (${days} || ' days')::interval
+					GROUP BY j.id, j.created_at
+				)
+				SELECT
+					ROUND(AVG(
+						EXTRACT(EPOCH FROM (first_assigned_at - created_at)) / 60
+					), 0) AS avg_response_minutes
+				FROM first_assignments
+				WHERE first_assigned_at IS NOT NULL
+			`) as any[];
+
+			const [responsePrevious] = (await sql`
+				WITH first_assignments AS (
+					SELECT
+						j.id,
+						j.created_at,
+						MIN(ja.created_at) AS first_assigned_at
+					FROM jobs j
+					LEFT JOIN job_assignments ja ON ja.job_id = j.id
+					WHERE j.company_id = ${companyId}
+					  AND j.created_at >= NOW() - (${days} * 2 || ' days')::interval
+					  AND j.created_at < NOW() - (${days} || ' days')::interval
+					GROUP BY j.id, j.created_at
+				)
+				SELECT
+					ROUND(AVG(
+						EXTRACT(EPOCH FROM (first_assigned_at - created_at)) / 60
+					), 0) AS avg_response_minutes
+				FROM first_assignments
+				WHERE first_assigned_at IS NOT NULL
+			`) as any[];
+
+			const volumeRows = (await sql`
+				SELECT
+					DATE_TRUNC('day', created_at) AS day,
+					COUNT(*) AS job_count
+				FROM jobs
+				WHERE company_id = ${companyId}
+				  AND created_at >= NOW() - (${days} || ' days')::interval
+				GROUP BY 1
+				ORDER BY 1 ASC
+			`) as any[];
+
+			const openJobs = (await sql`
+				SELECT
+					id,
+					customer_name AS customer,
+					status,
+					priority
+				FROM jobs
+				WHERE company_id = ${companyId}
+				  AND status IN ('unassigned', 'assigned', 'in_progress')
+				ORDER BY
+					CASE priority
+						WHEN 'emergency' THEN 1
+						WHEN 'high' THEN 2
+						WHEN 'medium' THEN 3
+						WHEN 'low' THEN 4
+						ELSE 5
+					END,
+					created_at ASC
+				LIMIT 5
+			`) as any[];
+
+			const [counts] = (await sql`
+				SELECT
+					(SELECT COUNT(*) FROM customers WHERE company_id = ${companyId}) AS customers,
+					(SELECT COUNT(*) FROM employees WHERE company_id = ${companyId}) AS employees,
+					(SELECT COUNT(*) FROM jobs WHERE company_id = ${companyId} AND status IN ('unassigned', 'assigned', 'in_progress')) AS open_jobs
+			`) as any[];
+
+			const [statusCounts] = (await sql`
+				SELECT
+					COUNT(*) FILTER (WHERE status = 'unassigned') AS unassigned,
+					COUNT(*) FILTER (WHERE status = 'in_progress') AS in_progress,
+					COUNT(*) FILTER (
+						WHERE scheduled_time >= NOW()
+						  AND scheduled_time < NOW() + INTERVAL '1 day'
+					) AS scheduled_next_24
+				FROM jobs
+				WHERE company_id = ${companyId}
+			`) as any[];
+
+			const jobsToday = Number(jobCounts?.jobs_today ?? 0);
+			const jobsYesterday = Number(jobCounts?.jobs_yesterday ?? 0);
+			const jobsChangePct =
+				jobsYesterday > 0
+					? Math.round(((jobsToday - jobsYesterday) / jobsYesterday) * 1000) /
+						100
+					: null;
+
+			const avgResponseMinutes =
+				responseCurrent?.avg_response_minutes != null
+					? Number(responseCurrent.avg_response_minutes)
+					: null;
+			const avgResponsePrev =
+				responsePrevious?.avg_response_minutes != null
+					? Number(responsePrevious.avg_response_minutes)
+					: null;
+			const avgResponseDeltaMinutes =
+				avgResponseMinutes != null && avgResponsePrev != null
+					? avgResponseMinutes - avgResponsePrev
+					: null;
+
+			return {
+				days,
+				jobsToday,
+				jobsYesterday,
+				jobsChangePct,
+				avgResponseMinutes,
+				avgResponseDeltaMinutes,
+				jobVolume: volumeRows.map((row) => ({
+					day: row.day,
+					count: Number(row.job_count)
+				})),
+				openJobs: openJobs.map((row) => ({
+					id: row.id,
+					customer: row.customer,
+					status: row.status,
+					priority: row.priority
+				})),
+				counts: {
+					customers: Number(counts?.customers ?? 0),
+					employees: Number(counts?.employees ?? 0),
+					openJobs: Number(counts?.open_jobs ?? 0)
+				},
+				statusCounts: {
+					unassigned: Number(statusCounts?.unassigned ?? 0),
+					inProgress: Number(statusCounts?.in_progress ?? 0),
+					scheduledNext24: Number(statusCounts?.scheduled_next_24 ?? 0)
+				}
+			};
+		}
+	);
 }

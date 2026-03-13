@@ -64,7 +64,7 @@ function DataBody(props: DataCardProps) {
 				{dataType === "bar" ? (
 					<BarChart {...data} />
 				) : (
-					<div className="w-full min-h-56 aspect-video">
+					<div className="w-full min-h-50 aspect-video">
 						<LineGraph {...data} style={mergedLineStyle} />
 					</div>
 				)}
