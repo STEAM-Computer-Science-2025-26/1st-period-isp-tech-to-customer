@@ -1,0 +1,9 @@
+.next
+out
+build
+node_modules
+.pnpm-store
+.turbo
+.vercel
+coverage
+.dist

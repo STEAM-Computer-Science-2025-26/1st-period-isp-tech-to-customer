@@ -1,0 +1,50 @@
+{
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "esnext",
+		"moduleResolution": "node",
+		"esModuleInterop": true,
+		"strict": true,
+		"resolveJsonModule": true,
+		"allowImportingTsExtensions": true,
+		"noEmit": true,
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./*"]
+		},
+		"types": ["jest", "node"],
+		"typeRoots": ["./node_modules/@types", "./types"],
+		"lib": ["dom", "dom.iterable", "esnext"],
+		"allowJs": true,
+		"skipLibCheck": true,
+		"incremental": true,
+		"isolatedModules": true,
+		"jsx": "react-jsx",
+		"plugins": [
+			{
+				"name": "next"
+			}
+		]
+	},
+	"include": [
+		"next-env.d.ts",
+		"**/*.ts",
+		"**/*.tsx",
+		".next/types/**/*.ts",
+		".next/dev/types/**/*.ts",
+		"**/*.mts",
+		"services/escalation",
+		"tests/helpers/globalTeardown.mjs",
+		"tests/helpers/globalSetup.mjs"
+	],
+	"exclude": [
+		"node_modules",
+		"services/logging/**",
+		"services/routes/loggingRoutes.ts",
+		"scripts/**",
+		"dispatch/**",
+		"migrations/**",
+		"prisma/**",
+		"src/testPerformanceScore.ts"
+	]
+}

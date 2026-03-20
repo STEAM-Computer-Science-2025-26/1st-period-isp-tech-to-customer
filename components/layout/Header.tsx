@@ -1,0 +1,57 @@
+import { clsx } from "clsx";
+import { useBreakpoints } from "@/app/hooks/useBreakpoints";
+import { Menu } from "lucide-react";
+
+type HeaderProps = {
+	sidebarAutoCollapse: boolean;
+	sidebarIsStrip: boolean;
+	onMobileMenuClick?: () => void;
+	mobileMenuOpen?: boolean;
+	title?: string;
+};
+
+export default function Header({
+	sidebarAutoCollapse,
+	sidebarIsStrip,
+	onMobileMenuClick,
+	mobileMenuOpen,
+	title = "Dashboard"
+}: HeaderProps) {
+	const { lgUp } = useBreakpoints();
+	const desktopPaddingLeft = sidebarAutoCollapse
+		? "calc(4.5rem + 0.75rem)"
+		: "calc(var(--sidebar-desktop-width) + 0.75rem)";
+	const mobilePaddingLeft = sidebarIsStrip ? "5rem" : "1.5rem";
+	return (
+		<div
+			className={clsx(
+				"fixed ease duration-300 transition-all top-0 z-40 inset-x-0 h-20 pt-4 px-4 bg-linear-to-t from-transparent to-background-main to-50%"
+			)}
+			style={{
+				paddingLeft: lgUp ? desktopPaddingLeft : mobilePaddingLeft
+			}}
+		>
+			<header className="border border-background-secondary w-full px-4 flex flex-row items-center justify-between rounded-xl h-full bg-background-secondary/50 shadow-sm backdrop-blur-md">
+				<h1 className="text-lg font-semibold text-text-main">{title}</h1>
+				{lgUp ? (
+					<nav className="flex flex-row items-center gap-6 text-text-secondary [&>a]:cursor-pointer">
+						{/* Navigation items can be added here */}
+						<a>About Us</a>
+						<a>Contact</a>
+						<a>Help</a>
+					</nav>
+				) : (
+					<button
+						className="text-text-secondary hover:text-text-main transition-colors"
+						onClick={onMobileMenuClick}
+						aria-label="Toggle sidebar"
+						aria-expanded={mobileMenuOpen}
+						type="button"
+					>
+						<Menu />
+					</button>
+				)}
+			</header>
+		</div>
+	);
+}
