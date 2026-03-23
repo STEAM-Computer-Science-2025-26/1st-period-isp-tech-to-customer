@@ -39,27 +39,33 @@ function formatDate(iso?: unknown) {
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<string, string> = {
-	unassigned: "bg-background-secondary text-text-tertiary border-background-secondary",
+	unassigned:
+		"bg-background-secondary text-text-tertiary border-background-secondary",
 	assigned: "bg-info/10 text-info-text border-info/25",
 	in_progress: "bg-accent-main/10 text-accent-text border-accent-main/25",
 	completed: "bg-success/10 text-success-text border-success/25",
-	cancelled: "bg-destructive-background/10 text-destructive-text border-destructive-background/25"
+	cancelled:
+		"bg-destructive-background/10 text-destructive-text border-destructive-background/25"
 };
 
 const PRIORITY_STYLES: Record<string, string> = {
 	low: "bg-background-secondary text-text-tertiary border-background-secondary",
-	normal: "bg-background-secondary text-text-secondary border-background-secondary",
+	normal:
+		"bg-background-secondary text-text-secondary border-background-secondary",
 	medium: "bg-accent-main/10 text-accent-text border-accent-main/25",
 	high: "bg-warning-background/20 text-warning-text border-warning-foreground/30",
-	emergency: "bg-destructive-background/15 text-destructive-text border-destructive-background/30"
+	emergency:
+		"bg-destructive-background/15 text-destructive-text border-destructive-background/30"
 };
 
 function StatusBadge({ status }: { status: string }) {
 	return (
-		<span className={cn(
-			"inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border capitalize",
-			STATUS_STYLES[status] ?? STATUS_STYLES.unassigned
-		)}>
+		<span
+			className={cn(
+				"inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border capitalize",
+				STATUS_STYLES[status] ?? STATUS_STYLES.unassigned
+			)}
+		>
 			{status.replace("_", " ")}
 		</span>
 	);
@@ -67,10 +73,12 @@ function StatusBadge({ status }: { status: string }) {
 
 function PriorityBadge({ priority }: { priority: string }) {
 	return (
-		<span className={cn(
-			"inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border capitalize",
-			PRIORITY_STYLES[priority] ?? PRIORITY_STYLES.normal
-		)}>
+		<span
+			className={cn(
+				"inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border capitalize",
+				PRIORITY_STYLES[priority] ?? PRIORITY_STYLES.normal
+			)}
+		>
 			{priority}
 		</span>
 	);
@@ -78,14 +86,30 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 // ─── Status transitions ───────────────────────────────────────────────────────
 
-const STATUS_TRANSITIONS: Record<string, { label: string; next: string; className: string }[]> = {
+const STATUS_TRANSITIONS: Record<
+	string,
+	{ label: string; next: string; className: string }[]
+> = {
 	unassigned: [],
 	assigned: [
-		{ label: "Start Job", next: "in_progress", className: "bg-accent-main text-white hover:opacity-90" }
+		{
+			label: "Start Job",
+			next: "in_progress",
+			className: "bg-accent-main text-white hover:opacity-90"
+		}
 	],
 	in_progress: [
-		{ label: "Complete Job", next: "completed", className: "bg-success-foreground text-white hover:opacity-90" },
-		{ label: "Cancel Job", next: "cancelled", className: "bg-background-secondary text-text-secondary hover:bg-background-tertiary" }
+		{
+			label: "Complete Job",
+			next: "completed",
+			className: "bg-success-foreground text-white hover:opacity-90"
+		},
+		{
+			label: "Cancel Job",
+			next: "cancelled",
+			className:
+				"bg-background-secondary text-text-secondary hover:bg-background-tertiary"
+		}
 	],
 	completed: [],
 	cancelled: []
@@ -93,12 +117,22 @@ const STATUS_TRANSITIONS: Record<string, { label: string; next: string; classNam
 
 // ─── Info row ────────────────────────────────────────────────────────────────
 
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+function InfoRow({
+	icon,
+	label,
+	value
+}: {
+	icon: React.ReactNode;
+	label: string;
+	value: React.ReactNode;
+}) {
 	return (
 		<div className="flex items-start gap-3 py-3 border-b border-background-secondary/50 last:border-0">
 			<div className="w-4 h-4 mt-0.5 text-text-tertiary shrink-0">{icon}</div>
 			<div className="flex flex-col gap-0.5 min-w-0 flex-1">
-				<p className="text-xs text-text-tertiary uppercase tracking-wide font-medium">{label}</p>
+				<p className="text-xs text-text-tertiary uppercase tracking-wide font-medium">
+					{label}
+				</p>
 				<div className="text-sm text-text-main">{value}</div>
 			</div>
 		</div>
@@ -121,7 +155,9 @@ function CompleteModal({
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
 			<div className="bg-background-primary border border-background-secondary rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl flex flex-col gap-4">
 				<h3 className="text-sm font-bold text-text-main">Complete Job</h3>
-				<p className="text-xs text-text-secondary">Add any completion notes before marking this job done.</p>
+				<p className="text-xs text-text-secondary">
+					Add any completion notes before marking this job done.
+				</p>
 				<textarea
 					value={notes}
 					onChange={(e) => setNotes(e.target.value)}
@@ -271,19 +307,31 @@ export default function JobDetailPage() {
 							{/* Stats row */}
 							<div className="mt-4 pt-4 border-t border-background-secondary grid grid-cols-2 sm:grid-cols-4 gap-4">
 								<div>
-									<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">Scheduled</p>
-									<p className="text-sm font-medium text-text-main">{formatDate(job.scheduledTime)}</p>
+									<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
+										Scheduled
+									</p>
+									<p className="text-sm font-medium text-text-main">
+										{formatDate(job.scheduledTime)}
+									</p>
 								</div>
 								<div>
-									<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">Completed</p>
-									<p className="text-sm font-medium text-text-main">{formatDate(job.completedAt)}</p>
+									<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
+										Completed
+									</p>
+									<p className="text-sm font-medium text-text-main">
+										{formatDate(job.completedAt)}
+									</p>
 								</div>
 								<div>
-									<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">Tech</p>
+									<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
+										Tech
+									</p>
 									<div className="text-sm font-medium text-text-main">
 										{job.assignedTechId ? (
 											<button
-												onClick={() => router.push(`/employees/${job.assignedTechId}`)}
+												onClick={() =>
+													router.push(`/employees/${job.assignedTechId}`)
+												}
 												className="text-accent-text hover:underline flex items-center gap-1"
 											>
 												View tech <ChevronRight className="w-3 h-3" />
@@ -294,7 +342,9 @@ export default function JobDetailPage() {
 									</div>
 								</div>
 								<div>
-									<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">Geocoding</p>
+									<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
+										Geocoding
+									</p>
 									<p className="text-sm font-medium text-text-main capitalize">
 										{String(job.geocodingStatus ?? "—")}
 									</p>
@@ -306,17 +356,24 @@ export default function JobDetailPage() {
 						<div className="mx-2 grid grid-cols-1 lg:grid-cols-2 gap-4">
 							{/* Details */}
 							<div className="bg-background-primary rounded-xl border border-background-secondary p-5">
-								<h3 className="text-sm font-semibold text-text-main mb-3">Details</h3>
+								<h3 className="text-sm font-semibold text-text-main mb-3">
+									Details
+								</h3>
 								<InfoRow
 									icon={<Wrench className="w-4 h-4" />}
 									label="Job Type"
-									value={<span className="capitalize">{job.jobType.replace("_", " ")}</span>}
+									value={
+										<span className="capitalize">
+											{job.jobType.replace("_", " ")}
+										</span>
+									}
 								/>
 								<InfoRow
 									icon={<User className="w-4 h-4" />}
 									label="Required Skills"
 									value={
-										Array.isArray(job.requiredSkills) && job.requiredSkills.length > 0
+										Array.isArray(job.requiredSkills) &&
+										job.requiredSkills.length > 0
 											? job.requiredSkills.join(", ")
 											: "None specified"
 									}
@@ -325,9 +382,16 @@ export default function JobDetailPage() {
 									icon={<MapPin className="w-4 h-4" />}
 									label="Coordinates"
 									value={
-										job.latitude != null && job.longitude != null && typeof job.latitude === "number" && typeof job.longitude === "number"
-											? <span className="font-mono text-xs">{job.latitude.toFixed(5)}, {job.longitude.toFixed(5)}</span>
-											: "Not geocoded"
+										job.latitude != null &&
+										job.longitude != null &&
+										typeof job.latitude === "number" &&
+										typeof job.longitude === "number" ? (
+											<span className="font-mono text-xs">
+												{job.latitude.toFixed(5)}, {job.longitude.toFixed(5)}
+											</span>
+										) : (
+											"Not geocoded"
+										)
 									}
 								/>
 								<InfoRow
@@ -339,7 +403,8 @@ export default function JobDetailPage() {
 									<div className="mt-3 pt-3 border-t border-background-secondary">
 										<p className="text-xs text-warning-text flex items-center gap-1">
 											<Navigation className="w-3 h-3" />
-											Geocoding failed — retry via the worker or update the address
+											Geocoding failed — retry via the worker or update the
+											address
 										</p>
 									</div>
 								)}
@@ -348,7 +413,9 @@ export default function JobDetailPage() {
 							{/* Notes */}
 							<div className="bg-background-primary rounded-xl border border-background-secondary p-5">
 								<div className="flex items-center justify-between mb-3">
-									<h3 className="text-sm font-semibold text-text-main">Notes</h3>
+									<h3 className="text-sm font-semibold text-text-main">
+										Notes
+									</h3>
 									{!editingNotes && (
 										<button
 											onClick={() => {
@@ -389,7 +456,11 @@ export default function JobDetailPage() {
 									</div>
 								) : (
 									<p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
-										{job.initialNotes ?? <span className="text-text-tertiary">No notes added.</span>}
+										{job.initialNotes ?? (
+											<span className="text-text-tertiary">
+												No notes added.
+											</span>
+										)}
 									</p>
 								)}
 
@@ -409,10 +480,26 @@ export default function JobDetailPage() {
 						{/* Quick actions */}
 						<div className="mx-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
 							{[
-								{ label: "Dispatch", icon: <Navigation className="w-4 h-4" />, href: "/dispatch" },
-								{ label: "Time Tracking", icon: <Clock className="w-4 h-4" />, href: "#" },
-								{ label: "Estimates", icon: <FileText className="w-4 h-4" />, href: "#" },
-								{ label: "Invoices", icon: <FileText className="w-4 h-4" />, href: "#" }
+								{
+									label: "Dispatch",
+									icon: <Navigation className="w-4 h-4" />,
+									href: "/dispatch"
+								},
+								{
+									label: "Time Tracking",
+									icon: <Clock className="w-4 h-4" />,
+									href: "#"
+								},
+								{
+									label: "Estimates",
+									icon: <FileText className="w-4 h-4" />,
+									href: "#"
+								},
+								{
+									label: "Invoices",
+									icon: <FileText className="w-4 h-4" />,
+									href: "#"
+								}
 							].map((action) => (
 								<button
 									key={action.label}

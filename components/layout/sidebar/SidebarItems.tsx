@@ -54,6 +54,5 @@ export const defaultSidebarItems: SidebarItemParams[] = [
 		onClick: () => {
 			window.location.href = "/map";
 		}
-
 	}
 ];

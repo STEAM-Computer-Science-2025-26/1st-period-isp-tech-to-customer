@@ -9,7 +9,7 @@ import {
 	AddressInputs,
 	NameInputs,
 	TagInput,
-	DateInput,
+	DateInput
 } from "./CreateItems";
 
 /* For Brendan:
@@ -23,8 +23,6 @@ import {
 
 */
 
-
-
 const CreateForm = () => {
 	const [name, setName] = useState("");
 	const [amount, setAmount] = useState("42");
@@ -37,21 +35,29 @@ const CreateForm = () => {
 		line2: "",
 		city: "",
 		state: "",
-		postalCode: "",
+		postalCode: ""
 	});
 	const [personName, setPersonName] = useState({ first: "", last: "" });
 
 	const options = [
 		{ label: "Option 1", value: "option1" },
 		{ label: "Option 2", value: "option2" },
-		{ label: "Disabled option", value: "option3", disabled: true },
+		{ label: "Disabled option", value: "option3", disabled: true }
 	];
 
 	return (
-		<div className={cn("w-full min-h-screen flex items-start justify-center p-10")}> 
+		<div
+			className={cn("w-full min-h-screen flex items-start justify-center p-10")}
+		>
 			<div className="grid gap-6">
 				<TextInput placeholder="Text input" value={name} onChange={setName} />
-				<NumInput placeholder="Number input" value={amount} onChange={setAmount} min={0} step={1} />
+				<NumInput
+					placeholder="Number input"
+					value={amount}
+					onChange={setAmount}
+					min={0}
+					step={1}
+				/>
 				<Dropdown
 					options={options}
 					value={dropdownValue}

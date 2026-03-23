@@ -24,7 +24,7 @@ export const TextInput = ({
 	onChange,
 	className,
 	inputClassname,
-	children,
+	children
 }: TextInputParams) => {
 	return (
 		<div className={cn(`w-56 relative`, className)}>
@@ -33,7 +33,10 @@ export const TextInput = ({
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				placeholder={placeholder}
-				className={cn(`outline-none h-10 border border-black rounded-lg px-2 w-full`, inputClassname)}
+				className={cn(
+					`outline-none h-10 border border-black rounded-lg px-2 w-full`,
+					inputClassname
+				)}
 			/>
 			{children}
 		</div>
@@ -62,7 +65,7 @@ export const Dropdown = ({
 	onChange,
 	placeholder,
 	className,
-	inputClassname,
+	inputClassname
 }: DropdownParams) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [activeIndex, setActiveIndex] = useState(0);
@@ -78,14 +81,17 @@ export const Dropdown = ({
 	const activeValue = enabledOptions[activeIndex]?.value;
 
 	const setInitialActive = () => {
-		const selectedIndex = enabledOptions.findIndex((option) => option.value === value);
+		const selectedIndex = enabledOptions.findIndex(
+			(option) => option.value === value
+		);
 		setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
 	};
 
 	const moveActive = (direction: 1 | -1) => {
 		if (enabledOptions.length === 0) return;
 		setActiveIndex((prev) => {
-			const next = (prev + direction + enabledOptions.length) % enabledOptions.length;
+			const next =
+				(prev + direction + enabledOptions.length) % enabledOptions.length;
 			return next;
 		});
 	};
@@ -105,49 +111,49 @@ export const Dropdown = ({
 					});
 				}}
 				onKeyDown={(event) => {
-				if (event.key === "ArrowDown") {
-					event.preventDefault();
-					if (!isOpen) {
-						setIsOpen(true);
-						setInitialActive();
-						return;
+					if (event.key === "ArrowDown") {
+						event.preventDefault();
+						if (!isOpen) {
+							setIsOpen(true);
+							setInitialActive();
+							return;
+						}
+						moveActive(1);
 					}
-					moveActive(1);
-				}
-				if (event.key === "ArrowUp") {
-					event.preventDefault();
-					if (!isOpen) {
-						setIsOpen(true);
-						setInitialActive();
-						return;
+					if (event.key === "ArrowUp") {
+						event.preventDefault();
+						if (!isOpen) {
+							setIsOpen(true);
+							setInitialActive();
+							return;
+						}
+						moveActive(-1);
 					}
-					moveActive(-1);
-				}
-				if (event.key === "Enter" || event.key === " ") {
-					event.preventDefault();
-					if (!isOpen) {
-						setIsOpen(true);
-						setInitialActive();
-						return;
+					if (event.key === "Enter" || event.key === " ") {
+						event.preventDefault();
+						if (!isOpen) {
+							setIsOpen(true);
+							setInitialActive();
+							return;
+						}
+						const option = enabledOptions[activeIndex];
+						if (option) {
+							onChange(option.value);
+							setIsOpen(false);
+						}
 					}
-					const option = enabledOptions[activeIndex];
-					if (option) {
-						onChange(option.value);
+					if (event.key === "Escape") {
 						setIsOpen(false);
 					}
-				}
-				if (event.key === "Escape") {
-					setIsOpen(false);
-				}
-				if (event.key === "Home") {
-					event.preventDefault();
-					setActiveIndex(0);
-				}
-				if (event.key === "End") {
-					event.preventDefault();
-					setActiveIndex(Math.max(0, enabledOptions.length - 1));
-				}
-			}}
+					if (event.key === "Home") {
+						event.preventDefault();
+						setActiveIndex(0);
+					}
+					if (event.key === "End") {
+						event.preventDefault();
+						setActiveIndex(Math.max(0, enabledOptions.length - 1));
+					}
+				}}
 				onBlur={() => {
 					setTimeout(() => setIsOpen(false), 100);
 				}}
@@ -158,7 +164,9 @@ export const Dropdown = ({
 				aria-haspopup="listbox"
 				aria-expanded={isOpen}
 			>
-				<span className={cn(!selectedLabel && "text-gray-500")}>{displayLabel}</span>
+				<span className={cn(!selectedLabel && "text-gray-500")}>
+					{displayLabel}
+				</span>
 				<ChevronDown className="w-4 h-4 ml-2" />
 			</button>
 			{isOpen && (
@@ -178,7 +186,8 @@ export const Dropdown = ({
 							className={cn(
 								"block w-full text-left px-2 py-2 text-sm hover:bg-background-primary",
 								option.disabled && "cursor-not-allowed text-gray-400 ",
-								(option.value === value || option.value === activeValue) && "bg-gray-100",
+								(option.value === value || option.value === activeValue) &&
+									"bg-gray-100",
 								option.className
 							)}
 							role="option"
@@ -212,7 +221,7 @@ export const NumInput = ({
 	max,
 	step,
 	className,
-	inputClassname,
+	inputClassname
 }: NumInputParams) => {
 	return (
 		<div className={cn("w-56 relative", className)}>
@@ -224,7 +233,10 @@ export const NumInput = ({
 				min={min}
 				max={max}
 				step={step}
-				className={cn("outline-none h-10 border border-black rounded-lg px-2 w-full", inputClassname)}
+				className={cn(
+					"outline-none h-10 border border-black rounded-lg px-2 w-full",
+					inputClassname
+				)}
 			/>
 		</div>
 	);
@@ -247,7 +259,7 @@ export const SearchDropdown = ({
 	placeholder,
 	noResultsText = "No results",
 	className,
-	inputClassname,
+	inputClassname
 }: SearchDropdownParams) => {
 	const [query, setQuery] = useState("");
 	const [isOpen, setIsOpen] = useState(false);
@@ -263,7 +275,9 @@ export const SearchDropdown = ({
 		if (!normalized) {
 			return options;
 		}
-		return options.filter((option) => option.label.toLowerCase().includes(normalized));
+		return options.filter((option) =>
+			option.label.toLowerCase().includes(normalized)
+		);
 	}, [options, query]);
 
 	const enabledFilteredOptions = useMemo(
@@ -275,7 +289,9 @@ export const SearchDropdown = ({
 	const moveActive = (direction: 1 | -1) => {
 		if (enabledFilteredOptions.length === 0) return;
 		setActiveIndex((prev) => {
-			const next = (prev + direction + enabledFilteredOptions.length) % enabledFilteredOptions.length;
+			const next =
+				(prev + direction + enabledFilteredOptions.length) %
+				enabledFilteredOptions.length;
 			return next;
 		});
 	};
@@ -301,37 +317,37 @@ export const SearchDropdown = ({
 					}
 				}}
 				onKeyDown={(event) => {
-				if (event.key === "ArrowDown") {
-					event.preventDefault();
-					setIsOpen(true);
-					moveActive(1);
-				}
-				if (event.key === "ArrowUp") {
-					event.preventDefault();
-					setIsOpen(true);
-					moveActive(-1);
-				}
-				if (event.key === "Enter") {
-					event.preventDefault();
-					const option = enabledFilteredOptions[activeIndex];
-					if (option) {
-						onChange(option.value);
-						setQuery(option.label);
+					if (event.key === "ArrowDown") {
+						event.preventDefault();
+						setIsOpen(true);
+						moveActive(1);
+					}
+					if (event.key === "ArrowUp") {
+						event.preventDefault();
+						setIsOpen(true);
+						moveActive(-1);
+					}
+					if (event.key === "Enter") {
+						event.preventDefault();
+						const option = enabledFilteredOptions[activeIndex];
+						if (option) {
+							onChange(option.value);
+							setQuery(option.label);
+							setIsOpen(false);
+						}
+					}
+					if (event.key === "Escape") {
 						setIsOpen(false);
 					}
-				}
-				if (event.key === "Escape") {
-					setIsOpen(false);
-				}
-				if (event.key === "Home") {
-					event.preventDefault();
-					setActiveIndex(0);
-				}
-				if (event.key === "End") {
-					event.preventDefault();
-					setActiveIndex(Math.max(0, enabledFilteredOptions.length - 1));
-				}
-			}}
+					if (event.key === "Home") {
+						event.preventDefault();
+						setActiveIndex(0);
+					}
+					if (event.key === "End") {
+						event.preventDefault();
+						setActiveIndex(Math.max(0, enabledFilteredOptions.length - 1));
+					}
+				}}
 				onBlur={() => {
 					setTimeout(() => setIsOpen(false), 100);
 				}}
@@ -349,7 +365,9 @@ export const SearchDropdown = ({
 					role="listbox"
 				>
 					{filteredOptions.length === 0 ? (
-						<div className="px-2 py-2 text-sm text-gray-500">{noResultsText}</div>
+						<div className="px-2 py-2 text-sm text-gray-500">
+							{noResultsText}
+						</div>
 					) : (
 						filteredOptions.map((option) => (
 							<button
@@ -365,7 +383,8 @@ export const SearchDropdown = ({
 									"block w-full text-left px-2 py-2 text-sm hover:bg-background-primary",
 									option.disabled && "cursor-not-allowed text-gray-400 ",
 									option.className,
-									(option.value === value || option.value === activeValue) && "bg-gray-100"
+									(option.value === value || option.value === activeValue) &&
+										"bg-gray-100"
 								)}
 								role="option"
 								aria-selected={option.value === value}
@@ -395,7 +414,12 @@ type AddressInputsParams = {
 	inputClassname?: ClassValue;
 };
 
-export const AddressInputs = ({ value, onChange, className, inputClassname }: AddressInputsParams) => {
+export const AddressInputs = ({
+	value,
+	onChange,
+	className,
+	inputClassname
+}: AddressInputsParams) => {
 	return (
 		<div className={cn("flex flex-col gap-2", className)}>
 			<TextInput
@@ -446,7 +470,12 @@ type NameInputsParams = {
 	inputClassname?: ClassValue;
 };
 
-export const NameInputs = ({ value, onChange, className, inputClassname }: NameInputsParams) => {
+export const NameInputs = ({
+	value,
+	onChange,
+	className,
+	inputClassname
+}: NameInputsParams) => {
 	return (
 		<div className={cn("flex gap-2", className)}>
 			<TextInput
@@ -473,7 +502,13 @@ type TagInputParams = {
 	inputClassname?: ClassValue;
 };
 
-export const TagInput = ({ value, onChange, placeholder, className, inputClassname }: TagInputParams) => {
+export const TagInput = ({
+	value,
+	onChange,
+	placeholder,
+	className,
+	inputClassname
+}: TagInputParams) => {
 	const [draft, setDraft] = useState("");
 
 	const addTag = (raw: string) => {
@@ -534,7 +569,14 @@ type DateInputParams = {
 	inputClassname?: ClassValue;
 };
 
-export const DateInput = ({ value, onChange, min, max, className, inputClassname }: DateInputParams) => {
+export const DateInput = ({
+	value,
+	onChange,
+	min,
+	max,
+	className,
+	inputClassname
+}: DateInputParams) => {
 	return (
 		<div className={cn("w-56 relative", className)}>
 			<input
@@ -543,7 +585,10 @@ export const DateInput = ({ value, onChange, min, max, className, inputClassname
 				onChange={(e) => onChange(e.target.value)}
 				min={min}
 				max={max}
-				className={cn("outline-none h-10 border border-black rounded-lg px-2 w-full", inputClassname)}
+				className={cn(
+					"outline-none h-10 border border-black rounded-lg px-2 w-full",
+					inputClassname
+				)}
 			/>
 		</div>
 	);

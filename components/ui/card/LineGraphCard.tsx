@@ -62,7 +62,9 @@ function LineGraphBody(props: LineGraphCardProps) {
 	return (
 		<div className="flex flex-col h-full gap-3">
 			{toolbar ? (
-				<div className="flex items-center h-full justify-between gap-2">{toolbar}</div>
+				<div className="flex items-center h-full justify-between gap-2">
+					{toolbar}
+				</div>
 			) : null}
 			<div className="rounded-lg bg-background-primary/50 h-full border border-background-secondary/50 p-1.5">
 				<div className="h-full w-full min-h-50 aspect-video">

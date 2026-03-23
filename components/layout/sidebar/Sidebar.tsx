@@ -415,7 +415,7 @@ function AccountItem({ showLabel = true }: { showLabel?: boolean }) {
 			)}
 			title={!showLabel ? "Account" : undefined}
 			aria-label={!showLabel ? "Account" : undefined}
-			onClick={() => window.location.href = "/login"}
+			onClick={() => (window.location.href = "/login")}
 		>
 			<div className="h-8 w-8  -ml-0.5 rounded-full group-hover:bg-background-tertiary/50 bg-background-secondary/60 border group-hover:border-background-tertiary/70 ease duration-300 border-background-secondary/80" />
 			<div
