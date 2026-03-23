@@ -46,5 +46,14 @@ export const defaultSidebarItems: SidebarItemParams[] = [
 		onClick: () => {
 			window.location.href = "/calendar";
 		}
+	},
+	{
+		id: 6,
+		title: "Map",
+		icon: "map",
+		onClick: () => {
+			window.location.href = "/map";
+		}
+
 	}
 ];

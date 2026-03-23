@@ -19,6 +19,7 @@ import {
 	User,
 	Wrench,
 	Code,
+	Map,
 	Briefcase
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -414,6 +415,7 @@ function AccountItem({ showLabel = true }: { showLabel?: boolean }) {
 			)}
 			title={!showLabel ? "Account" : undefined}
 			aria-label={!showLabel ? "Account" : undefined}
+			onClick={() => window.location.href = "/login"}
 		>
 			<div className="h-8 w-8  -ml-0.5 rounded-full group-hover:bg-background-tertiary/50 bg-background-secondary/60 border group-hover:border-background-tertiary/70 ease duration-300 border-background-secondary/80" />
 			<div
@@ -470,6 +472,7 @@ function resolveIcon(icon: string | LucideIcon): LucideIcon {
 	const key = icon.trim().toLowerCase();
 	const map: Record<string, LucideIcon> = {
 		home: Home,
+		map: Map,
 		gear: Settings,
 		settings: Settings,
 		user: User,
