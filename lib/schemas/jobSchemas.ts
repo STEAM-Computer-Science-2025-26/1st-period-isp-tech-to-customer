@@ -20,7 +20,6 @@ export const JobTypeSchema = z.enum([
 	"maintenance",
 	"inspection"
 ]);
-
 // Matches JobDTO in services/types/jobTypes.ts exactly.
 // .passthrough() allows extra fields the backend may add without breaking validation.
 export const JobDTOSchema = z
@@ -41,6 +40,9 @@ export const JobDTOSchema = z
 		completionNotes: z.string().optional()
 	})
 	.passthrough();
+
+export type Job = z.infer<typeof JobDTOSchema>;
+export const JobResponseSchema = z.object({ job: JobDTOSchema });
 
 export const JobsResponseSchema = z.object({
 	jobs: z.array(JobDTOSchema)
