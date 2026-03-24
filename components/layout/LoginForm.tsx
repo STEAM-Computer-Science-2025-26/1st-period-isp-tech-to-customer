@@ -11,9 +11,6 @@ import {
 	validatePasswordConfirmation
 } from "./loginForm/validation";
 
-const FASTIFY_BASE_URL =
-	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
-
 export default function LoginForm({
 	registering = false,
 	email,
@@ -474,7 +471,7 @@ export default function LoginForm({
 
 		void (async () => {
 			try {
-				const response = await fetch(`${FASTIFY_BASE_URL}/register`, {
+				const response = await fetch(`/api/register`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
@@ -531,7 +528,7 @@ export default function LoginForm({
 
 		void (async () => {
 			try {
-				const response = await fetch(`${FASTIFY_BASE_URL}/login`, {
+				const response = await fetch(`/api/login`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({

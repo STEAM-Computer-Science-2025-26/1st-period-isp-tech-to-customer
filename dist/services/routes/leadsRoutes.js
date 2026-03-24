@@ -4,32 +4,41 @@
 // No auth required. Upserts into resource_leads on conflict (email).
 import { getSql } from "../../db/connection";
 export async function leadsRoutes(fastify) {
-    fastify.post("/leads", async (request, reply) => {
-        const body = request.body;
-        const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : null;
-        if (!email || !email.includes("@") || email.length > 254) {
-            return reply.code(400).send({ error: "Valid email required" });
-        }
-        const firstName = typeof body.firstName === "string"
-            ? body.firstName.trim().slice(0, 80)
-            : null;
-        const lastName = typeof body.lastName === "string"
-            ? body.lastName.trim().slice(0, 80)
-            : null;
-        const businessName = typeof body.businessName === "string"
-            ? body.businessName.trim().slice(0, 120)
-            : null;
-        const phone = typeof body.phone === "string" ? body.phone.trim().slice(0, 30) : null;
-        const rawTechCount = body.techCount;
-        const techCount = rawTechCount != null ? parseInt(String(rawTechCount), 10) : null;
-        if (techCount !== null &&
-            (isNaN(techCount) || techCount < 0 || techCount > 9999)) {
-            return reply.code(400).send({ error: "Invalid tech count" });
-        }
-        const source = typeof body.source === "string" ? body.source : "resource_hub";
-        const toolsUsed = Array.isArray(body.toolsUsed) ? body.toolsUsed : [];
-        const sql = getSql();
-        const rows = await sql `
+	fastify.post("/leads", async (request, reply) => {
+		const body = request.body;
+		const email =
+			typeof body.email === "string" ? body.email.trim().toLowerCase() : null;
+		if (!email || !email.includes("@") || email.length > 254) {
+			return reply.code(400).send({ error: "Valid email required" });
+		}
+		const firstName =
+			typeof body.firstName === "string"
+				? body.firstName.trim().slice(0, 80)
+				: null;
+		const lastName =
+			typeof body.lastName === "string"
+				? body.lastName.trim().slice(0, 80)
+				: null;
+		const businessName =
+			typeof body.businessName === "string"
+				? body.businessName.trim().slice(0, 120)
+				: null;
+		const phone =
+			typeof body.phone === "string" ? body.phone.trim().slice(0, 30) : null;
+		const rawTechCount = body.techCount;
+		const techCount =
+			rawTechCount != null ? parseInt(String(rawTechCount), 10) : null;
+		if (
+			techCount !== null &&
+			(isNaN(techCount) || techCount < 0 || techCount > 9999)
+		) {
+			return reply.code(400).send({ error: "Invalid tech count" });
+		}
+		const source =
+			typeof body.source === "string" ? body.source : "resource_hub";
+		const toolsUsed = Array.isArray(body.toolsUsed) ? body.toolsUsed : [];
+		const sql = getSql();
+		const rows = await sql`
 			INSERT INTO resource_leads (
 				email, first_name, last_name, business_name,
 				phone, tech_count, source, tools_used
@@ -51,6 +60,6 @@ export async function leadsRoutes(fastify) {
 				id, email, first_name, last_name, business_name,
 				phone, tech_count, source, tools_used, created_at
 		`;
-        return reply.send({ ok: true, lead: rows[0] ?? null });
-    });
+		return reply.send({ ok: true, lead: rows[0] ?? null });
+	});
 }
