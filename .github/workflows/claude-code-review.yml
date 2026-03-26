@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
 
       - name: Enable Corepack and install pnpm
@@ -39,8 +39,8 @@ jobs:
       - name: Start dev server in background
         run: |
           pnpm run dev > /tmp/dev.log 2>&1 &
-          npx -y wait-on http://127.0.0.1:3000
-
+          npx wait-on http://127.0.0.1:3000
+          
       - name: Create MCP config for Playwright
         run: |
           cat > /tmp/mcp-config.json <<'EOF'
