@@ -1,0 +1,92 @@
+name: Claude + Playwright MCP Review
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  claude-review:
+    if: "!startsWith(github.event.head_commit.message, 'no-review')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Start dev server in background
+        run: |
+          pnpm run dev > /tmp/dev.log 2>&1 &
+          npx -y wait-on http://127.0.0.1:3000
+
+      - name: Create MCP config for Playwright
+        run: |
+          cat > /tmp/mcp-config.json <<'EOF'
+          {
+            "mcpServers": {
+              "playwright": {
+                "command": "npx",
+                "args": ["@playwright/mcp@latest", "--allowed-origins", "http://127.0.0.1:3000;http://127.0.0.1:3001"]
+              }
+            }
+          }
+          EOF
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are reviewing ONLY the changes in this commit.
+
+            Review in this exact order:
+
+            1. SECURITY VULNERABILITIES
+            2. CRITICAL ERRORS
+            3. MEDIUM ISSUES
+            4. SMALL BUGS
+            5. CODE RECOMMENDATIONS FOR SIMPLICITY AND ORGANIZATION
+               - Identify duplicated code
+               - Suggest reuse of existing functions where new ones are added
+               - Suggest control flow simplifications and structure improvements
+
+            6. PLAYWRIGHT MCP REVIEW
+               - Use the Playwright MCP browser tools against the running app at http://127.0.0.1:3000
+               - Inspect only the pages/routes affected by this commit
+               - Check for visible regressions, broken interactions, or console/runtime errors
+               - Provide actionable recommendations
+
+            Output exactly these sections:
+            - Security Findings
+            - Critical Issues
+            - Medium Issues
+            - Small Bugs
+            - Code Quality Suggestions
+            - Playwright Browser Observations
+            - Recommended Next Actions
+
+          claude_args: |
+            --mcp-config /tmp/mcp-config.json
+            --allowedTools mcp__playwright__browser_snapshot,mcp__playwright__browser_navigate,mcp__playwright__browser_click,mcp__playwright__browser_fill_form,mcp__playwright__browser_press_key,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_console_messages
+            --max-turns 8
