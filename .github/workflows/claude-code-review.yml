@@ -1,5 +1,6 @@
 name: Claude + Playwright MCP Review
 
+
 on:
   pull_request:
     branches:
@@ -60,6 +61,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          show_full_output: true
           prompt: |
             You are reviewing ONLY the changes in this pull request.
             Review in this exact order:
