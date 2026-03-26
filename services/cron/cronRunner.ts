@@ -11,8 +11,8 @@ import { getSql } from "@/db/connection";
 import {
 	generateEstimateFollowUps,
 	dispatchEstimateFollowUps
-} from "../routes/automationRoutes";
-import { evaluateScheduleRules } from "../routes/automationRoutes";
+} from "../routes/platform/automationRoutes";
+import { evaluateScheduleRules } from "../routes/platform/automationRoutes";
 // ─────────────────────────────────────────────────────────────────────────────
 // Frequency → days helper
 // ─────────────────────────────────────────────────────────────────────────────

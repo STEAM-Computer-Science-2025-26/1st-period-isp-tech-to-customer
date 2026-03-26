@@ -7,57 +7,69 @@ import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import fastifyCors from "@fastify/cors";
 import fastifyJwt from "@fastify/jwt";
 
-// Existing routes
+// Core
 import { paymentCollectionRoutes } from "../services/dispatch/paymentCollectionRoutes";
+import { jobRoutes } from "./routes/core/jobRoutes";
+import { userRoutes } from "./routes/core/userRoutes";
+import { companyRoutes } from "./routes/core/companyRoutes";
+import { registerEmployeeRoutes } from "./routes/core/employeeRoutes";
+import { customerRoutes } from "./routes/core/customerRoutes";
+import { branchRoutes } from "./routes/core/branchRoutes";
+
+// Analytics
+import { kpiRoutes } from "./routes/analytics/kpiRoutes";
+import { leaderboardRoutes } from "./routes/analytics/leaderboardRoutes";
+import { forecastRoutes } from "./routes/analytics/forecastRoutes";
+import { analyticsRoutes } from "./routes/analytics/analyticsRoutes";
+import { reportingRoutes } from "./routes/analytics/reportingRoutes";
+// Dispatch
+import { dispatchRoutes } from "./routes/dispatch/dispatchRoutes";
+import { dispatchAuditRoutes } from "./routes/dispatch/dispatchAuditRoutes";
+import { preStaffingAlertRoutes } from "./routes/dispatch/preStaffingAlertRoutes";
+import { etaRoutes } from "./routes/dispatch/etaRoutes";
+import { employeeLocationRoutes } from "./routes/dispatch/employeeLocationRoutes";
+
+// Integrations
+import { stripeRoutes } from "./routes/integrations/stripeRoutes";
+import { qbRoutes } from "./routes/integrations/qbRoutes";
+import { crmRoutes } from "./routes/integrations/crmRoutes";
+import { smsRoutes } from "./routes/integrations/smsRoutes";
+
+// Operational
+import { pricebookRoutes } from "./routes/operational/pricebookRoutes";
+import { estimateRoutes } from "./routes/operational/estimateRoutes";
+import { invoiceRoutes } from "./routes/operational/invoiceRoutes";
+import { jobTimeTrackingRoutes } from "./routes/operational/jobTimeTrackingRoutes";
+import { durationRoutes } from "./routes/operational/durationRoutes";
+import { partsRoutes } from "./routes/operational/partsRoutes";
+import { truckInventoryRoutes } from "./routes/operational/truckInventoryRoutes";
+import { purchaseOrderRoutes } from "./routes/operational/purchaseOrderRoutes";
+import { warehouseRoutes } from "./routes/operational/warehouseRoutes";
+import { replacementRoutes } from "./routes/operational/replacementRoutes";
+import { refrigerantLogRoutes } from "./routes/operational/refrigerantLogRoutes";
+
+// Platform
+import { healthRoutes } from "./routes/platform/healthRoutes";
+import { onboardingRoutes } from "./routes/platform/onboardingRoutes";
+import { verifyRoutes } from "./routes/platform/verifyRoutes";
+import { devRoutes } from "./routes/platform/devRoutes";
+import { leadsRoutes } from "./routes/platform/leadsRoutes";
+import { auditRoutes } from "./routes/platform/auditRoutes";
+import { certificationRoutes } from "./routes/platform/certificationRoutes";
+
+// Remaining (misc features)
 import locationRoutes from "./routes/locationRoutes";
-import { jobRoutes } from "./routes/jobRoutes";
-import { userRoutes } from "./routes/userRoutes";
-import { companyRoutes } from "./routes/companyRoutes";
-import { registerEmployeeRoutes } from "./routes/employeeRoutes";
-import { dispatchRoutes } from "./routes/dispatchRoutes";
-import { employeeLocationRoutes } from "./routes/employeeLocationRoutes";
-import { healthRoutes } from "./routes/healthRoutes";
-import { stripeRoutes } from "./routes/stripeRoutes";
-import { qbRoutes } from "./routes/qbRoutes";
-import { partsRoutes } from "./routes/partsRoutes";
-import { customerRoutes } from "./routes/customerRoutes";
-import { branchRoutes } from "./routes/branchRoutes";
-import { onboardingRoutes } from "./routes/onboardingRoutes";
-import { certificationRoutes } from "./routes/certificationRoutes";
-import { durationRoutes } from "./routes/durationRoutes";
-import { pricebookRoutes } from "./routes/pricebookRoutes";
-import { estimateRoutes } from "./routes/estimateRoutes";
-import { invoiceRoutes } from "./routes/invoiceRoutes";
-import { analyticsRoutes } from "./routes/analyticsRoutes";
-import { jobTimeTrackingRoutes } from "./routes/jobTimeTrackingRoutes";
-import { kpiRoutes } from "./routes/kpiRoutes";
-import { dispatchAuditRoutes } from "./routes/dispatchAuditRoutes";
-import { refrigerantLogRoutes } from "./routes/refrigerantLogRoutes";
+import { competitorPricingRoutes } from "./routes/competitorPricingRoutes";
+import { multiRegionRoutes } from "./routes/multiRegionRoutes";
+import { tipRoutes } from "./routes/tipRoutes";
+import { terminalRoutes } from "./routes/terminalRoutes";
+
 import { getGeocodingWorker } from "./workers/geocodingWorker";
 import {
 	runCustomerGeocodingWorker,
 	retryFailedGeocoding
 } from "./workers/customerGeocodingWorker";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
-import { replacementRoutes } from "./routes/replacementRoutes";
-import { forecastRoutes } from "./routes/forecastRoutes";
-import { auditRoutes } from "./routes/auditRoutes";
-import { etaRoutes } from "./routes/etaRoutes";
-import { leaderboardRoutes } from "./routes/leaderboardRoutes";
-import { smsRoutes } from "./routes/smsRoutes";
-import { competitorPricingRoutes } from "./routes/competitorPricingRoutes";
-import { preStaffingAlertRoutes } from "./routes/preStaffingAlertRoutes";
-import { multiRegionRoutes } from "./routes/multiRegionRoutes";
-import { warehouseRoutes } from "./routes/warehouseRoutes";
-import { truckInventoryRoutes } from "./routes/truckInventoryRoutes";
-import { purchaseOrderRoutes } from "./routes/purchaseOrderRoutes";
-import { crmRoutes } from "./routes/crmRoutes";
-import { reportingRoutes } from "./routes/reportingRoutes";
-import { tipRoutes } from "./routes/tipRoutes";
-import { terminalRoutes } from "./routes/terminalRoutes";
-import { verifyRoutes } from "./routes/verifyRoutes";
-import { leadsRoutes } from "./routes/leadsRoutes";
-import { devRoutes } from "./routes/devRoutes";
 
 const envLocalPath = path.resolve(process.cwd(), ".env.local");
 if (fs.existsSync(envLocalPath)) {

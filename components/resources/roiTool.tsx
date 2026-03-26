@@ -1,65 +1,11 @@
 "use client";
 
 import { useState } from "react";
-
-function fmt(n: number) {
-	if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(1) + "M";
-	if (n >= 1_000) return "$" + Math.round(n / 1_000) + "k";
-	return "$" + Math.round(n).toLocaleString();
-}
+import { fmt } from "@/lib/utils/formatCurrency";
+import { Slider } from "@/components/resources/shared/Slider";
 
 function ttcPrice(t: number) {
 	return t <= 3 ? 149 : t <= 6 ? 199 : t <= 10 ? 299 : 399;
-}
-
-function Slider({
-	label,
-	question,
-	sub,
-	value,
-	min,
-	max,
-	step,
-	onChange,
-	display
-}: {
-	label: string;
-	question: string;
-	sub?: string;
-	value: number;
-	min: number;
-	max: number;
-	step: number;
-	onChange: (v: number) => void;
-	display: string;
-}) {
-	return (
-		<div className="bg-white border border-background-secondary rounded-xl p-5">
-			<div className="font-mono text-[10px] tracking-widest uppercase text-text-tertiary mb-1">
-				{label}
-			</div>
-			<div className="text-[13px] font-medium text-text-primary mb-0.5 leading-snug">
-				{question}
-			</div>
-			{sub && <div className="text-[11px] text-text-tertiary mb-1">{sub}</div>}
-			<div className="text-[28px] font-bold text-accent-main tracking-tight mb-2.5 leading-none mt-2">
-				{display}
-			</div>
-			<input
-				type="range"
-				min={min}
-				max={max}
-				step={step}
-				value={value}
-				onChange={(e) => onChange(+e.target.value)}
-				className="w-full h-1 rounded-full outline-none cursor-pointer accent-accent-main"
-			/>
-			<div className="flex justify-between mt-1.5 font-mono text-[10px] text-text-tertiary">
-				<span>{min}</span>
-				<span>{max}</span>
-			</div>
-		</div>
-	);
 }
 
 export default function RoiTool({ email: _ }: { email: string }) {
