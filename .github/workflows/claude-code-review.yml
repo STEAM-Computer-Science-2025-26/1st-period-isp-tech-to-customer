@@ -2,17 +2,52 @@ name: Claude + Playwright MCP Review
 
 on:
   push:
-    branches:
+    branches-ignore:
       - main
 
 jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      pr-exists: ${{ steps.check-pr.outputs.pr-exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for existing PR
+        id: check-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR=$(gh pr list --head "${{ github.ref_name }}" --base main --json number --jq '.[0].number')
+          if [ -n "$PR" ]; then
+            echo "pr-exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "pr-exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create PR if none exists
+        if: steps.check-pr.outputs.pr-exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "$(git log -1 --format=%s)" \
+            --body "Auto-created PR for Claude review." \
+            --head "${{ github.ref_name }}" \
+            --base main
+
   claude-review:
+    needs: open-pr
     if: "!startsWith(github.event.head_commit.message, 'no-review')"
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-
+      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,14 +57,16 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
-          node-version: "20"
-          cache: "pnpm"
+          node-version: "24"
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Install pnpm globally
+        run: npm install -g pnpm@latest
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Write env file
+        run: echo "${{ secrets.ENV_LOCAL }}" > .env.local
 
       - name: Install Playwright browser dependencies
         run: npx playwright install --with-deps chromium
@@ -37,7 +74,7 @@ jobs:
       - name: Start dev server in background
         run: |
           pnpm run dev > /tmp/dev.log 2>&1 &
-          npx -y wait-on http://127.0.0.1:3000
+          npx wait-on --timeout 60000 --interval 2000 http://127.0.0.1:3000 || (cat /tmp/dev.log && exit 1)
 
       - name: Create MCP config for Playwright
         run: |
@@ -59,9 +96,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             You are reviewing ONLY the changes in this commit.
-
             Review in this exact order:
-
             1. SECURITY VULNERABILITIES
             2. CRITICAL ERRORS
             3. MEDIUM ISSUES
@@ -70,13 +105,11 @@ jobs:
                - Identify duplicated code
                - Suggest reuse of existing functions where new ones are added
                - Suggest control flow simplifications and structure improvements
-
             6. PLAYWRIGHT MCP REVIEW
                - Use the Playwright MCP browser tools against the running app at http://127.0.0.1:3000
                - Inspect only the pages/routes affected by this commit
                - Check for visible regressions, broken interactions, or console/runtime errors
                - Provide actionable recommendations
-
             Output exactly these sections:
             - Security Findings
             - Critical Issues
@@ -85,7 +118,6 @@ jobs:
             - Code Quality Suggestions
             - Playwright Browser Observations
             - Recommended Next Actions
-
           claude_args: |
             --mcp-config /tmp/mcp-config.json
             --allowedTools mcp__playwright__browser_snapshot,mcp__playwright__browser_navigate,mcp__playwright__browser_click,mcp__playwright__browser_fill_form,mcp__playwright__browser_press_key,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_console_messages
