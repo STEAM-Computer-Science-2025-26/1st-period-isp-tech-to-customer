@@ -7,6 +7,7 @@ on:
 
 jobs:
   claude-review:
+    # Skip commits that start with 'no-review'
     if: "!startsWith(github.event.head_commit.message, 'no-review')"
     runs-on: ubuntu-latest
     permissions:
@@ -14,33 +15,37 @@ jobs:
       id-token: write
 
     steps:
+      # 1️⃣ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      # 2️⃣ Setup Node
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: "24"
-          cache: "pnpm"
 
-      - name: Enable Corepack and install pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@latest --activate
+      # 3️⃣ Install pnpm globally (guaranteed to work)
+      - name: Install pnpm globally
+        run: npm install -g pnpm@latest
 
+      # 4️⃣ Install dependencies
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # 5️⃣ Install Playwright browsers
       - name: Install Playwright browser dependencies
         run: npx playwright install --with-deps chromium
 
+      # 6️⃣ Start dev server in background
       - name: Start dev server in background
         run: |
           pnpm run dev > /tmp/dev.log 2>&1 &
           npx wait-on http://127.0.0.1:3000
-          
+
+      # 7️⃣ Create MCP config for Playwright
       - name: Create MCP config for Playwright
         run: |
           cat > /tmp/mcp-config.json <<'EOF'
@@ -54,6 +59,7 @@ jobs:
           }
           EOF
 
+      # 8️⃣ Run Claude Code Review
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
@@ -72,7 +78,6 @@ jobs:
                - Identify duplicated code
                - Suggest reuse of existing functions where new ones are added
                - Suggest control flow simplifications and structure improvements
-
             6. PLAYWRIGHT MCP REVIEW
                - Use the Playwright MCP browser tools against the running app at http://127.0.0.1:3000
                - Inspect only the pages/routes affected by this commit
