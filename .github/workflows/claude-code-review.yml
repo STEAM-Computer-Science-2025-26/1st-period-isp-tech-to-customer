@@ -7,7 +7,6 @@ on:
 
 jobs:
   claude-review:
-    # Skip commits that start with 'no-review'
     if: "!startsWith(github.event.head_commit.message, 'no-review')"
     runs-on: ubuntu-latest
     permissions:
@@ -15,37 +14,33 @@ jobs:
       id-token: write
 
     steps:
-      # 1️⃣ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      # 2️⃣ Setup Node
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: "24"
 
-      # 3️⃣ Install pnpm globally (guaranteed to work)
       - name: Install pnpm globally
         run: npm install -g pnpm@latest
 
-      # 4️⃣ Install dependencies
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # 5️⃣ Install Playwright browsers
+      - name: Write env file
+        run: echo "${{ secrets.ENV_LOCAL }}" > .env.local
+
       - name: Install Playwright browser dependencies
         run: npx playwright install --with-deps chromium
 
-      # 6️⃣ Start dev server in background
       - name: Start dev server in background
         run: |
           pnpm run dev > /tmp/dev.log 2>&1 &
-          npx wait-on http://127.0.0.1:3000
+          npx wait-on --timeout 60000 --interval 2000 http://127.0.0.1:3000 || (cat /tmp/dev.log && exit 1)
 
-      # 7️⃣ Create MCP config for Playwright
       - name: Create MCP config for Playwright
         run: |
           cat > /tmp/mcp-config.json <<'EOF'
@@ -59,7 +54,6 @@ jobs:
           }
           EOF
 
-      # 8️⃣ Run Claude Code Review
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
@@ -67,9 +61,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             You are reviewing ONLY the changes in this commit.
-
             Review in this exact order:
-
             1. SECURITY VULNERABILITIES
             2. CRITICAL ERRORS
             3. MEDIUM ISSUES
@@ -83,7 +75,6 @@ jobs:
                - Inspect only the pages/routes affected by this commit
                - Check for visible regressions, broken interactions, or console/runtime errors
                - Provide actionable recommendations
-
             Output exactly these sections:
             - Security Findings
             - Critical Issues
@@ -92,7 +83,6 @@ jobs:
             - Code Quality Suggestions
             - Playwright Browser Observations
             - Recommended Next Actions
-
           claude_args: |
             --mcp-config /tmp/mcp-config.json
             --allowedTools mcp__playwright__browser_snapshot,mcp__playwright__browser_navigate,mcp__playwright__browser_click,mcp__playwright__browser_fill_form,mcp__playwright__browser_press_key,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_console_messages
