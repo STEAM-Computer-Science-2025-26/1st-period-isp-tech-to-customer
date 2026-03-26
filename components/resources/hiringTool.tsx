@@ -250,7 +250,9 @@ export default function HiringTool({ email: _ }: { email: string }) {
 						{fmt(Math.abs(saved))}
 					</span>
 					<span className="text-[15px] text-white/40">
-						saved in Year 1 by choosing TTC over hiring
+						{saved > 0
+							? "saved in Year 1 by choosing TTC over hiring"
+							: "more revenue generated in Year 1 by hiring"}
 					</span>
 				</div>
 				<div
