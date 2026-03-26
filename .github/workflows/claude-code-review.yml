@@ -2,17 +2,52 @@ name: Claude + Playwright MCP Review
 
 on:
   push:
-    branches:
+    branches-ignore:
       - main
 
 jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      pr-exists: ${{ steps.check-pr.outputs.pr-exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for existing PR
+        id: check-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR=$(gh pr list --head "${{ github.ref_name }}" --base main --json number --jq '.[0].number')
+          if [ -n "$PR" ]; then
+            echo "pr-exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "pr-exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create PR if none exists
+        if: steps.check-pr.outputs.pr-exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "$(git log -1 --format=%s)" \
+            --body "Auto-created PR for Claude review." \
+            --head "${{ github.ref_name }}" \
+            --base main
+
   claude-review:
+    needs: open-pr
     if: "!startsWith(github.event.head_commit.message, 'no-review')"
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-
+      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
