@@ -6,7 +6,7 @@ import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
-import { getToken, authHeaders } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import {
 	Phone,
@@ -22,9 +22,6 @@ import {
 	LayoutGrid,
 	ChevronRight
 } from "lucide-react";
-
-const FASTIFY_BASE_URL =
-	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -777,21 +774,13 @@ export default function CustomerDetailPage() {
 
 		void (async () => {
 			try {
-				const token = getToken();
-				const headers: HeadersInit = token
-					? { Authorization: `Bearer ${token}` }
-					: {};
-				const res = await fetch(`${FASTIFY_BASE_URL}/customers/${customerId}`, {
-					headers
-				});
-				if (!res.ok) throw new Error(`Customer not found (${res.status})`);
-				const data = (await res.json()) as {
+				const data = await apiFetch<{
 					customer: Customer;
 					locations: Location[];
 					equipment: Equipment[];
 					jobs: Job[];
 					communications: Communication[];
-				};
+				}>(`/customers/${customerId}`);
 				if (mounted) {
 					setCustomer(data.customer);
 					setLocations(data.locations ?? []);

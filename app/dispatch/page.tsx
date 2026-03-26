@@ -6,7 +6,7 @@ import MainContent from "@/components/layout/MainContent";
 import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import { cn } from "@/lib/utils/index";
-import { getToken, authHeaders } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
 import {
 	AlertTriangle,
 	MapPin,
@@ -24,9 +24,6 @@ import {
 	X
 } from "lucide-react";
 import { JobDTO, JobPriority } from "@/app/types/types";
-
-const FASTIFY_BASE_URL =
-	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -328,17 +325,9 @@ function DispatchPanel({
 		setLoading(true);
 		setError(null);
 		try {
-			const res = await fetch(
-				`${FASTIFY_BASE_URL}/jobs/${job.id}/recommendations`,
-				{
-					method: "GET",
-					headers: authHeaders()
-				}
+			const data = await apiFetch<{ recommendation: DispatchRecommendation }>(
+				`/jobs/${job.id}/recommendations`
 			);
-			if (!res.ok) throw new Error(`Server error (${res.status})`);
-			const data = (await res.json()) as {
-				recommendation: DispatchRecommendation;
-			};
 			setRec(data.recommendation);
 		} catch (e) {
 			setError(
@@ -367,15 +356,11 @@ function DispatchPanel({
 		setAssigning(techId);
 		setShowOverrideInput(false);
 		try {
-			const res = await fetch(`${FASTIFY_BASE_URL}/jobs/${job.id}/assign`, {
+			await apiFetch(`/jobs/${job.id}/assign`, {
 				method: "POST",
-				headers: authHeaders(),
+				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ techId, reason })
 			});
-			if (!res.ok) {
-				const err = (await res.json()) as { error?: string };
-				throw new Error(err.error ?? `Assignment failed (${res.status})`);
-			}
 			onAssigned(job.id);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Assignment failed");
@@ -593,11 +578,9 @@ export default function DispatchPage() {
 		setLoading(true);
 		setError(null);
 		try {
-			const res = await fetch(`${FASTIFY_BASE_URL}/jobs?status=unassigned`, {
-				headers: authHeaders()
-			});
-			if (!res.ok) throw new Error(`Failed to load jobs (${res.status})`);
-			const data = (await res.json()) as { jobs?: JobDTO[] };
+			const data = await apiFetch<{ jobs?: JobDTO[] }>(
+				"/jobs?status=unassigned"
+			);
 			const fetched = data.jobs ?? [];
 			// Sort: emergency first, then by createdAt desc
 			fetched.sort((a, b) => {
