@@ -1,6 +1,4 @@
 name: Claude + Playwright MCP Review
-
-
 on:
   pull_request:
     branches:
@@ -62,8 +60,13 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           show_full_output: true
+          track_progress: true
           prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
             You are reviewing ONLY the changes in this pull request.
+
             Review in this exact order:
             1. SECURITY VULNERABILITIES
             2. CRITICAL ERRORS
@@ -78,7 +81,8 @@ jobs:
                - Inspect only the pages/routes affected by this pull request
                - Check for visible regressions, broken interactions, or console/runtime errors
                - Provide actionable recommendations
-            Output exactly these sections:
+
+            Post your findings as a PR comment with exactly these sections:
             - Security Findings
             - Critical Issues
             - Medium Issues
@@ -88,5 +92,5 @@ jobs:
             - Recommended Next Actions
           claude_args: |
             --mcp-config /tmp/mcp-config.json
-            --allowedTools Bash,Read,mcp__playwright__browser_snapshot,mcp__playwright__browser_navigate,mcp__playwright__browser_click,mcp__playwright__browser_fill_form,mcp__playwright__browser_press_key,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_console_messages
+            --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,mcp__playwright__browser_snapshot,mcp__playwright__browser_navigate,mcp__playwright__browser_click,mcp__playwright__browser_fill_form,mcp__playwright__browser_press_key,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_console_messages"
             --max-turns 24
