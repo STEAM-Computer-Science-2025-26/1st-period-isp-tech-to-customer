@@ -13,9 +13,7 @@ import { getSql } from "../../../db/connection";
 // ─── Guard ───────────────────────────────────────────────────────────────────
 
 function devDbEnabled(): boolean {
-	const allow = process.env.ALLOW_DEV_DB_ROUTES === "true";
-	const isProd = process.env.NODE_ENV === "production";
-	return !isProd || allow;
+	return process.env.NEXT_PUBLIC_ENABLE_DEV_TOOLS === "true";
 }
 
 // ─── Utilities (mirrored from app/api/dev/db/_utils.ts) ──────────────────────

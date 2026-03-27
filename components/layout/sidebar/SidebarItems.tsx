@@ -15,14 +15,18 @@ export const defaultSidebarItems: SidebarItemParams[] = [
 			window.location.href = "/";
 		}
 	},
-	{
-		id: 2,
-		title: "Developer Tools",
-		icon: "code",
-		onClick: () => {
-			window.location.href = "/dev";
-		}
-	},
+	...(process.env.NEXT_PUBLIC_ENABLE_DEV_TOOLS === "true"
+		? [
+				{
+					id: 2,
+					title: "Developer Tools",
+					icon: "code",
+					onClick: () => {
+						window.location.href = "/dev";
+					}
+				} satisfies SidebarItemParams
+			]
+		: []),
 	{
 		id: 3,
 		title: "Jobs",
