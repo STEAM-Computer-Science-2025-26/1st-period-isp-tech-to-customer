@@ -6,11 +6,13 @@ import { useUiStore } from "@/lib/stores/uiStore";
 type SidePanelProps = {
 	isOpen?: boolean;
 	onOpenChange?: (isOpen: boolean) => void;
+	children?: React.ReactNode;
 };
 
 const SidePanel = ({
 	isOpen: controlledOpen,
-	onOpenChange
+	onOpenChange,
+	children
 }: SidePanelProps) => {
 	const storedOpen = useUiStore((state) => state.sidePanelOpen);
 	const setStoredOpen = useUiStore((state) => state.setSidePanelOpen);
@@ -53,6 +55,8 @@ const SidePanel = ({
 					)}
 				</div>
 			</div>
+
+			{children && <div className="h-full overflow-hidden">{children}</div>}
 		</aside>
 	);
 };

@@ -13,6 +13,17 @@ export function clearToken(): void {
 	localStorage.removeItem(TOKEN_KEY);
 }
 
+export function getCompanyId(): string | null {
+	const token = getToken();
+	if (!token) return null;
+	try {
+		const payload = JSON.parse(atob(token.split(".")[1]));
+		return payload.companyId ?? null;
+	} catch {
+		return null;
+	}
+}
+
 export function authHeaders(): HeadersInit {
 	const token = getToken();
 	return token
