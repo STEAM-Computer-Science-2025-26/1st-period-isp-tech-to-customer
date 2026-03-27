@@ -18,7 +18,9 @@
 		"migrate:status": "node db/migrations/scripts/migrate.js status",
 		"migrate:up": "node db/migrations/scripts/migrate.js up",
 		"migrate:down": "node db/migrations/scripts/migrate.js down",
-		"migrate:create": "node db/migrations/scripts/create-migration.js"
+		"migrate:create": "node db/migrations/scripts/create-migration.js",
+		"seed:demo": "tsx scripts/seed-demo.ts",
+		"seed:demo:reset": "tsx scripts/seed-demo.ts --reset"
 	},
 	"dependencies": {
 		"@fastify/cors": "^11.2.0",
@@ -57,6 +59,7 @@
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "^4.1.18",
+		"@types/google.maps": "^3.58.1",
 		"@types/jest": "^29.5.14",
 		"@types/jsonwebtoken": "^9.0.10",
 		"@types/node": "^25.2.3",
