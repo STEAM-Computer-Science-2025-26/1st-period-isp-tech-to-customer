@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState
+} from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
 
@@ -273,11 +281,12 @@ export default function DateRangePicker({
 				</div>
 			) : null}
 
+			{/* Month navigation */}
 			<div className="mt-4 flex items-center justify-between gap-3">
 				<button
 					type="button"
 					onClick={() => setVisibleMonth((current) => addMonths(current, -1))}
-					className="grid size-8 place-items-center rounded-full border border-accent-text/20 bg-background-primary/60 text-text-secondary transition-colors hover:border-accent-text/30 hover:bg-background-primary/80 hover:text-text-primary"
+					className="grid size-8 place-items-center rounded-full text-text-secondary transition-colors hover:bg-background-primary/60 hover:text-text-primary"
 					aria-label="Previous month"
 				>
 					<ChevronLeft className="size-4" />
@@ -288,21 +297,23 @@ export default function DateRangePicker({
 				<button
 					type="button"
 					onClick={() => setVisibleMonth((current) => addMonths(current, 1))}
-					className="grid size-8 place-items-center rounded-full border border-accent-text/20 bg-background-primary/60 text-text-secondary transition-colors hover:border-accent-text/30 hover:bg-background-primary/80 hover:text-text-primary"
+					className="grid size-8 place-items-center rounded-full text-text-secondary transition-colors hover:bg-background-primary/60 hover:text-text-primary"
 					aria-label="Next month"
 				>
 					<ChevronRight className="size-4" />
 				</button>
 			</div>
 
-			<div className="mt-3 grid grid-cols-7 gap-1 px-1 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-text-tertiary">
+			{/* Weekday labels */}
+			<div className="mt-3 grid grid-cols-7 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-text-tertiary">
 				{WEEKDAY_LABELS.map((day) => (
 					<span key={day}>{day}</span>
 				))}
 			</div>
 
+			{/* Calendar grid — no horizontal gap so range bands flow continuously */}
 			<div
-				className="mt-2 grid grid-cols-7 gap-1"
+				className="mt-1 grid grid-cols-7 gap-y-0.5"
 				onMouseLeave={() => setHoveredDay(null)}
 			>
 				{calendarDays.map((day) => {
@@ -328,50 +339,168 @@ export default function DateRangePicker({
 							onClick={() => handleDayClick(day)}
 							aria-label={formatDisplayDate(day)}
 							className={cn(
-								"relative grid h-9 w-9 place-items-center text-xs font-medium transition-all",
+								"relative grid h-9 place-items-center text-xs font-medium transition-colors",
 								inCurrentMonth
 									? "text-text-secondary"
 									: "text-text-tertiary/40",
+								// Continuous range band
+								isInRange && !isRangeStart && !isRangeEnd && "bg-primary/10",
 								isInRange &&
-									!isRangeEndpoint &&
-									"rounded-md bg-primary/15 text-text-primary",
-								isSelectedSingle &&
-									"rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/20",
-								!isSelectedSingle &&
-									isRangeEndpoint &&
-									"rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/20",
-								!isInRange &&
-									!isSelectedSingle &&
-									"rounded-full hover:bg-background-primary/60 hover:text-text-primary",
-								isToday &&
-									!isSelectedSingle &&
-									!isRangeEndpoint &&
-									"ring-1 ring-primary/40"
+									isRangeStart &&
+									!isRangeEnd &&
+									"rounded-l-full bg-primary/10",
+								isInRange &&
+									isRangeEnd &&
+									!isRangeStart &&
+									"rounded-r-full bg-primary/10"
 							)}
 						>
-							<span className="relative z-10">{day.getDate()}</span>
+							<span
+								className={cn(
+									"relative z-10 grid size-8 place-items-center rounded-full transition-colors",
+									(isSelectedSingle || isRangeEndpoint) &&
+										"bg-primary text-primary-foreground shadow-sm shadow-primary/25",
+									isInRange &&
+										!isRangeEndpoint &&
+										"text-text-primary font-semibold",
+									!isInRange &&
+										!isSelectedSingle &&
+										"hover:bg-background-primary/60 hover:text-text-primary",
+									isToday &&
+										!isSelectedSingle &&
+										!isRangeEndpoint &&
+										"ring-1 ring-primary/40"
+								)}
+							>
+								{day.getDate()}
+							</span>
 						</button>
 					);
 				})}
 			</div>
 
+			{/* Footer */}
 			<div className="mt-4 flex items-center justify-between gap-3 border-t border-accent-text/15 pt-3">
 				<p className="text-xs text-text-tertiary">
 					{activeMode === "single"
-						? "Click one day to select it."
-						: "Click once for a start date, then a second time for the end date."}
+						? "Click a day to select it."
+						: "Click to set start, click again for end."}
 				</p>
 				{onClear ? (
 					<button
 						type="button"
 						onClick={handleClear}
-						className="inline-flex items-center gap-1 rounded-xl border border-accent-text/20 px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-background-primary/60 hover:text-text-primary"
+						className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-text-tertiary transition-colors hover:text-text-primary"
 					>
-						<X className="size-3.5" />
+						<X className="size-3" />
 						Clear
 					</button>
 				) : null}
 			</div>
 		</div>
+	);
+}
+
+// ─── Popover wrapper — renders DateRangePicker through a portal ─────────────
+
+export function PopoverDatePicker({
+	open,
+	onOpenChange,
+	anchorEl,
+	...pickerProps
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	anchorEl: HTMLElement | null;
+} & Omit<Props, "className">) {
+	const pickerRef = useRef<HTMLDivElement>(null);
+	const [placement, setPlacement] = useState({
+		top: -9999,
+		left: -9999,
+		ready: false
+	});
+
+	// Position relative to anchor, choosing direction based on viewport space
+	useLayoutEffect(() => {
+		if (!open || !anchorEl) {
+			setPlacement({ top: -9999, left: -9999, ready: false });
+			return;
+		}
+		const pickerEl = pickerRef.current;
+		if (!pickerEl) return;
+
+		const triggerRect = anchorEl.getBoundingClientRect();
+		const pickerRect = pickerEl.getBoundingClientRect();
+		const vh = window.innerHeight;
+		const vw = window.innerWidth;
+
+		// Vertical — prefer below, flip above if not enough space
+		const spaceBelow = vh - triggerRect.bottom;
+		const spaceAbove = triggerRect.top;
+		let top: number;
+		if (spaceBelow >= pickerRect.height + 8 || spaceBelow >= spaceAbove) {
+			top = triggerRect.bottom + 8;
+		} else {
+			top = triggerRect.top - pickerRect.height - 8;
+		}
+
+		// Horizontal — prefer left-aligned with trigger, flip if overflows
+		let left: number;
+		if (triggerRect.left + pickerRect.width <= vw - 8) {
+			left = triggerRect.left;
+		} else {
+			left = triggerRect.right - pickerRect.width;
+		}
+
+		// Clamp to viewport edges
+		top = Math.max(8, Math.min(top, vh - pickerRect.height - 8));
+		left = Math.max(8, Math.min(left, vw - pickerRect.width - 8));
+
+		setPlacement({ top, left, ready: true });
+	}, [open, anchorEl]);
+
+	// Close on outside click
+	useEffect(() => {
+		if (!open) return;
+		function handleMouseDown(e: MouseEvent) {
+			const target = e.target as Node;
+			if (
+				pickerRef.current &&
+				!pickerRef.current.contains(target) &&
+				(!anchorEl || !anchorEl.contains(target))
+			) {
+				onOpenChange(false);
+			}
+		}
+		document.addEventListener("mousedown", handleMouseDown);
+		return () => document.removeEventListener("mousedown", handleMouseDown);
+	}, [open, anchorEl, onOpenChange]);
+
+	// Close on Escape
+	useEffect(() => {
+		if (!open) return;
+		function handleKeyDown(e: KeyboardEvent) {
+			if (e.key === "Escape") onOpenChange(false);
+		}
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [open, onOpenChange]);
+
+	if (!open) return null;
+
+	return createPortal(
+		<div
+			ref={pickerRef}
+			className="fixed z-100"
+			style={{
+				top: placement.top,
+				left: placement.left,
+				opacity: placement.ready ? 1 : 0,
+				transition: "opacity 150ms ease-out"
+			}}
+		>
+			<DateRangePicker {...pickerProps} className="w-72" />
+		</div>,
+		document.body
 	);
 }

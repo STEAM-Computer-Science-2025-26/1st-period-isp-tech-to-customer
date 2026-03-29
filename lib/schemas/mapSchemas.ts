@@ -2,6 +2,11 @@
 // Zod schemas for /companies/:companyId/map-data and related map endpoints.
 
 import { z } from "zod";
+import {
+	JobStatusSchema,
+	JobPrioritySchema,
+	JobTypeSchema
+} from "./jobSchemas";
 
 // Handles DOUBLE PRECISION columns that Neon may return as numeric strings
 const numOrNull = z.preprocess(
@@ -29,19 +34,11 @@ export const MapJobSchema = z.object({
 	address: z.string(),
 	latitude: numOrNull,
 	longitude: numOrNull,
-	status: z.enum([
-		"unassigned",
-		"assigned",
-		"in_progress",
-		"completed",
-		"cancelled"
-	]),
-	priority: z.enum(["low", "medium", "high", "emergency"]),
+	status: JobStatusSchema,
+	priority: JobPrioritySchema,
 	assignedTechId: z.string().nullable(),
 	scheduledTime: z.string().nullable(),
-	jobType: z
-		.enum(["installation", "repair", "maintenance", "inspection"])
-		.nullable(),
+	jobType: JobTypeSchema.nullable(),
 	createdAt: z.string(),
 	requiredSkills: z.array(z.string())
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMapsLibrary } from "@vis.gl/react-google-maps";
 import { cn } from "@/lib/utils";
 import { type MapJob, type MapTech } from "@/lib/schemas/mapSchemas";
@@ -15,8 +15,21 @@ import {
 	CheckCircle2,
 	Navigation,
 	Search,
-	SlidersHorizontal
+	SlidersHorizontal,
+	Check,
+	CalendarDays
 } from "lucide-react";
+import {
+	type PanelFilter,
+	createEmptyFilter,
+	STATUS_OPTIONS,
+	PRIORITY_OPTIONS,
+	JOB_TYPE_OPTIONS,
+	countActiveFilters,
+	applyPanelFilter,
+	toggleSet
+} from "./mapFilterUtils";
+import { PopoverDatePicker } from "@/components/ui/DateRangePicker";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -48,19 +61,20 @@ const PRIORITY_DOT: Record<MapJob["priority"], string> = {
 };
 
 const PRIORITY_COLORS: Record<MapJob["priority"], string> = {
-	emergency: "text-red-400 bg-red-500/10 border-red-500/30",
-	high: "text-orange-400 bg-orange-500/10 border-orange-500/30",
-	medium: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30",
-	low: "text-green-400 bg-green-500/10 border-green-500/30"
+	emergency: "text-red-700 bg-red-200/60 border-red-300/50",
+	high: "text-orange-700 bg-orange-200/60 border-orange-300/50",
+	medium: "text-amber-700 bg-amber-200/60 border-amber-300/50",
+	low: "text-emerald-700 bg-emerald-200/60 border-emerald-300/50"
 };
 
 const STATUS_COLORS: Record<MapJob["status"], string> = {
-	unassigned: "text-text-tertiary bg-background-primary border-accent-text/20",
-	assigned: "text-blue-400 bg-blue-500/10 border-blue-500/30",
-	in_progress: "text-purple-400 bg-purple-500/10 border-purple-500/30",
-	completed: "text-green-400 bg-green-500/10 border-green-500/30",
+	unassigned:
+		"text-text-secondary bg-background-primary/80 border-accent-text/20",
+	assigned: "text-blue-700 bg-blue-200/60 border-blue-300/50",
+	in_progress: "text-violet-700 bg-violet-200/60 border-violet-300/50",
+	completed: "text-emerald-700 bg-emerald-200/60 border-emerald-300/50",
 	cancelled:
-		"text-text-tertiary bg-background-primary border-accent-text/20 line-through"
+		"text-text-tertiary bg-background-primary/60 border-accent-text/15 line-through"
 };
 
 const JOB_TYPE_LABELS: Record<string, string> = {
@@ -107,123 +121,80 @@ function secondsAgo(secondsSinceUpdate: number | null): string {
 	return `${Math.round(secondsSinceUpdate / 3600)}h ago`;
 }
 
-// ─── Panel filter types & helpers ────────────────────────────────────────────
+// ─── Filter UI helpers (matching MapFilterDropdown style) ───────────────────
 
-type PanelFilter = {
-	search: string;
-	statuses: Set<MapJob["status"]>;
-	priorities: Set<MapJob["priority"]>;
-	jobTypes: Set<string>;
-	zipCode: string;
-	dateAfter: string;
-	dateBefore: string;
-};
-
-const EMPTY_FILTER: PanelFilter = {
-	search: "",
-	statuses: new Set(),
-	priorities: new Set(),
-	jobTypes: new Set(),
-	zipCode: "",
-	dateAfter: "",
-	dateBefore: ""
-};
-
-function countActiveFilters(f: PanelFilter): number {
-	return [
-		f.search,
-		f.zipCode,
-		f.dateAfter,
-		f.dateBefore,
-		...Array.from(f.statuses),
-		...Array.from(f.priorities),
-		...Array.from(f.jobTypes)
-	].filter(Boolean).length;
+function Section({
+	title,
+	children
+}: {
+	title: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<section>
+			<p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-text-tertiary">
+				{title}
+			</p>
+			{children}
+		</section>
+	);
 }
 
-function extractZip(address: string): string {
-	return address.match(/\b(\d{5})(?:-\d{4})?\b/)?.[1] ?? "";
+function OptionList<T extends string>({
+	options,
+	selected,
+	onToggle
+}: {
+	options: { value: T; label: string; cls?: string }[];
+	selected: Set<T>;
+	onToggle: (value: T) => void;
+}) {
+	return (
+		<div className="flex flex-col">
+			{options.map((option) => {
+				const isActive = selected.has(option.value);
+				return (
+					<button
+						key={option.value}
+						type="button"
+						onClick={() => onToggle(option.value)}
+						className={cn(
+							"-mx-4 flex items-center justify-between px-6 py-1 text-sm font-medium transition-colors hover:bg-background-primary/30",
+							isActive
+								? cn("text-text-primary", option.cls)
+								: "text-text-secondary hover:text-text-primary"
+						)}
+					>
+						<span>{option.label}</span>
+						<span
+							className={cn(
+								"grid size-5 place-items-center rounded-full transition-colors",
+								isActive ? "text-primary-foreground" : "text-transparent"
+							)}
+						>
+							<Check className="size-3.5" />
+						</span>
+					</button>
+				);
+			})}
+		</div>
+	);
 }
 
-function applyPanelFilter(jobs: MapJob[], f: PanelFilter): MapJob[] {
-	return jobs.filter((job) => {
-		if (f.search) {
-			const q = f.search.toLowerCase();
-			if (
-				!job.customerName.toLowerCase().includes(q) &&
-				!job.address.toLowerCase().includes(q)
-			)
-				return false;
-		}
-		if (f.statuses.size > 0 && !f.statuses.has(job.status)) return false;
-		if (f.priorities.size > 0 && !f.priorities.has(job.priority)) return false;
-		if (f.jobTypes.size > 0 && (!job.jobType || !f.jobTypes.has(job.jobType)))
-			return false;
-		if (f.zipCode) {
-			if (!extractZip(job.address).startsWith(f.zipCode)) return false;
-		}
-		if (f.dateAfter && job.scheduledTime) {
-			if (new Date(job.scheduledTime) < new Date(f.dateAfter)) return false;
-		}
-		if (f.dateBefore && job.scheduledTime) {
-			const end = new Date(f.dateBefore);
-			end.setHours(23, 59, 59, 999);
-			if (new Date(job.scheduledTime) > end) return false;
-		}
-		return true;
+function formatSelectionSummary(start?: string, end?: string): string {
+	const fmt = new Intl.DateTimeFormat(undefined, {
+		month: "short",
+		day: "numeric"
 	});
+	const s = start ? fmt.format(new Date(start)) : undefined;
+	const e = end ? fmt.format(new Date(end)) : undefined;
+	if (s && e) return `${s} – ${e}`;
+	if (s) return s;
+	if (e) return e;
+	return "Any date";
 }
 
-// ─── Jobs list (default panel state — nothing selected) ──────────────────────
-
-const STATUS_OPTIONS: { value: MapJob["status"]; label: string }[] = [
-	{ value: "unassigned", label: "Unassigned" },
-	{ value: "assigned", label: "Assigned" },
-	{ value: "in_progress", label: "In Progress" },
-	{ value: "completed", label: "Completed" },
-	{ value: "cancelled", label: "Cancelled" }
-];
-
-const PRIORITY_OPTIONS: {
-	value: MapJob["priority"];
-	label: string;
-	cls: string;
-}[] = [
-	{
-		value: "emergency",
-		label: "Emergency",
-		cls: "text-red-400 border-red-500/40 bg-red-500/10"
-	},
-	{
-		value: "high",
-		label: "High",
-		cls: "text-orange-400 border-orange-500/40 bg-orange-500/10"
-	},
-	{
-		value: "medium",
-		label: "Medium",
-		cls: "text-yellow-400 border-yellow-500/40 bg-yellow-500/10"
-	},
-	{
-		value: "low",
-		label: "Low",
-		cls: "text-green-400 border-green-500/40 bg-green-500/10"
-	}
-];
-
-const JOB_TYPE_OPTIONS: { value: string; label: string }[] = [
-	{ value: "installation", label: "Installation" },
-	{ value: "repair", label: "Repair" },
-	{ value: "maintenance", label: "Maintenance" },
-	{ value: "inspection", label: "Inspection" }
-];
-
-function toggleSet<T>(prev: Set<T>, val: T): Set<T> {
-	const next = new Set(prev);
-	if (next.has(val)) next.delete(val);
-	else next.add(val);
-	return next;
-}
+// ─── Jobs list (default panel state — nothing selected) ─────────────────────
 
 function JobsList({
 	jobs,
@@ -235,7 +206,14 @@ function JobsList({
 	onZoomTo: (loc: { lat: number; lng: number }) => void;
 }) {
 	const [filterOpen, setFilterOpen] = useState(false);
-	const [filter, setFilter] = useState<PanelFilter>(EMPTY_FILTER);
+	const [filter, setFilter] = useState<PanelFilter>(() => createEmptyFilter());
+	const [datePickerOpen, setDatePickerOpen] = useState(false);
+	const dateAnchorRef = useRef<HTMLButtonElement>(null);
+
+	// Close date picker when filter panel closes
+	useEffect(() => {
+		if (!filterOpen) setDatePickerOpen(false);
+	}, [filterOpen]);
 
 	const filtered = applyPanelFilter(jobs, filter);
 	const activeCount = countActiveFilters(filter);
@@ -257,10 +235,10 @@ function JobsList({
 						onClick={() => setFilterOpen((v) => !v)}
 						title="Filter jobs"
 						className={cn(
-							"relative shrink-0 size-8 rounded-xl flex items-center justify-center transition-colors border",
+							"relative shrink-0 size-8 rounded-xl flex items-center justify-center transition-colors",
 							filterOpen || activeCount > 0
-								? "bg-primary text-primary-foreground border-primary"
-								: "border-accent-text/30 text-text-secondary hover:text-text-primary hover:bg-background-primary/50"
+								? "text-primary"
+								: "text-text-tertiary hover:text-text-primary"
 						)}
 					>
 						<SlidersHorizontal className="size-3.5" />
@@ -272,8 +250,8 @@ function JobsList({
 					</button>
 				</div>
 
-				{/* Search */}
-				<div className="mt-2 flex items-center gap-2 bg-background-primary/50 border border-accent-text/20 rounded-xl px-2.5 py-1.5">
+				{/* Search — borderless, text-only with icon */}
+				<div className="mt-2 flex items-center gap-2 px-0.5 py-1.5">
 					<Search className="size-3.5 text-text-tertiary shrink-0" />
 					<input
 						type="text"
@@ -287,7 +265,7 @@ function JobsList({
 					{filter.search && (
 						<button
 							onClick={() => setFilter((f) => ({ ...f, search: "" }))}
-							className="text-text-tertiary hover:text-text-primary"
+							className="text-text-tertiary hover:text-text-primary transition-colors"
 						>
 							<X className="size-3" />
 						</button>
@@ -295,149 +273,126 @@ function JobsList({
 				</div>
 			</div>
 
-			{/* ── Filter panel ── */}
+			{/* ── Filter panel (matching MapFilterDropdown layout) ── */}
 			{filterOpen && (
-				<div className="px-4 py-3 border-b border-accent-text/20 shrink-0 space-y-3 bg-background-primary/20">
-					{/* Status */}
-					<div>
-						<p className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wide mb-1.5">
-							Status
-						</p>
-						<div className="flex flex-wrap gap-1">
-							{STATUS_OPTIONS.map(({ value, label }) => (
-								<button
-									key={value}
-									onClick={() =>
-										setFilter((f) => ({
-											...f,
-											statuses: toggleSet(f.statuses, value)
-										}))
-									}
-									className={cn(
-										"px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
-										filter.statuses.has(value)
-											? cn("border-transparent", STATUS_COLORS[value])
-											: "border-accent-text/20 text-text-secondary hover:text-text-primary hover:bg-background-primary/50"
-									)}
-								>
-									{label}
-								</button>
-							))}
-						</div>
-					</div>
-
-					{/* Priority */}
-					<div>
-						<p className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wide mb-1.5">
-							Priority
-						</p>
-						<div className="flex flex-wrap gap-1">
-							{PRIORITY_OPTIONS.map(({ value, label, cls }) => (
-								<button
-									key={value}
-									onClick={() =>
-										setFilter((f) => ({
-											...f,
-											priorities: toggleSet(f.priorities, value)
-										}))
-									}
-									className={cn(
-										"px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
-										filter.priorities.has(value)
-											? cls
-											: "border-accent-text/20 text-text-secondary hover:text-text-primary hover:bg-background-primary/50"
-									)}
-								>
-									{label}
-								</button>
-							))}
-						</div>
-					</div>
-
-					{/* Job type */}
-					<div>
-						<p className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wide mb-1.5">
-							Type
-						</p>
-						<div className="flex flex-wrap gap-1">
-							{JOB_TYPE_OPTIONS.map(({ value, label }) => (
-								<button
-									key={value}
-									onClick={() =>
-										setFilter((f) => ({
-											...f,
-											jobTypes: toggleSet(f.jobTypes, value)
-										}))
-									}
-									className={cn(
-										"px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
-										filter.jobTypes.has(value)
-											? "border-blue-500/40 text-blue-400 bg-blue-500/10"
-											: "border-accent-text/20 text-text-secondary hover:text-text-primary hover:bg-background-primary/50"
-									)}
-								>
-									{label}
-								</button>
-							))}
-						</div>
-					</div>
-
-					{/* Zip code */}
-					<div>
-						<p className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wide mb-1.5">
-							Zip Code
-						</p>
-						<input
-							type="text"
-							value={filter.zipCode}
-							onChange={(e) =>
+				<div className="px-4 py-3 border-b border-accent-text/20 shrink-0 space-y-3">
+					<Section title="Status">
+						<OptionList
+							options={STATUS_OPTIONS}
+							selected={filter.statuses}
+							onToggle={(v) =>
 								setFilter((f) => ({
 									...f,
-									zipCode: e.target.value.replace(/\D/g, "").slice(0, 5)
+									statuses: toggleSet(f.statuses, v)
 								}))
 							}
-							placeholder="e.g. 30301"
-							className="w-full bg-background-primary/50 border border-accent-text/20 rounded-lg px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-tertiary outline-none focus:border-primary/50"
 						/>
-					</div>
+					</Section>
 
-					{/* Date range */}
-					<div>
-						<p className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wide mb-1.5">
-							Scheduled Date Range
-						</p>
-						<div className="flex items-center gap-1.5">
-							<input
-								type="date"
-								value={filter.dateAfter}
-								onChange={(e) =>
-									setFilter((f) => ({ ...f, dateAfter: e.target.value }))
-								}
-								className="flex-1 bg-background-primary/50 border border-accent-text/20 rounded-lg px-2 py-1.5 text-xs text-text-primary outline-none focus:border-primary/50 [color-scheme:dark]"
-							/>
-							<span className="text-text-tertiary text-xs shrink-0">to</span>
-							<input
-								type="date"
-								value={filter.dateBefore}
-								onChange={(e) =>
-									setFilter((f) => ({ ...f, dateBefore: e.target.value }))
-								}
-								className="flex-1 bg-background-primary/50 border border-accent-text/20 rounded-lg px-2 py-1.5 text-xs text-text-primary outline-none focus:border-primary/50 [color-scheme:dark]"
-							/>
+					<Section title="Priority">
+						<OptionList
+							options={PRIORITY_OPTIONS}
+							selected={filter.priorities}
+							onToggle={(v) =>
+								setFilter((f) => ({
+									...f,
+									priorities: toggleSet(f.priorities, v)
+								}))
+							}
+						/>
+					</Section>
+
+					<Section title="Job type">
+						<OptionList
+							options={JOB_TYPE_OPTIONS}
+							selected={filter.jobTypes}
+							onToggle={(v) =>
+								setFilter((f) => ({
+									...f,
+									jobTypes: toggleSet(f.jobTypes, v)
+								}))
+							}
+						/>
+					</Section>
+
+					<Section title="Other">
+						<div className="flex flex-col">
+							{/* ZIP code row */}
+							<div className="-mx-4 flex items-center justify-between gap-3 px-6 py-1 text-sm font-medium text-text-secondary transition-colors hover:bg-background-primary/30 hover:text-text-primary">
+								<span className="text-text-primary">ZIP code</span>
+								<input
+									type="text"
+									value={filter.zipCode}
+									onChange={(e) =>
+										setFilter((f) => ({
+											...f,
+											zipCode: e.target.value.replace(/\D/g, "").slice(0, 5)
+										}))
+									}
+									placeholder="30301"
+									className="w-14 rounded-md border border-accent-text/20 bg-background-secondary/80 px-1.5 py-px text-center text-sm text-text-primary outline-none placeholder:text-text-tertiary focus:border-primary/50"
+								/>
+							</div>
+
+							{/* Scheduled date — triggers PopoverDatePicker */}
+							<button
+								ref={dateAnchorRef}
+								type="button"
+								onClick={() => setDatePickerOpen((v) => !v)}
+								className="-mx-4 flex items-center justify-between px-6 py-1 text-sm font-medium text-text-secondary transition-colors hover:bg-background-primary/30 hover:text-text-primary"
+							>
+								<span className="text-text-primary">Scheduled window</span>
+								<div className="flex items-center gap-2 text-xs text-text-tertiary">
+									<span>
+										{formatSelectionSummary(
+											filter.dateAfter,
+											filter.dateBefore
+										)}
+									</span>
+									<CalendarDays className="size-3.5 text-text-secondary" />
+								</div>
+							</button>
 						</div>
-					</div>
+					</Section>
 
 					{/* Clear all */}
 					{activeCount > 0 && (
 						<button
-							onClick={() => setFilter(EMPTY_FILTER)}
-							className="w-full py-1.5 rounded-xl text-xs text-text-tertiary hover:text-text-primary border border-accent-text/20 hover:bg-background-primary/50 transition-colors"
+							onClick={() => setFilter(createEmptyFilter())}
+							className="w-full py-1.5 text-xs text-text-tertiary hover:text-text-primary transition-colors"
 						>
 							Clear all filters
 						</button>
 					)}
 				</div>
 			)}
+
+			{/* PopoverDatePicker portal */}
+			<PopoverDatePicker
+				open={filterOpen && datePickerOpen}
+				onOpenChange={setDatePickerOpen}
+				anchorEl={dateAnchorRef.current}
+				mode="range"
+				showHeader={false}
+				selection={{
+					start: filter.dateAfter,
+					end: filter.dateBefore
+				}}
+				onChange={({ start, end }) =>
+					setFilter((f) => ({
+						...f,
+						dateAfter: start ?? "",
+						dateBefore: end ?? ""
+					}))
+				}
+				onClear={() =>
+					setFilter((f) => ({
+						...f,
+						dateAfter: "",
+						dateBefore: ""
+					}))
+				}
+			/>
 
 			{/* ── Job list ── */}
 			<div className="flex-1 overflow-y-auto divide-y divide-accent-text/10">
@@ -520,8 +475,6 @@ function useDriveTimes(
 			lng: t.longitude!
 		}));
 
-		// Access TravelMode/UnitSystem from the loaded library to avoid the
-		// `google` global (which isn't in this tsconfig's `types` array).
 		const { TravelMode, UnitSystem } = routesLib as unknown as {
 			TravelMode: { DRIVING: string };
 			UnitSystem: { IMPERIAL: number };
@@ -596,7 +549,7 @@ function JobDetail({
 				</div>
 				<button
 					onClick={onClose}
-					className="shrink-0 p-1 rounded-lg hover:bg-background-primary text-text-tertiary hover:text-text-primary transition-colors"
+					className="shrink-0 p-1 rounded-lg text-text-tertiary hover:text-text-primary transition-colors"
 				>
 					<X className="size-4" />
 				</button>
@@ -702,7 +655,7 @@ function TechDetail({ tech, onClose }: { tech: MapTech; onClose: () => void }) {
 				</div>
 				<button
 					onClick={onClose}
-					className="shrink-0 p-1 rounded-lg hover:bg-background-primary text-text-tertiary hover:text-text-primary transition-colors"
+					className="shrink-0 p-1 rounded-lg text-text-tertiary hover:text-text-primary transition-colors"
 				>
 					<X className="size-4" />
 				</button>
@@ -711,7 +664,7 @@ function TechDetail({ tech, onClose }: { tech: MapTech; onClose: () => void }) {
 			{/* Availability */}
 			<div className="flex items-center gap-2">
 				{tech.isAvailable ? (
-					<Badge className="text-green-400 bg-green-500/10 border-green-500/30">
+					<Badge className="text-emerald-700 bg-emerald-200/60 border-emerald-300/50">
 						<CheckCircle2 className="size-3 mr-1" />
 						Available
 					</Badge>
@@ -721,7 +674,7 @@ function TechDetail({ tech, onClose }: { tech: MapTech; onClose: () => void }) {
 					</Badge>
 				)}
 				{tech.currentJobId && (
-					<Badge className="text-purple-400 bg-purple-500/10 border-purple-500/30">
+					<Badge className="text-violet-700 bg-violet-200/60 border-violet-300/50">
 						On a job
 					</Badge>
 				)}

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { CreateUserInput, UpdateUserInput } from "@/services/types/userTypes";
 import bcrypt from "bcryptjs";
 import { authenticate } from "../../middleware/auth";
-import { enforceRateLimit } from "../../rateLimit";
+import { enforceRateLimit, enforcePreset } from "../../rateLimit";
 import { getSql } from "../../../db";
 
 const listUsersSchema = z.object({
@@ -264,13 +264,10 @@ export function loginUser(fastify: FastifyInstance) {
 		const { email, password } = parsed.data;
 
 		const isDemoAccount = email === "demo@demohvac.com";
-		if (!isDemoAccount && process.env.NODE_ENV !== "test") {
-			const rateLimitResult = await enforceRateLimit(
-				sql,
-				`login:${ip}`,
-				10,
-				900
-			);
+		if (process.env.NODE_ENV !== "test") {
+			const rateLimitResult = isDemoAccount
+				? await enforceRateLimit(sql, `login:demo:${ip}`, 50, 900)
+				: await enforcePreset(sql, "auth:login", ip);
 			if (!rateLimitResult.allowed) {
 				return reply.code(429).send({
 					error: "Too many login attempts. Please try again later.",

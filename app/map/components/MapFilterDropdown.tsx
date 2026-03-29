@@ -1,8 +1,14 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+	useMemo,
+	useRef,
+	useState,
+	type KeyboardEvent,
+	type ReactNode
+} from "react";
 import { cn } from "@/lib/utils";
-import DateRangePicker from "@/components/ui/DateRangePicker";
+import { PopoverDatePicker } from "@/components/ui/DateRangePicker";
 import {
 	STATUS_OPTIONS,
 	PRIORITY_OPTIONS,
@@ -106,6 +112,7 @@ export default function MapFilterDropdown({
 	const [scheduledOpen, setScheduledOpen] = useState(
 		Boolean(value.dateAfter || value.dateBefore)
 	);
+	const scheduledBtnRef = useRef<HTMLButtonElement>(null);
 
 	const normalizedQuery = searchQuery.trim().toLowerCase();
 	const filteredStatusOptions = useMemo(
@@ -245,19 +252,17 @@ export default function MapFilterDropdown({
 						<div className="">
 							{showLocation ? (
 								<div className="-mx-4 flex items-center justify-between gap-3 px-6 py-1 text-sm font-medium text-text-secondary transition-colors hover:bg-background-secondary/70 hover:text-text-primary">
-									<span className="text-text-primary">
-										ZIP code
-									</span>
+									<span className="text-text-primary">ZIP code</span>
 									<input
 										type="text"
 										value={value.zipCode}
 										onChange={(event) =>
 											onChange({
-											...value,
-											zipCode: event.target.value
-												.replace(/\D/g, "")
-												.slice(0, 5)
-										})
+												...value,
+												zipCode: event.target.value
+													.replace(/\D/g, "")
+													.slice(0, 5)
+											})
 										}
 										placeholder="30301"
 										className="w-14 rounded-md border border-accent-text/20 bg-background-secondary/80 px-1.5 py-px text-center text-sm text-text-primary outline-none placeholder:text-text-tertiary focus:border-primary/50"
@@ -266,50 +271,27 @@ export default function MapFilterDropdown({
 							) : null}
 
 							{showScheduled ? (
-									<div>
-									<button
-										type="button"
-										data-filter-item="true"
-										onClick={() => setScheduledOpen((current) => !current)}
-											className="-mx-4 w-[calc(100%+3rem)] pr-10 flex items-center justify-between px-6 py-1 text-sm font-medium text-text-secondary transition-colors hover:bg-background-secondary/70 hover:text-text-primary"
-										title="Pick scheduled window"
-									>
-										<span className="text-text-primary">Scheduled window</span>
-										<div className="flex items-center gap-2 text-xs text-text-tertiary">
-											<span>{formatSelectionSummary(value.dateAfter, value.dateBefore)}</span>
-											<span className="grid size-5 place-items-center rounded-full text-text-secondary">
-												<CalendarDays className="size-3.5" />
-											</span>
-										</div>
-									</button>
-
-									{scheduledOpen ? (
-										<div className="mt-3 px-3 pb-3">
-											<DateRangePicker
-												mode="range"
-												showHeader={false}
-												selection={{
-													start: value.dateAfter,
-													end: value.dateBefore
-												}}
-												onChange={({ start, end }) =>
-												onChange({
-													...value,
-													dateAfter: start ?? "",
-													dateBefore: end ?? ""
-												})
-											}
-												onClear={() =>
-												onChange({
-													...value,
-													dateAfter: "",
-													dateBefore: ""
-												})
-											}
-											/>
-										</div>
-									) : null}
-								</div>
+								<button
+									ref={scheduledBtnRef}
+									type="button"
+									data-filter-item="true"
+									onClick={() => setScheduledOpen((current) => !current)}
+									className="-mx-4 w-[calc(100%+3rem)] pr-10 flex items-center justify-between px-6 py-1 text-sm font-medium text-text-secondary transition-colors hover:bg-background-secondary/70 hover:text-text-primary"
+									title="Pick scheduled window"
+								>
+									<span className="text-text-primary">Scheduled window</span>
+									<div className="flex items-center gap-2 text-xs text-text-tertiary">
+										<span>
+											{formatSelectionSummary(
+												value.dateAfter,
+												value.dateBefore
+											)}
+										</span>
+										<span className="grid size-5 place-items-center rounded-full text-text-secondary">
+											<CalendarDays className="size-3.5" />
+										</span>
+									</div>
+								</button>
 							) : null}
 						</div>
 					</Section>
@@ -321,6 +303,32 @@ export default function MapFilterDropdown({
 					</p>
 				) : null}
 			</div>
+
+			<PopoverDatePicker
+				open={scheduledOpen}
+				onOpenChange={setScheduledOpen}
+				anchorEl={scheduledBtnRef.current}
+				mode="range"
+				showHeader={false}
+				selection={{
+					start: value.dateAfter,
+					end: value.dateBefore
+				}}
+				onChange={({ start, end }) =>
+					onChange({
+						...value,
+						dateAfter: start ?? "",
+						dateBefore: end ?? ""
+					})
+				}
+				onClear={() =>
+					onChange({
+						...value,
+						dateAfter: "",
+						dateBefore: ""
+					})
+				}
+			/>
 		</div>
 	);
 }
