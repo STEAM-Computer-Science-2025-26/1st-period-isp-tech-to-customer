@@ -167,9 +167,10 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 		},
 		async (request, reply) => {
 			const { companyId } = request.params as { companyId: string };
-			const { scheduledAfter, scheduledBefore } = request.query as {
+			const { scheduledAfter, scheduledBefore, includeAll } = request.query as {
 				scheduledAfter?: string;
 				scheduledBefore?: string;
+				includeAll?: string;
 			};
 			const user = request.user as AuthUser;
 
@@ -180,17 +181,17 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 			const techs = await db.query(
 				`
 			SELECT
-			  e.id as tech_id,
-			  e.name as tech_name,
+			  e.id            AS "techId",
+			  e.name          AS "techName",
 			  e.phone,
-			  e.is_available,
-			  e.current_job_id,
+			  e.is_available  AS "isAvailable",
+			  e.current_job_id AS "currentJobId",
 			  e.skills,
 			  tl.latitude,
 			  tl.longitude,
-			  tl.accuracy_meters,
-			  tl.updated_at as last_update,
-			  EXTRACT(EPOCH FROM (NOW() - tl.updated_at)) as seconds_since_update
+			  tl.accuracy_meters     AS "accuracyMeters",
+			  tl.updated_at          AS "lastUpdate",
+			  EXTRACT(EPOCH FROM (NOW() - tl.updated_at)) AS "secondsSinceUpdate"
 			FROM employees e
 			LEFT JOIN tech_locations tl ON tl.tech_id = e.id
 			WHERE e.company_id = $1
@@ -200,24 +201,32 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 				[companyId]
 			);
 
+			// Build the status clause in JS so we never pass a boolean into raw SQL
+			// (the db.query helper uses a tagged-template reconstruction that doesn't
+			// handle uncast boolean parameters well in boolean OR expressions).
+			const statusClause =
+				includeAll === "true"
+					? ""
+					: "AND j.status IN ('unassigned', 'assigned', 'in_progress')";
+
 			const jobs = await db.query(
 				`
         SELECT
           j.id,
-          j.customer_name,
+          j.customer_name    AS "customerName",
           j.address,
           j.latitude,
           j.longitude,
           j.status,
           j.priority,
-          j.assigned_tech_id,
-          j.scheduled_time,
-          j.job_type,
-          j.created_at,
-          j.required_skills
+          j.assigned_tech_id AS "assignedTechId",
+          j.scheduled_time   AS "scheduledTime",
+          j.job_type         AS "jobType",
+          j.created_at       AS "createdAt",
+          j.required_skills  AS "requiredSkills"
         FROM jobs j
         WHERE j.company_id = $1
-          AND j.status IN ('unassigned', 'assigned', 'in_progress')
+          ${statusClause}
           AND ($2::timestamptz IS NULL OR j.scheduled_time >= $2::timestamptz)
           AND ($3::timestamptz IS NULL OR j.scheduled_time <= $3::timestamptz)
         ORDER BY

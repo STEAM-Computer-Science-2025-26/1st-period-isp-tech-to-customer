@@ -32,12 +32,12 @@ export const JobDTOSchema = z
 		jobType: JobTypeSchema,
 		status: JobStatusSchema,
 		priority: JobPrioritySchema,
-		assignedTechId: z.string().optional(),
-		scheduledTime: z.string().optional(),
+		assignedTechId: z.string().nullish(),
+		scheduledTime: z.string().nullish(),
 		createdAt: z.string(),
-		completedAt: z.string().optional(),
-		initialNotes: z.string().optional(),
-		completionNotes: z.string().optional()
+		completedAt: z.string().nullish(),
+		initialNotes: z.string().nullish(),
+		completionNotes: z.string().nullish()
 	})
 	.passthrough();
 

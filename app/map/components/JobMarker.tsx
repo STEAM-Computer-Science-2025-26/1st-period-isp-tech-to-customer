@@ -19,7 +19,9 @@ const PRIORITY_COLORS: Record<MapJob["priority"], string> = {
 const STATUS_LABELS: Record<MapJob["status"], string> = {
 	unassigned: "U",
 	assigned: "A",
-	in_progress: "►"
+	in_progress: "►",
+	completed: "✓",
+	cancelled: "✕"
 };
 
 export default function JobMarker({ job, isSelected, onClick }: Props) {

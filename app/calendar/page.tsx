@@ -108,7 +108,7 @@ const mapJobsToDayEvents = (
 			title: getJobTitle(job),
 			duration: job.jobType.replace("_", " "),
 			tech: job.assignedTechId ? `Tech #${job.assignedTechId}` : "Unassigned",
-			window: formatWindow(job.scheduledTime),
+			window: formatWindow(job.scheduledTime ?? undefined),
 			tone: toEventTone(job)
 		});
 	}
