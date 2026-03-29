@@ -16,7 +16,10 @@ import {
 } from "lucide-react";
 import type { JobPriority } from "@/app/types/types";
 import type { DispatchRecommendation } from "@/lib/types/dispatch";
-import { BATCH_PLAN_STORAGE_KEY, DISPATCH_CONCURRENCY_LIMIT } from "@/lib/constants/dispatch";
+import {
+	BATCH_PLAN_STORAGE_KEY,
+	DISPATCH_CONCURRENCY_LIMIT
+} from "@/lib/constants/dispatch";
 
 type BatchPlan = {
 	createdAt: string;
@@ -106,8 +109,15 @@ export default function DispatchReviewPage() {
 			const recommendations: Record<string, DispatchRecommendation> = {};
 			const selectedTechMap: Record<string, string> = {};
 
-			for (let i = 0; i < plan.selectedJobs.length; i += DISPATCH_CONCURRENCY_LIMIT) {
-				const batch = plan.selectedJobs.slice(i, i + DISPATCH_CONCURRENCY_LIMIT);
+			for (
+				let i = 0;
+				i < plan.selectedJobs.length;
+				i += DISPATCH_CONCURRENCY_LIMIT
+			) {
+				const batch = plan.selectedJobs.slice(
+					i,
+					i + DISPATCH_CONCURRENCY_LIMIT
+				);
 
 				await Promise.all(
 					batch.map(async (job) => {

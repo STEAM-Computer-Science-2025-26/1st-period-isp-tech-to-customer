@@ -534,7 +534,10 @@ export default function MapPage() {
 
 	return (
 		<MainContent>
-			<APIProvider apiKey={MAPS_API_KEY} libraries={["routes", "geometry", "places"]}>
+			<APIProvider
+				apiKey={MAPS_API_KEY}
+				libraries={["routes", "geometry", "places"]}
+			>
 				<Map
 					className="fixed h-dvh w-dvw top-0 left-0"
 					defaultCenter={DEFAULT_CENTER}
