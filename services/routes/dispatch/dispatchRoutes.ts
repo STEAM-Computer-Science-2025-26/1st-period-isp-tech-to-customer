@@ -29,7 +29,7 @@ type AuthUser = {
 // Schemas
 const manualAssignSchema = z.object({
 	techId: z.string().uuid(),
-	reason: z.string().min(10, "Reason must be at least 10 characters")
+	reason: z.string().min(10, "Reason must be at least 10 characters").optional()
 });
 
 const completeJobSchema = z.object({
@@ -41,6 +41,18 @@ const completeJobSchema = z.object({
 
 const batchDispatchSchema = z.object({
 	jobIds: z.array(z.string().uuid()).min(1, "At least one job ID required")
+});
+
+const batchAssignSchema = z.object({
+	assignments: z
+		.array(
+			z.object({
+				jobId: z.string().uuid(),
+				techId: z.string().uuid(),
+				reason: z.string().min(10).optional()
+			})
+		)
+		.min(1, "At least one assignment is required")
 });
 
 // Helper functions
@@ -185,6 +197,50 @@ export function manualAssign(fastify: FastifyInstance) {
 	});
 }
 
+// Batch assign (persist selected recommendations)
+export function batchAssignRoute(fastify: FastifyInstance) {
+	fastify.post("/dispatch/batch/assign", async (request, reply) => {
+		const user = getAuthUser(request);
+		const userId = getUserId(user);
+
+		const parsed = batchAssignSchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid request body",
+				details: parsed.error.flatten().fieldErrors
+			});
+		}
+
+		const successful: string[] = [];
+		const failed: Array<{ jobId: string; reason: string }> = [];
+
+		for (const assignment of parsed.data.assignments) {
+			try {
+				await manualAssignJob(
+					assignment.jobId,
+					assignment.techId,
+					userId,
+					assignment.reason ?? "Batch dispatch assign-all"
+				);
+				successful.push(assignment.jobId);
+			} catch (error) {
+				failed.push({
+					jobId: assignment.jobId,
+					reason: error instanceof Error ? error.message : "Assignment failed"
+				});
+			}
+		}
+
+		return {
+			success: failed.length === 0,
+			assignedCount: successful.length,
+			failedCount: failed.length,
+			assignedJobIds: successful,
+			failed
+		};
+	});
+}
+
 // Complete job
 export function completeJobRoute(fastify: FastifyInstance) {
 	fastify.post("/jobs/:jobId/complete", async (request, reply) => {
@@ -278,5 +334,6 @@ export async function dispatchRoutes(fastify: FastifyInstance) {
 
 		// Batch operations (NEW)
 		batchDispatchRoute(authenticatedRoutes);
+		batchAssignRoute(authenticatedRoutes);
 	});
 }

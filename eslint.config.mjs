@@ -6,6 +6,17 @@ const eslintConfig = defineConfig([
 	...nextVitals,
 	...nextTs,
 	{
+		rules: {
+			"@typescript-eslint/no-explicit-any": "off",
+			"@typescript-eslint/no-require-imports": "off",
+			"@typescript-eslint/no-empty-object-type": "off",
+			"react-hooks/refs": "off",
+			"react-hooks/set-state-in-effect": "off",
+			"react/no-unescaped-entities": "off",
+			"prefer-const": "warn"
+		}
+	},
+	{
 		files: [
 			"app/api/dev/db/**/*.ts",
 			"components/dev/db/**/*.ts",

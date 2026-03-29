@@ -30,35 +30,35 @@ export async function batchDispatch(
 	// ================================================================
 	// Step 1: Fetch jobs
 	// ================================================================
-	const jobs = (await db.query(
-		`
-		SELECT
-		  id,
-		  customer_name,
-		  address,
-		  latitude,
-		  longitude,
-		  status,
-		  priority,
-		  required_skills,
-		  created_at
-		FROM jobs
-		WHERE id = ANY($1::uuid[])
-		  AND company_id = $2::uuid
-		  AND status = 'unassigned'
-		`,
-		[jobIds as any, companyId]
-	)) as unknown as Array<{
-		id: string;
-		customer_name: string;
-		address: string;
-		latitude: string | number | null;
-		longitude: string | number | null;
-		status: string;
-		priority: string;
-		required_skills: string[] | null;
-		created_at: string;
-	}>;
+	const sql = db.getSql();
+	const requestedIds = new Set(jobIds);
+	const jobs = (
+		(await sql`
+			SELECT
+			  id,
+			  customer_name,
+			  address,
+			  latitude,
+			  longitude,
+			  status,
+			  priority,
+			  required_skills,
+			  created_at
+			FROM jobs
+			WHERE company_id = ${companyId}::uuid
+			  AND status = 'unassigned'
+		`) as unknown as Array<{
+			id: string;
+			customer_name: string;
+			address: string;
+			latitude: string | number | null;
+			longitude: string | number | null;
+			status: string;
+			priority: string;
+			required_skills: string[] | null;
+			created_at: string;
+		}>
+	).filter((job) => requestedIds.has(job.id));
 
 	if (jobs.length === 0) {
 		return {
@@ -86,29 +86,15 @@ export async function batchDispatch(
 	//    the onboarding flow have role='admin' or NULL. Filter only on
 	//    is_available so all eligible staff are considered.
 	// ================================================================
-	const techRows = (await db.query(
-		`
+	const techRows = (await sql`
 		SELECT
 		  e.id,
 		  e.name,
 		  e.skills,
 		  e.is_available,
-		  COALESCE(
-		    (SELECT COUNT(*)::integer
-		     FROM jobs
-		     WHERE assigned_tech_id = e.id
-		       AND status IN ('assigned', 'in_progress')),
-		    0
-		  ) AS current_jobs_count,
 		  e.max_concurrent_jobs,
-		  tl.latitude   AS current_latitude,
-		  tl.longitude  AS current_longitude,
-		  COALESCE(
-		    (SELECT AVG(rating)
-		     FROM job_completions
-		     WHERE tech_id = e.id),
-		    3.0
-		  ) AS avg_rating
+		  COALESCE(tl.latitude, e.latitude) AS current_latitude,
+		  COALESCE(tl.longitude, e.longitude) AS current_longitude
 		FROM employees e
 		LEFT JOIN LATERAL (
 		  SELECT latitude, longitude
@@ -117,30 +103,41 @@ export async function batchDispatch(
 		  ORDER BY updated_at DESC
 		  LIMIT 1
 		) tl ON true
-		WHERE e.company_id = $1::uuid
+		WHERE e.company_id = ${companyId}::uuid
 		  AND e.is_available = true
-		`,
-		[companyId]
-	)) as unknown as Array<{
+	`) as unknown as Array<{
 		id: string;
 		name: string;
 		skills: string[] | null;
 		is_available: boolean;
-		current_jobs_count: number;
 		max_concurrent_jobs: number | null;
 		current_latitude: string | null;
 		current_longitude: string | null;
-		avg_rating: string;
 	}>;
+
+	const activeJobCounts = (await sql`
+		SELECT
+		  assigned_tech_id AS tech_id,
+		  COUNT(*)::integer AS active_jobs
+		FROM jobs
+		WHERE company_id = ${companyId}::uuid
+		  AND assigned_tech_id IS NOT NULL
+		  AND status IN ('assigned', 'in_progress')
+		GROUP BY assigned_tech_id
+	`) as unknown as Array<{ tech_id: string; active_jobs: number }>;
+
+	const activeJobsByTech = new Map<string, number>(
+		activeJobCounts.map((row) => [row.tech_id, row.active_jobs])
+	);
 
 	const allTechs = techRows.map((row) => ({
 		id: row.id,
 		name: row.name,
 		skills: row.skills ?? [],
 		isAvailable: row.is_available,
-		currentJobCount: row.current_jobs_count ?? 0,
+		currentJobCount: activeJobsByTech.get(row.id) ?? 0,
 		maxJobsPerDay: row.max_concurrent_jobs ?? 10,
-		avgRating: Number(row.avg_rating) || 3,
+		avgRating: 3,
 		currentLocation:
 			row.current_latitude && row.current_longitude
 				? {

@@ -6,6 +6,7 @@ import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
+import { formatReadableDate } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -100,12 +101,7 @@ function initials(first: string, last: string) {
 }
 
 function formatDate(iso?: string) {
-	if (!iso) return "—";
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric"
-	});
+	return formatReadableDate(iso);
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -931,10 +927,7 @@ export default function CustomerDetailPage() {
 								label="Last Service"
 								value={
 									jobs[0]?.completedAt
-										? new Date(jobs[0].completedAt).toLocaleDateString(
-												"en-US",
-												{ month: "short", day: "numeric", year: "numeric" }
-											)
+										? formatReadableDate(jobs[0].completedAt)
 										: "—"
 								}
 								sub={jobs[0]?.jobType?.replace("_", " ")}
@@ -959,7 +952,7 @@ export default function CustomerDetailPage() {
 									{t.count != null && t.count > 0 && (
 										<span
 											className={cn(
-												"text-xs px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center",
+												"text-xs px-1.5 py-0.5 rounded-full min-w-5 text-center",
 												activeTab === t.id
 													? "bg-accent-main/15 text-accent-text"
 													: "bg-background-secondary text-text-tertiary"

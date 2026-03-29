@@ -477,6 +477,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
 		authenticatedRoutes.addHook("onRequest", authenticate);
 		listJobs(authenticatedRoutes);
 		createJob(authenticatedRoutes);
+		getJob(authenticatedRoutes);
 		updateJobStatus(authenticatedRoutes);
 		updateJob(authenticatedRoutes);
 		deleteJob(authenticatedRoutes);

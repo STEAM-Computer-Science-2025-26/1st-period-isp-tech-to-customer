@@ -93,4 +93,4 @@ jobs:
           claude_args: |
             --mcp-config /tmp/mcp-config.json
             --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,mcp__playwright__browser_snapshot,mcp__playwright__browser_navigate,mcp__playwright__browser_click,mcp__playwright__browser_fill_form,mcp__playwright__browser_press_key,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_console_messages"
-            --max-turns 24
+            --max-turns 32

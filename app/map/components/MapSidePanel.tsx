@@ -618,7 +618,7 @@ function JobDetail({
 							key={dt.techId}
 							className="flex items-center justify-between text-xs"
 						>
-							<span className="text-text-secondary truncate max-w-[120px]">
+							<span className="text-text-secondary truncate max-w-30">
 								{dt.techName}
 							</span>
 							<span className="text-text-primary font-medium shrink-0 ml-2">
