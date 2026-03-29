@@ -2,7 +2,7 @@
 // Uses getSql() + Neon tagged templates exclusively — matches db/index.ts
 
 import { FastifyInstance, FastifyRequest } from "fastify";
-import { getSql } from "../../../db";
+import { getSql, query } from "../../../db";
 import { z } from "zod";
 import { authenticate, resolveUserId } from "../../middleware/auth";
 import {
@@ -292,8 +292,6 @@ export async function customerRoutes(
 			if (!companyId)
 				return reply.code(403).send({ error: "Forbidden - Missing company" });
 
-			const sql = getSql();
-
 			const conditions: string[] = ["c.company_id = $1"];
 			const values: unknown[] = [companyId];
 
@@ -328,18 +326,16 @@ export async function customerRoutes(
 
 			const where = conditions.join(" AND ");
 
-			const countRaw = await (sql as any).unsafe(
+			const countRows = (await query(
 				`SELECT COUNT(*)::int AS count FROM customers c WHERE ${where}`,
-				...values
-			);
-			const countRows = toRows(countRaw);
+				values
+			)) as any[];
 			const total = countRows[0]?.count ?? 0;
 
 			const limitIdx = values.length + 1;
 			const offIdx = values.length + 2;
-			values.push(q.limit, q.offset);
 
-			const customersRaw = await (sql as any).unsafe(
+			const customers = (await query(
 				`SELECT
 					id,
 					company_id       AS "companyId",
@@ -363,9 +359,8 @@ export async function customerRoutes(
 				WHERE ${where}
 				ORDER BY c.created_at DESC
 				LIMIT $${limitIdx} OFFSET $${offIdx}`,
-				...values
-			);
-			const customers = toRows(customersRaw);
+				[...values, q.limit, q.offset]
+			)) as any[];
 
 			return reply.send({ customers, total, limit: q.limit, offset: q.offset });
 		}

@@ -442,43 +442,39 @@ export async function analyticsRoutes(fastify: FastifyInstance) {
 			`) as any[];
 
 			const [responseCurrent] = (await sql`
-				WITH first_assignments AS (
+				WITH assigned_jobs AS (
 					SELECT
 						j.id,
 						j.created_at,
-						MIN(ja.created_at) AS first_assigned_at
+						j.assigned_at AS first_assigned_at
 					FROM jobs j
-					LEFT JOIN job_assignments ja ON ja.job_id = j.id
 					WHERE j.company_id = ${companyId}
 					  AND j.created_at >= NOW() - (${days} || ' days')::interval
-					GROUP BY j.id, j.created_at
 				)
 				SELECT
 					ROUND(AVG(
 						EXTRACT(EPOCH FROM (first_assigned_at - created_at)) / 60
 					), 0) AS avg_response_minutes
-				FROM first_assignments
+				FROM assigned_jobs
 				WHERE first_assigned_at IS NOT NULL
 			`) as any[];
 
 			const [responsePrevious] = (await sql`
-				WITH first_assignments AS (
+				WITH assigned_jobs AS (
 					SELECT
 						j.id,
 						j.created_at,
-						MIN(ja.created_at) AS first_assigned_at
+						j.assigned_at AS first_assigned_at
 					FROM jobs j
-					LEFT JOIN job_assignments ja ON ja.job_id = j.id
 					WHERE j.company_id = ${companyId}
 					  AND j.created_at >= NOW() - (${days} * 2 || ' days')::interval
 					  AND j.created_at < NOW() - (${days} || ' days')::interval
-					GROUP BY j.id, j.created_at
 				)
 				SELECT
 					ROUND(AVG(
 						EXTRACT(EPOCH FROM (first_assigned_at - created_at)) / 60
 					), 0) AS avg_response_minutes
-				FROM first_assignments
+				FROM assigned_jobs
 				WHERE first_assigned_at IS NOT NULL
 			`) as any[];
 

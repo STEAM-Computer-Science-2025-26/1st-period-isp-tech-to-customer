@@ -590,7 +590,7 @@ export default function MapPage() {
 								onQueryChange={setFilterQuery}
 								onFilterSubmit={handleFilterSubmit}
 								active={searchActive}
-									onDropdownOpenChange={setSearchDropdownOpen}
+								onDropdownOpenChange={setSearchDropdownOpen}
 								jobs={panelData?.jobs ?? []}
 								onJobSelect={handleJobClick}
 							/>

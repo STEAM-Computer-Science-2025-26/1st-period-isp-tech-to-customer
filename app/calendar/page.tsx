@@ -624,7 +624,7 @@ const CalendarPage = () => {
 										<div
 											key={dayKey}
 											className={cn(
-												"min-h-[100px] border border-accent-text/20 p-1",
+												"min-h-25 border border-accent-text/20 p-1",
 												!isCurrentMonth && "bg-background-secondary/20"
 											)}
 										>
