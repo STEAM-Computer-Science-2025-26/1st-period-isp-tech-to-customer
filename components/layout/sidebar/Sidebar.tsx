@@ -13,6 +13,7 @@ import {
 	Headset,
 	History,
 	Home,
+	LogOut,
 	PanelLeft,
 	PanelLeftOpen,
 	Settings,
@@ -22,8 +23,9 @@ import {
 	Map,
 	Briefcase
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useBreakpoints } from "@/app/hooks/useBreakpoints";
+import { getToken, clearToken } from "@/lib/auth";
 import { defaultSidebarItems } from "./SidebarItems";
 
 export type SidebarFlags = {
@@ -408,28 +410,82 @@ function MobileSidebar({
 }
 
 function AccountItem({ showLabel = true }: { showLabel?: boolean }) {
+	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const containerRef = useRef<HTMLDivElement>(null);
+
+	const [userInfo, setUserInfo] = useState<{
+		email?: string;
+		role?: string;
+	} | null>(null);
+
+	useEffect(() => {
+		const token = getToken();
+		if (!token) return;
+		try {
+			const payload = JSON.parse(atob(token.split(".")[1]));
+			setUserInfo({
+				email: payload.email as string | undefined,
+				role: payload.role as string | undefined
+			});
+		} catch {
+			// leave null
+		}
+	}, []);
+
+	useEffect(() => {
+		if (!dropdownOpen) return;
+		const handler = (e: MouseEvent) => {
+			if (
+				containerRef.current &&
+				!containerRef.current.contains(e.target as Node)
+			) {
+				setDropdownOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [dropdownOpen]);
+
+	const handleLogout = () => {
+		clearToken();
+		window.location.href = "/login";
+	};
+
+	const initials = userInfo?.email ? userInfo.email[0].toUpperCase() : "?";
+
 	return (
-		<div
-			className={clsx(
-				"group grid gap-0 grid-cols-[3rem_1fr] w-full h-12 items-center rounded-md px-2 hover:bg-background-secondary/50 transition-colors duration-200 cursor-pointer"
-			)}
-			title={!showLabel ? "Account" : undefined}
-			aria-label={!showLabel ? "Account" : undefined}
-			onClick={() => (window.location.href = "/login")}
-		>
-			<div className="h-8 w-8  -ml-0.5 rounded-full group-hover:bg-background-tertiary/50 bg-background-secondary/60 border group-hover:border-background-tertiary/70 ease duration-300 border-background-secondary/80" />
+		<div className="relative" ref={containerRef}>
 			<div
-				className={clsx(
-					" -ml-2 flex min-w-0 flex-col  items-start leading-tight overflow-hidden transition-[max-width,opacity] duration-150"
-				)}
+				className="group grid gap-0 grid-cols-[3rem_1fr] w-full h-12 items-center rounded-md px-2 hover:bg-background-secondary/50 transition-colors duration-200 cursor-pointer"
+				title={!showLabel ? "Account" : undefined}
+				aria-label={!showLabel ? "Account" : undefined}
+				onClick={() => setDropdownOpen((v) => !v)}
 			>
-				<span className="text-sm font-medium truncate whitespace-nowrap">
-					Account
-				</span>
-				<span className="text-xs opacity-70 truncate whitespace-nowrap">
-					Profile & settings
-				</span>
+				<div className="h-8 w-8 -ml-0.5 rounded-full grid place-items-center group-hover:bg-background-tertiary/50 bg-background-secondary/60 border group-hover:border-background-tertiary/70 ease duration-300 border-background-secondary/80 text-xs font-semibold text-text-primary select-none">
+					{initials}
+				</div>
+				<div className="-ml-2 flex min-w-0 flex-col items-start leading-tight overflow-hidden transition-[max-width,opacity] duration-150">
+					<span className="text-sm font-medium truncate whitespace-nowrap">
+						{userInfo?.email ?? "Account"}
+					</span>
+					<span className="text-xs opacity-70 truncate whitespace-nowrap capitalize">
+						{userInfo?.role ?? ""}
+					</span>
+				</div>
 			</div>
+
+			{dropdownOpen && (
+				<div className="absolute bottom-full left-0 right-0 mb-1 bg-background-secondary border border-accent-text/20 rounded-lg shadow-lg overflow-hidden z-50">
+					<button
+						type="button"
+						className="w-full text-left px-3 py-2.5 text-sm text-text-primary hover:bg-background-tertiary/50 transition-colors duration-150 flex items-center gap-2 cursor-pointer"
+						onClick={handleLogout}
+					>
+						<LogOut className="h-4 w-4 shrink-0" />
+						Log out
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }

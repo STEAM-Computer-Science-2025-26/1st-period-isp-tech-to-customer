@@ -3,6 +3,12 @@
 
 import { z } from "zod";
 
+// Handles DOUBLE PRECISION columns that Neon may return as numeric strings
+const numOrNull = z.preprocess(
+	(v) => (v === null || v === undefined ? null : Number(v)),
+	z.number().nullable()
+);
+
 export const MapTechSchema = z.object({
 	techId: z.string(),
 	techName: z.string(),
@@ -10,20 +16,26 @@ export const MapTechSchema = z.object({
 	isAvailable: z.boolean(),
 	currentJobId: z.string().nullable(),
 	skills: z.array(z.string()),
-	latitude: z.number().nullable(),
-	longitude: z.number().nullable(),
-	accuracyMeters: z.number().nullable(),
+	latitude: numOrNull,
+	longitude: numOrNull,
+	accuracyMeters: numOrNull,
 	lastUpdate: z.string().nullable(),
-	secondsSinceUpdate: z.number().nullable()
+	secondsSinceUpdate: numOrNull
 });
 
 export const MapJobSchema = z.object({
 	id: z.string(),
 	customerName: z.string(),
 	address: z.string(),
-	latitude: z.number().nullable(),
-	longitude: z.number().nullable(),
-	status: z.enum(["unassigned", "assigned", "in_progress"]),
+	latitude: numOrNull,
+	longitude: numOrNull,
+	status: z.enum([
+		"unassigned",
+		"assigned",
+		"in_progress",
+		"completed",
+		"cancelled"
+	]),
 	priority: z.enum(["low", "medium", "high", "emergency"]),
 	assignedTechId: z.string().nullable(),
 	scheduledTime: z.string().nullable(),

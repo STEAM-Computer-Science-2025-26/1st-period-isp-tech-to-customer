@@ -129,14 +129,42 @@ export async function queryAll<T>(
 }
 
 /**
- * Execute raw SQL. Use parameter interpolation in the sqlString (e.g. $1, $2) if supported by your driver.
- * Uses Neon's .unsafe() which accepts a raw SQL string.
+ * Execute raw SQL with positional parameters ($1, $2, ...).
+ * Parameters must appear in order ($1 first, $2 second, etc.).
+ * Reconstructs the call as a tagged template literal so Neon actually executes it.
  */
 export async function query(
 	sqlString: string,
 	params: unknown[] = []
 ): Promise<unknown[]> {
 	const client = getSql();
-	const result = await (client as any).unsafe(sqlString, params);
-	return Array.isArray(result) ? result : (result?.rows ?? []);
+
+	// Build a TemplateStringsArray + values array by scanning for $1, $2, ...
+	// This reconstructs the original tagged template invocation so Neon
+	// correctly interprets `sql.unsafe()` fragments embedded in values.
+	const placeholderRe = /\$([0-9]+)/g;
+	const parts: string[] = [];
+	const values: unknown[] = [];
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+
+	while ((match = placeholderRe.exec(sqlString)) !== null) {
+		const idx = Number(match[1]) - 1; // $1 -> params[0]
+		parts.push(sqlString.slice(lastIndex, match.index));
+		values.push(params[idx]);
+		lastIndex = placeholderRe.lastIndex;
+	}
+
+	// push remaining tail
+	parts.push(sqlString.slice(lastIndex));
+
+	// TemplateStringsArray requires a `raw` property that's an array of raw strings
+	const template = Object.assign(parts, { raw: parts.slice() }) as unknown as TemplateStringsArray;
+
+	const result = await (client as unknown as (...args: unknown[]) => Promise<unknown>)(template, ...values);
+
+	if (Array.isArray(result)) return result;
+	if (result && typeof result === "object" && Array.isArray((result as any).rows)) return (result as any).rows;
+
+	return [];
 }

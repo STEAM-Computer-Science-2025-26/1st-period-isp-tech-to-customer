@@ -252,7 +252,19 @@ export function loginUser(fastify: FastifyInstance) {
 	fastify.post("/login", async (request, reply) => {
 		const ip = request.ip ?? "unknown";
 		const sql = getSql();
-		if (process.env.NODE_ENV !== "test") {
+
+		const parsed = loginSchema.safeParse(request.body);
+		if (!parsed.success) {
+			return reply.code(400).send({
+				error: "Invalid request body",
+				details: z.treeifyError(parsed.error)
+			});
+		}
+
+		const { email, password } = parsed.data;
+
+		const isDemoAccount = email === "demo@demohvac.com";
+		if (!isDemoAccount && process.env.NODE_ENV !== "test") {
 			const rateLimitResult = await enforceRateLimit(
 				sql,
 				`login:${ip}`,
@@ -266,23 +278,6 @@ export function loginUser(fastify: FastifyInstance) {
 				});
 			}
 		}
-		const rateLimitResult = await enforceRateLimit(sql, `login:${ip}`, 10, 900);
-		if (!rateLimitResult.allowed) {
-			return reply.code(429).send({
-				error: "Too many login attempts. Please try again later.",
-				retryAfterSeconds: rateLimitResult.retryAfterSeconds
-			});
-		}
-
-		const parsed = loginSchema.safeParse(request.body);
-		if (!parsed.success) {
-			return reply.code(400).send({
-				error: "Invalid request body",
-				details: z.treeifyError(parsed.error)
-			});
-		}
-
-		const { email, password } = parsed.data;
 
 		const [user] = (await sql`
 			SELECT id, email, password_hash, role, company_id

@@ -8,6 +8,16 @@ type Preset = "all" | "today" | "tomorrow" | "week" | "custom";
 
 type Props = {
 	onChange: (after: string | undefined, before: string | undefined) => void;
+	onLabelChange?: (label: string) => void;
+	className?: string;
+};
+
+const PRESET_LABELS: Record<Preset, string> = {
+	all: "All Active Jobs",
+	today: "Today's Jobs",
+	tomorrow: "Tomorrow's Jobs",
+	week: "This Week's Jobs",
+	custom: "Custom Range"
 };
 
 function dayRange(offset: number): [string, string] {
@@ -28,13 +38,20 @@ const PRESETS: { label: string; value: Preset }[] = [
 	{ label: "Custom", value: "custom" }
 ];
 
-export default function TimelineFilter({ onChange }: Props) {
+export default function TimelineFilter({
+	onChange,
+	onLabelChange,
+	className
+}: Props) {
 	const [active, setActive] = useState<Preset>("all");
 	const [customAfter, setCustomAfter] = useState("");
 	const [customBefore, setCustomBefore] = useState("");
 
 	function apply(preset: Preset) {
 		setActive(preset);
+		if (preset !== "custom") {
+			onLabelChange?.(PRESET_LABELS[preset]);
+		}
 		if (preset === "all") {
 			onChange(undefined, undefined);
 		} else if (preset === "today") {
@@ -55,6 +72,7 @@ export default function TimelineFilter({ onChange }: Props) {
 	}
 
 	function applyCustom() {
+		onLabelChange?.(PRESET_LABELS.custom);
 		onChange(
 			customAfter ? new Date(customAfter).toISOString() : undefined,
 			customBefore ? new Date(customBefore).toISOString() : undefined
@@ -62,7 +80,12 @@ export default function TimelineFilter({ onChange }: Props) {
 	}
 
 	return (
-		<div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-background-secondary/80 backdrop-blur-md border border-accent-text/30 rounded-2xl px-3 py-2 shadow-lg">
+		<div
+			className={cn(
+				"fixed top-24 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-background-secondary/80 backdrop-blur-md border border-accent-text/30 rounded-2xl px-3 py-2 shadow-lg",
+				className
+			)}
+		>
 			<CalendarDays className="size-4 text-text-secondary shrink-0" />
 			<div className="flex items-center gap-1">
 				{PRESETS.map((p) => (
