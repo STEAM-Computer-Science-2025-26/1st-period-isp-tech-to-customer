@@ -159,12 +159,21 @@ export async function query(
 	parts.push(sqlString.slice(lastIndex));
 
 	// TemplateStringsArray requires a `raw` property that's an array of raw strings
-	const template = Object.assign(parts, { raw: parts.slice() }) as unknown as TemplateStringsArray;
+	const template = Object.assign(parts, {
+		raw: parts.slice()
+	}) as unknown as TemplateStringsArray;
 
-	const result = await (client as unknown as (...args: unknown[]) => Promise<unknown>)(template, ...values);
+	const result = await (
+		client as unknown as (...args: unknown[]) => Promise<unknown>
+	)(template, ...values);
 
 	if (Array.isArray(result)) return result;
-	if (result && typeof result === "object" && Array.isArray((result as any).rows)) return (result as any).rows;
+	if (
+		result &&
+		typeof result === "object" &&
+		Array.isArray((result as any).rows)
+	)
+		return (result as any).rows;
 
 	return [];
 }

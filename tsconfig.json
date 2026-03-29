@@ -12,7 +12,7 @@
 		"paths": {
 			"@/*": ["./*"]
 		},
-		"types": ["jest", "node"],
+		"types": ["jest", "node", "google.maps"],
 		"typeRoots": ["./node_modules/@types", "./types"],
 		"lib": ["dom", "dom.iterable", "esnext"],
 		"allowJs": true,

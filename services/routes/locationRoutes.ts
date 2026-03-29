@@ -4,7 +4,7 @@ import {
 	FastifyReply,
 	FastifyRequest
 } from "fastify";
-import * as db from "../../db";
+import { getSql } from "../../db";
 
 type AuthUser = {
 	id?: string;
@@ -80,30 +80,26 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 			};
 
 			const techId = (request.user as AuthUser).id;
+			const sql = getSql();
+			const acc = accuracy ?? null;
 
 			// Upsert current position (fast lookup for live map)
-			await db.query(
-				`
-        INSERT INTO tech_locations (tech_id, latitude, longitude, accuracy_meters, updated_at)
-        VALUES ($1, $2, $3, $4, NOW())
-        ON CONFLICT (tech_id)
-        DO UPDATE SET
-          latitude = $2,
-          longitude = $3,
-          accuracy_meters = $4,
-          updated_at = NOW()
-        `,
-				[techId, latitude, longitude, accuracy ?? null]
-			);
+			await sql`
+				INSERT INTO tech_locations (tech_id, latitude, longitude, accuracy_meters, updated_at)
+				VALUES (${techId}, ${latitude}, ${longitude}, ${acc}, NOW())
+				ON CONFLICT (tech_id)
+				DO UPDATE SET
+				  latitude = ${latitude},
+				  longitude = ${longitude},
+				  accuracy_meters = ${acc},
+				  updated_at = NOW()
+			`;
 
 			// Append to history so the map can draw a trail
-			await db.query(
-				`
-        INSERT INTO tech_location_history (tech_id, latitude, longitude, accuracy_meters)
-        VALUES ($1, $2, $3, $4)
-        `,
-				[techId, latitude, longitude, accuracy ?? null]
-			);
+			await sql`
+				INSERT INTO tech_location_history (tech_id, latitude, longitude, accuracy_meters)
+				VALUES (${techId}, ${latitude}, ${longitude}, ${acc})
+			`;
 
 			return {
 				success: true,
@@ -126,28 +122,26 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 				return reply.status(403).send({ error: "Access denied" });
 			}
 
-			const result = await db.query(
-				`
-        SELECT
-          e.id as tech_id,
-          e.name as tech_name,
-          e.phone,
-          e.is_available,
-          e.current_job_id,
-          e.skills,
-          tl.latitude,
-          tl.longitude,
-          tl.accuracy_meters,
-          tl.updated_at as last_update,
-          EXTRACT(EPOCH FROM (NOW() - tl.updated_at)) as seconds_since_update
-        FROM employees e
-        LEFT JOIN tech_locations tl ON tl.tech_id = e.id
-        WHERE e.company_id = $1
-          AND e.role = 'tech'
-        ORDER BY tl.updated_at DESC NULLS LAST
-        `,
-				[companyId]
-			);
+			const sql = getSql();
+			const result = await sql`
+				SELECT
+				  e.id as tech_id,
+				  e.name as tech_name,
+				  e.phone,
+				  e.is_available,
+				  e.current_job_id,
+				  e.skills,
+				  tl.latitude,
+				  tl.longitude,
+				  tl.accuracy_meters,
+				  tl.updated_at as last_update,
+				  EXTRACT(EPOCH FROM (NOW() - tl.updated_at)) as seconds_since_update
+				FROM employees e
+				LEFT JOIN tech_locations tl ON tl.tech_id = e.id
+				WHERE e.company_id = ${companyId}
+				  AND e.role = 'tech'
+				ORDER BY tl.updated_at DESC NULLS LAST
+			`;
 
 			return {
 				techs: result,
@@ -178,68 +172,77 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 				return reply.status(403).send({ error: "Access denied" });
 			}
 
-			const techs = await db.query(
-				`
-			SELECT
-			  e.id            AS "techId",
-			  e.name          AS "techName",
-			  e.phone,
-			  e.is_available  AS "isAvailable",
-			  e.current_job_id AS "currentJobId",
-			  e.skills,
-			  tl.latitude,
-			  tl.longitude,
-			  tl.accuracy_meters     AS "accuracyMeters",
-			  tl.updated_at          AS "lastUpdate",
-			  EXTRACT(EPOCH FROM (NOW() - tl.updated_at)) AS "secondsSinceUpdate"
-			FROM employees e
-			LEFT JOIN tech_locations tl ON tl.tech_id = e.id
-			WHERE e.company_id = $1
-			  AND e.role = 'tech'
-			ORDER BY tl.updated_at DESC NULLS LAST
-			`,
-				[companyId]
-			);
+			// Validate timestamp params — return 400 instead of letting Postgres throw 500
+			const afterDate = scheduledAfter ? new Date(scheduledAfter) : null;
+			const beforeDate = scheduledBefore ? new Date(scheduledBefore) : null;
+			if (
+				scheduledAfter &&
+				(afterDate === null || isNaN(afterDate.getTime()))
+			) {
+				return reply
+					.status(400)
+					.send({ error: "Invalid scheduledAfter timestamp" });
+			}
+			if (
+				scheduledBefore &&
+				(beforeDate === null || isNaN(beforeDate.getTime()))
+			) {
+				return reply
+					.status(400)
+					.send({ error: "Invalid scheduledBefore timestamp" });
+			}
 
-			// Build the status clause in JS so we never pass a boolean into raw SQL
-			// (the db.query helper uses a tagged-template reconstruction that doesn't
-			// handle uncast boolean parameters well in boolean OR expressions).
-			const statusClause =
-				includeAll === "true"
-					? ""
-					: "AND j.status IN ('unassigned', 'assigned', 'in_progress')";
+			const sql = getSql();
 
-			const jobs = await db.query(
-				`
-        SELECT
-          j.id,
-          j.customer_name    AS "customerName",
-          j.address,
-          j.latitude,
-          j.longitude,
-          j.status,
-          j.priority,
-          j.assigned_tech_id AS "assignedTechId",
-          j.scheduled_time   AS "scheduledTime",
-          j.job_type         AS "jobType",
-          j.created_at       AS "createdAt",
-          j.required_skills  AS "requiredSkills"
-        FROM jobs j
-        WHERE j.company_id = $1
-          ${statusClause}
-          AND ($2::timestamptz IS NULL OR j.scheduled_time >= $2::timestamptz)
-          AND ($3::timestamptz IS NULL OR j.scheduled_time <= $3::timestamptz)
-        ORDER BY
-          CASE j.priority
-            WHEN 'emergency' THEN 0
-            WHEN 'high' THEN 1
-            WHEN 'medium' THEN 2
-            ELSE 3
-          END,
-          j.created_at ASC
-        `,
-				[companyId, scheduledAfter ?? null, scheduledBefore ?? null]
-			);
+			const techs = await sql`
+				SELECT
+				  e.id            AS "techId",
+				  e.name          AS "techName",
+				  e.phone,
+				  e.is_available  AS "isAvailable",
+				  e.current_job_id AS "currentJobId",
+				  e.skills,
+				  tl.latitude,
+				  tl.longitude,
+				  tl.accuracy_meters     AS "accuracyMeters",
+				  tl.updated_at          AS "lastUpdate",
+				  EXTRACT(EPOCH FROM (NOW() - tl.updated_at)) AS "secondsSinceUpdate"
+				FROM employees e
+				LEFT JOIN tech_locations tl ON tl.tech_id = e.id
+				WHERE e.company_id = ${companyId}
+				  AND e.role = 'tech'
+				ORDER BY tl.updated_at DESC NULLS LAST
+			`;
+
+			const showAll = includeAll === "true";
+			const jobs = await sql`
+				SELECT
+				  j.id,
+				  j.customer_name    AS "customerName",
+				  j.address,
+				  j.latitude,
+				  j.longitude,
+				  j.status,
+				  j.priority,
+				  j.assigned_tech_id AS "assignedTechId",
+				  j.scheduled_time   AS "scheduledTime",
+				  j.job_type         AS "jobType",
+				  j.created_at       AS "createdAt",
+				  j.required_skills  AS "requiredSkills"
+				FROM jobs j
+				WHERE j.company_id = ${companyId}
+				  AND (${showAll} OR j.status IN ('unassigned', 'assigned', 'in_progress'))
+				  AND (${afterDate}::timestamptz IS NULL OR j.scheduled_time >= ${afterDate}::timestamptz)
+				  AND (${beforeDate}::timestamptz IS NULL OR j.scheduled_time <= ${beforeDate}::timestamptz)
+				ORDER BY
+				  CASE j.priority
+				    WHEN 'emergency' THEN 0
+				    WHEN 'high' THEN 1
+				    WHEN 'medium' THEN 2
+				    ELSE 3
+				  END,
+				  j.created_at ASC
+			`;
 
 			return {
 				techs,
@@ -267,16 +270,14 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 				return reply.status(403).send({ error: "Access denied" });
 			}
 
-			const rows = await db.query(
-				`
-        SELECT latitude, longitude, recorded_at
-        FROM tech_location_history
-        WHERE tech_id = $1
-          AND recorded_at > NOW() - INTERVAL '1 hour'
-        ORDER BY recorded_at ASC
-        `,
-				[techId]
-			);
+			const sql = getSql();
+			const rows = await sql`
+				SELECT latitude, longitude, recorded_at AS "recordedAt"
+				FROM tech_location_history
+				WHERE tech_id = ${techId}
+				  AND recorded_at > NOW() - INTERVAL '1 hour'
+				ORDER BY recorded_at ASC
+			`;
 
 			if (!rows.length) {
 				return { trail: [] };
