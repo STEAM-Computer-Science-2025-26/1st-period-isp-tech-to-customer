@@ -106,7 +106,7 @@ function JobDetailPanel({
 		error,
 		refetch,
 		isFetching
-	} = useJob(jobId ?? "");
+	} = useJob(jobId);
 
 	if (!jobId) {
 		return (
@@ -184,9 +184,11 @@ function JobDetailPanel({
 					<div className="text-text-secondary text-xs">
 						Created: {formatReadableDateTime(job.createdAt)}
 					</div>
-					<div className="text-text-secondary text-xs">
-						Completed: {formatReadableDateTime(job.completedAt)}
-					</div>
+					{job.completedAt && (
+						<div className="text-text-secondary text-xs">
+							Completed: {formatReadableDateTime(job.completedAt)}
+						</div>
+					)}
 				</div>
 
 				<div className="rounded-xl border border-background-secondary bg-background-primary p-3 space-y-2">

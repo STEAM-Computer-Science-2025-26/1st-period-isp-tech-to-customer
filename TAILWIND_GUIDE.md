@@ -105,6 +105,8 @@ Examples:
 - Prefer `max-w-30` over `max-w-[120px]`
 - Prefer `min-w-5` over `min-w-[1.25rem]`
 
+These utility classes are provided via custom theme extensions in `tailwind.config.ts` (see `theme.extend.spacing`, `theme.extend.width`, `theme.extend.minWidth`, and `theme.extend.maxWidth`). If you introduce new sizing tokens, add them to the Tailwind config and update this guide.
+
 When in doubt, use existing tokenized spacing/size classes first.
 
 ## Animation and transitions

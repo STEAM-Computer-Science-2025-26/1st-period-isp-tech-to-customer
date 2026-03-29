@@ -20,26 +20,8 @@ import {
 } from "lucide-react";
 import type { JobDTO, JobPriority } from "@/app/types/types";
 import { useRouter } from "next/navigation";
-
-type TechScore = {
-	techId: string;
-	techName: string;
-	totalScore: number;
-	performanceScore: number;
-	distanceMiles: number;
-	workloadScore: number;
-};
-
-type DispatchRecommendation = {
-	jobId: string;
-	recommendations: TechScore[];
-	assignedTech: TechScore | null;
-	totalEligibleTechs: number;
-	requiresManualDispatch: boolean;
-	isEmergency: boolean;
-	timestamp: string;
-	manualDispatchReason?: string;
-};
+import type { DispatchRecommendation } from "@/lib/types/dispatch";
+import { BATCH_PLAN_STORAGE_KEY } from "@/lib/constants/dispatch";
 
 type BatchRecommendationResponse = {
 	success: boolean;
@@ -73,8 +55,6 @@ type BatchPlan = {
 		priority: JobPriority;
 	}>;
 };
-
-const BATCH_PLAN_STORAGE_KEY = "dispatch-batch-plan";
 
 const PRIORITY_ORDER: Record<JobPriority, number> = {
 	emergency: 0,

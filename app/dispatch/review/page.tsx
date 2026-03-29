@@ -15,26 +15,8 @@ import {
 	TriangleAlert
 } from "lucide-react";
 import type { JobPriority } from "@/app/types/types";
-
-type TechScore = {
-	techId: string;
-	techName: string;
-	totalScore: number;
-	performanceScore: number;
-	distanceMiles: number;
-	workloadScore: number;
-};
-
-type DispatchRecommendation = {
-	jobId: string;
-	recommendations: TechScore[];
-	assignedTech: TechScore | null;
-	totalEligibleTechs: number;
-	requiresManualDispatch: boolean;
-	isEmergency: boolean;
-	timestamp: string;
-	manualDispatchReason?: string;
-};
+import type { DispatchRecommendation } from "@/lib/types/dispatch";
+import { BATCH_PLAN_STORAGE_KEY, DISPATCH_CONCURRENCY_LIMIT } from "@/lib/constants/dispatch";
 
 type BatchPlan = {
 	createdAt: string;
@@ -56,8 +38,6 @@ type BatchPlan = {
 		priority: JobPriority;
 	}>;
 };
-
-const BATCH_PLAN_STORAGE_KEY = "dispatch-batch-plan";
 
 function PriorityBadge({ priority }: { priority: JobPriority }) {
 	const classes: Record<JobPriority, string> = {
@@ -126,26 +106,32 @@ export default function DispatchReviewPage() {
 			const recommendations: Record<string, DispatchRecommendation> = {};
 			const selectedTechMap: Record<string, string> = {};
 
-			for (const job of plan.selectedJobs) {
-				try {
-					const response = await apiFetch<{
-						recommendation: DispatchRecommendation;
-					}>(`/jobs/${job.id}/recommendations`);
-					recommendations[job.id] = response.recommendation;
+			for (let i = 0; i < plan.selectedJobs.length; i += DISPATCH_CONCURRENCY_LIMIT) {
+				const batch = plan.selectedJobs.slice(i, i + DISPATCH_CONCURRENCY_LIMIT);
 
-					const suggested = plan.assignments.find(
-						(assignment) => assignment.jobId === job.id
-					);
-					const fallbackTechId =
-						response.recommendation.recommendations[0]?.techId;
-					if (suggested?.techId) {
-						selectedTechMap[job.id] = suggested.techId;
-					} else if (fallbackTechId) {
-						selectedTechMap[job.id] = fallbackTechId;
-					}
-				} catch {
-					// Keep loading other jobs even if one fails.
-				}
+				await Promise.all(
+					batch.map(async (job) => {
+						try {
+							const response = await apiFetch<{
+								recommendation: DispatchRecommendation;
+							}>(`/jobs/${job.id}/recommendations`);
+							recommendations[job.id] = response.recommendation;
+
+							const suggested = plan.assignments.find(
+								(assignment) => assignment.jobId === job.id
+							);
+							const fallbackTechId =
+								response.recommendation.recommendations[0]?.techId;
+							if (suggested?.techId) {
+								selectedTechMap[job.id] = suggested.techId;
+							} else if (fallbackTechId) {
+								selectedTechMap[job.id] = fallbackTechId;
+							}
+						} catch {
+							// Keep loading other jobs even if one fails.
+						}
+					})
+				);
 			}
 
 			if (!cancelled) {

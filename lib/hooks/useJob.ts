@@ -5,11 +5,11 @@ import type { Job } from "@/lib/schemas/jobSchemas";
 
 export const jobQueryKey = (jobId: string) => ["job", jobId] as const;
 
-export function useJob(jobId: string) {
+export function useJob(jobId: string | null) {
 	return useQuery({
-		queryKey: jobQueryKey(jobId),
+		queryKey: ["job", jobId] as const,
 		queryFn: async () => {
-			const raw = await apiFetch<unknown>(`/jobs/${jobId}`);
+			const raw = await apiFetch<unknown>(`/jobs/${jobId!}`);
 			return JobResponseSchema.parse(raw).job;
 		},
 		enabled: !!jobId
