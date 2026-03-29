@@ -1,7 +1,6 @@
 "use client";
 
 import {
-	useCallback,
 	useEffect,
 	useLayoutEffect,
 	useMemo,
@@ -491,7 +490,7 @@ export function PopoverDatePicker({
 	return createPortal(
 		<div
 			ref={pickerRef}
-			className="fixed z-100"
+			className="fixed z-[100]"
 			style={{
 				top: placement.top,
 				left: placement.left,

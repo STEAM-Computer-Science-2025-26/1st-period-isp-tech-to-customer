@@ -272,7 +272,7 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 
 			const sql = getSql();
 			const rows = await sql`
-				SELECT latitude, longitude, recorded_at
+				SELECT latitude, longitude, recorded_at AS "recordedAt"
 				FROM tech_location_history
 				WHERE tech_id = ${techId}
 				  AND recorded_at > NOW() - INTERVAL '1 hour'
