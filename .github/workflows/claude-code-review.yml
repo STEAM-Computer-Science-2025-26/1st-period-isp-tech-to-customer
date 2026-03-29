@@ -6,7 +6,7 @@ on:
 
 jobs:
   claude-review:
-    if: "!startsWith(github.event.pull_request.title, 'no-review')"
+    if: "!startsWith(github.event.pull_request.title, 'no-review') && github.event.pull_request.user.type != 'Bot'"
     runs-on: ubuntu-latest
     permissions:
       contents: read
