@@ -1,0 +1,11 @@
+{
+	"version": 1,
+	"hooks": {
+		"postToolUse": [
+			{
+				"type": "command",
+				"bash": "node .github/hooks/validate.js"
+			}
+		]
+	}
+}

@@ -111,7 +111,7 @@ const CUSTOMERS = [
 		state: "TX",
 		zip: "75024",
 		latitude: 33.0198,
-		longitude: -96.7100,
+		longitude: -96.71,
 		customerType: "residential" as const
 	},
 	{
@@ -277,7 +277,8 @@ const JOB_TEMPLATES: JobTemplate[] = [
 		priority: "high",
 		daysOffset: 0,
 		hourOfDay: 8,
-		initialNotes: "Capacitor failure on condenser unit. Customer reports no cooling since yesterday.",
+		initialNotes:
+			"Capacitor failure on condenser unit. Customer reports no cooling since yesterday.",
 		requiredSkills: ["hvac_repair"]
 	},
 	{
@@ -288,7 +289,8 @@ const JOB_TEMPLATES: JobTemplate[] = [
 		priority: "medium",
 		daysOffset: 0,
 		hourOfDay: 14,
-		initialNotes: "Quarterly maintenance visit. Clean coils and check refrigerant levels.",
+		initialNotes:
+			"Quarterly maintenance visit. Clean coils and check refrigerant levels.",
 		requiredSkills: ["hvac_maintenance", "refrigeration"]
 	},
 	{
@@ -324,7 +326,8 @@ const JOB_TEMPLATES: JobTemplate[] = [
 		priority: "low",
 		daysOffset: 1,
 		hourOfDay: 11,
-		initialNotes: "Pre-summer tune-up. Replace filters and check all electrical connections.",
+		initialNotes:
+			"Pre-summer tune-up. Replace filters and check all electrical connections.",
 		requiredSkills: ["hvac_maintenance"]
 	},
 	{
@@ -335,7 +338,8 @@ const JOB_TEMPLATES: JobTemplate[] = [
 		priority: "high",
 		daysOffset: 1,
 		hourOfDay: 13,
-		initialNotes: "Thermostat replaced 2 weeks ago but unit still short cycling. Needs diagnosis.",
+		initialNotes:
+			"Thermostat replaced 2 weeks ago but unit still short cycling. Needs diagnosis.",
 		requiredSkills: ["hvac_repair"]
 	},
 
@@ -394,7 +398,8 @@ const JOB_TEMPLATES: JobTemplate[] = [
 		priority: "medium",
 		daysOffset: 5,
 		hourOfDay: 10,
-		initialNotes: "Full system replacement. Lennox XC21 install with new air handler.",
+		initialNotes:
+			"Full system replacement. Lennox XC21 install with new air handler.",
 		requiredSkills: ["hvac_install", "ductwork"]
 	},
 	{
@@ -416,7 +421,8 @@ const JOB_TEMPLATES: JobTemplate[] = [
 		priority: "medium",
 		daysOffset: 7,
 		hourOfDay: 9,
-		initialNotes: "Commercial rooftop unit losing efficiency. Potential coil cleaning needed.",
+		initialNotes:
+			"Commercial rooftop unit losing efficiency. Potential coil cleaning needed.",
 		requiredSkills: ["hvac_repair", "refrigeration"]
 	}
 ];
@@ -486,7 +492,9 @@ async function main() {
 			RETURNING id
 		`;
 		customerIds.push(row.id as string);
-		console.log(`   ✓ Customer: ${c.firstName} ${c.lastName} — ${c.address}, ${c.city}`);
+		console.log(
+			`   ✓ Customer: ${c.firstName} ${c.lastName} — ${c.address}, ${c.city}`
+		);
 	}
 
 	// ── Create employees ──────────────────────────────────────────────────────
@@ -519,8 +527,7 @@ async function main() {
 	console.log("📋 Creating demo jobs...");
 	for (const j of JOB_TEMPLATES) {
 		const customer = CUSTOMERS[j.customerIndex];
-		const techId =
-			j.techIndex !== null ? employeeIds[j.techIndex] : null;
+		const techId = j.techIndex !== null ? employeeIds[j.techIndex] : null;
 		const customerId = customerIds[j.customerIndex];
 
 		// Compute scheduled time in JS so we can pass it as a normal param
