@@ -18,7 +18,19 @@ async function handle(
 	{ params }: { params: Promise<{ path: string[] }> }
 ): Promise<NextResponse> {
 	const { path } = await params;
-	const app = await getApp();
+
+	let app: Awaited<ReturnType<typeof getApp>>;
+	try {
+		app = await getApp();
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		const stack = err instanceof Error ? err.stack : undefined;
+		console.error("[catch-all] getApp() failed:", err);
+		return NextResponse.json(
+			{ error: "Backend initialization failed", detail: message, stack },
+			{ status: 500 }
+		);
+	}
 
 	const url = new URL(request.url);
 	const injectUrl = "/" + path.join("/") + url.search;
