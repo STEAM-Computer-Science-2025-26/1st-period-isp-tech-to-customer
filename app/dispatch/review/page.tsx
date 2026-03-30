@@ -15,53 +15,6 @@ import {
 	TriangleAlert
 } from "lucide-react";
 import type { DispatchRecommendation } from "@/lib/types/dispatch";
-import {
-	BATCH_PLAN_STORAGE_KEY,
-	DISPATCH_CONCURRENCY_LIMIT
-} from "@/lib/constants/dispatch";
-
-type BatchPlan = {
-	createdAt: string;
-	assignments: Array<{
-		jobId: string;
-		techId: string;
-		techName: string;
-		score: number;
-		driveTimeMinutes: number;
-	}>;
-	unassigned: Array<{
-		jobId: string;
-		reason: string;
-	}>;
-	selectedJobs: Array<{
-		id: string;
-		customerName: string;
-		address: string;
-		priority: JobPriority;
-	}>;
-};
-
-function PriorityBadge({ priority }: { priority: JobPriority }) {
-	const classes: Record<JobPriority, string> = {
-		emergency:
-			"bg-destructive-background/15 text-destructive-text border border-destructive-foreground/30",
-		high: "bg-warning-background/25 text-warning-text border border-warning-foreground/30",
-		medium: "bg-accent-main/10 text-accent-text border border-accent-main/30",
-		low: "bg-background-secondary/50 text-text-secondary border border-background-secondary"
-	};
-
-	return (
-		<span
-			className={cn(
-				"inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize",
-				classes[priority]
-			)}
-		>
-			{priority === "emergency" && <TriangleAlert className="w-3 h-3" />}
-			{priority}
-		</span>
-	);
-}
 import { BATCH_PLAN_STORAGE_KEY } from "@/lib/constants/dispatch";
 import type { BatchPlan } from "@/app/dispatch/types";
 import PriorityBadge from "@/app/dispatch/PriorityBadge";
@@ -111,23 +64,6 @@ export default function DispatchReviewPage() {
 			const recommendations: Record<string, DispatchRecommendation> = {};
 			const selectedTechMap: Record<string, string> = {};
 
-			for (
-				let i = 0;
-				i < plan.selectedJobs.length;
-				i += DISPATCH_CONCURRENCY_LIMIT
-			) {
-				const batch = plan.selectedJobs.slice(
-					i,
-					i + DISPATCH_CONCURRENCY_LIMIT
-				);
-
-				await Promise.all(
-					batch.map(async (job) => {
-						try {
-							const response = await apiFetch<{
-								recommendation: DispatchRecommendation;
-							}>(`/jobs/${job.id}/recommendations`);
-							recommendations[job.id] = response.recommendation;
 			await Promise.allSettled(
 				plan.selectedJobs.map(async (job) => {
 					const response = await apiFetch<{
