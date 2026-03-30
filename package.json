@@ -40,7 +40,7 @@
 		"intuit-oauth": "^4.2.2",
 		"jsonwebtoken": "^9.0.3",
 		"lucide-react": "^0.563.0",
-		"next": "16.1.6",
+		"next": "16.2.1",
 		"node-quickbooks": "^2.0.43",
 		"pg": "^8.18.0",
 		"pino": "^10.3.1",
