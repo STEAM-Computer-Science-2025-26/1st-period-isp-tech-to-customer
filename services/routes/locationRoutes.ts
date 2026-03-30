@@ -1,19 +1,11 @@
-import {
-	FastifyInstance,
-	FastifyPluginAsync,
-	FastifyReply,
-	FastifyRequest
-} from "fastify";
+import { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { getSql } from "../../db";
+import { authenticate } from "../middleware/auth";
 
 type AuthUser = {
 	id?: string;
 	companyId?: string;
 	role?: string;
-};
-
-type AuthenticatedFastify = FastifyInstance & {
-	authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
 };
 
 // Snap an array of {lat, lng} points to roads via the Google Roads API.
@@ -52,14 +44,12 @@ async function snapToRoads(
 }
 
 const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
-	const authFastify = fastify as AuthenticatedFastify;
-
 	// POST /techs/me/location — tech submits their GPS position.
 	// Updates the current-position upsert AND appends to the history log.
 	fastify.post(
 		"/techs/me/location",
 		{
-			preHandler: [authFastify.authenticate],
+			preHandler: [authenticate],
 			schema: {
 				body: {
 					type: "object",
@@ -112,7 +102,7 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 	fastify.get(
 		"/companies/:companyId/tech-locations",
 		{
-			preHandler: [authFastify.authenticate]
+			preHandler: [authenticate]
 		},
 		async (request, reply) => {
 			const { companyId } = request.params as { companyId: string };
@@ -157,7 +147,7 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 	fastify.get(
 		"/companies/:companyId/map-data",
 		{
-			preHandler: [authFastify.authenticate]
+			preHandler: [authenticate]
 		},
 		async (request, reply) => {
 			const { companyId } = request.params as { companyId: string };
@@ -257,7 +247,7 @@ const locationRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
 	fastify.get(
 		"/companies/:companyId/techs/:techId/trail",
 		{
-			preHandler: [authFastify.authenticate]
+			preHandler: [authenticate]
 		},
 		async (request, reply) => {
 			const { companyId, techId } = request.params as {
