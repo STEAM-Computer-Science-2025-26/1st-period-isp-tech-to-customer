@@ -9,7 +9,7 @@ export function useJob(jobId: string) {
 	return useQuery({
 		queryKey: jobQueryKey(jobId),
 		queryFn: async () => {
-			const raw = await apiFetch<unknown>(`/jobs/${jobId}`);
+			const raw = await apiFetch<unknown>(`/api/jobs/${jobId}`);
 			return JobResponseSchema.parse(raw).job;
 		},
 		enabled: !!jobId
@@ -20,7 +20,7 @@ export function useUpdateJobStatus(jobId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (body: { status: string; completionNotes?: string }) =>
-			apiFetch(`/jobs/${jobId}/status`, {
+			apiFetch(`/api/jobs/${jobId}/status`, {
 				method: "PUT",
 				body: JSON.stringify(body)
 			}),
@@ -34,7 +34,7 @@ export function useUpdateJob(jobId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (body: Partial<Job>) =>
-			apiFetch(`/jobs/${jobId}`, {
+			apiFetch(`/api/jobs/${jobId}`, {
 				method: "PATCH",
 				body: JSON.stringify(body)
 			}),

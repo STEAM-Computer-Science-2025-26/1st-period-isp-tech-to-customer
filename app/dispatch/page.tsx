@@ -25,9 +25,6 @@ import {
 } from "lucide-react";
 import { JobDTO, JobPriority } from "@/app/types/types";
 
-const FASTIFY_BASE_URL =
-	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TechScore = {
@@ -328,13 +325,10 @@ function DispatchPanel({
 		setLoading(true);
 		setError(null);
 		try {
-			const res = await fetch(
-				`${FASTIFY_BASE_URL}/jobs/${job.id}/recommendations`,
-				{
-					method: "GET",
-					headers: authHeaders()
-				}
-			);
+			const res = await fetch(`/api/jobs/${job.id}/recommendations`, {
+				method: "GET",
+				headers: authHeaders()
+			});
 			if (!res.ok) throw new Error(`Server error (${res.status})`);
 			const data = (await res.json()) as {
 				recommendation: DispatchRecommendation;
@@ -367,7 +361,7 @@ function DispatchPanel({
 		setAssigning(techId);
 		setShowOverrideInput(false);
 		try {
-			const res = await fetch(`${FASTIFY_BASE_URL}/jobs/${job.id}/assign`, {
+			const res = await fetch(`/api/jobs/${job.id}/assign`, {
 				method: "POST",
 				headers: authHeaders(),
 				body: JSON.stringify({ techId, reason })
@@ -593,7 +587,7 @@ export default function DispatchPage() {
 		setLoading(true);
 		setError(null);
 		try {
-			const res = await fetch(`${FASTIFY_BASE_URL}/jobs?status=unassigned`, {
+			const res = await fetch(`/api/jobs?status=unassigned`, {
 				headers: authHeaders()
 			});
 			if (!res.ok) throw new Error(`Failed to load jobs (${res.status})`);

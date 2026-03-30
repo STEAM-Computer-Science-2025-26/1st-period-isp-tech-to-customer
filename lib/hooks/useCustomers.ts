@@ -10,7 +10,7 @@ export function useCustomers() {
 	return useQuery({
 		queryKey: customersQueryKey,
 		queryFn: async () => {
-			const raw = await apiFetch<unknown>("/customers");
+			const raw = await apiFetch<unknown>("/api/customers");
 			return CustomersResponseSchema.parse(raw).customers;
 		},
 		staleTime: 60_000 // 60s — customer list changes infrequently

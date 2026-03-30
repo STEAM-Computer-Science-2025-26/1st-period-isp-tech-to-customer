@@ -22,9 +22,6 @@ import {
 import { useEmployees, employeesQueryKey } from "@/lib/hooks/useEmployees";
 import { useQueryClient } from "@tanstack/react-query";
 
-const FASTIFY_BASE_URL =
-	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type EmployeeSkill =
@@ -208,7 +205,7 @@ function AddEmployeeModal({
 					form.email.trim() ||
 					`${form.name.toLowerCase().replace(/\s+/g, ".")}.${Date.now()}@employee.local`;
 
-				const userRes = await fetch(`${FASTIFY_BASE_URL}/register`, {
+				const userRes = await fetch(`/api/register`, {
 					method: "POST",
 					headers,
 					body: JSON.stringify({
@@ -251,7 +248,7 @@ function AddEmployeeModal({
 			if (form.internalNotes.trim())
 				body.internalNotes = form.internalNotes.trim();
 
-			const empRes = await fetch(`${FASTIFY_BASE_URL}/employees`, {
+			const empRes = await fetch(`/api/employees`, {
 				method: "POST",
 				headers,
 				body: JSON.stringify(body)
@@ -271,7 +268,7 @@ function AddEmployeeModal({
 				const lat = parseFloat(form.latitude);
 				const lng = parseFloat(form.longitude);
 				if (!isNaN(lat) && !isNaN(lng)) {
-					await fetch(`${FASTIFY_BASE_URL}/employees/${empData.employee.id}`, {
+					await fetch(`/api/employees/${empData.employee.id}`, {
 						method: "PATCH",
 						headers,
 						body: JSON.stringify({ latitude: lat, longitude: lng })
@@ -724,7 +721,7 @@ function EmployeeDetailPanel({
 		setToggling(true);
 		try {
 			const token = getToken();
-			const res = await fetch(`${FASTIFY_BASE_URL}/employees/${employee.id}`, {
+			const res = await fetch(`/api/employees/${employee.id}`, {
 				method: "PATCH",
 				headers: {
 					"Content-Type": "application/json",

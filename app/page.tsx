@@ -72,7 +72,7 @@ export default function Home() {
 		queryKey: ["dashboard-analytics", rangeDays],
 		queryFn: () =>
 			apiFetch<DashboardAnalyticsResponse>(
-				`/analytics/dashboard?days=${rangeDays}`
+				`/api/analytics/dashboard?days=${rangeDays}`
 			)
 	});
 

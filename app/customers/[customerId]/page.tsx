@@ -23,9 +23,6 @@ import {
 	ChevronRight
 } from "lucide-react";
 
-const FASTIFY_BASE_URL =
-	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type Customer = {
@@ -781,7 +778,7 @@ export default function CustomerDetailPage() {
 				const headers: HeadersInit = token
 					? { Authorization: `Bearer ${token}` }
 					: {};
-				const res = await fetch(`${FASTIFY_BASE_URL}/customers/${customerId}`, {
+				const res = await fetch(`/api/customers/${customerId}`, {
 					headers
 				});
 				if (!res.ok) throw new Error(`Customer not found (${res.status})`);

@@ -8,7 +8,7 @@ export function useJobs() {
 	return useQuery({
 		queryKey: jobsQueryKey,
 		queryFn: async () => {
-			const raw = await apiFetch<unknown>("/jobs");
+			const raw = await apiFetch<unknown>("/api/jobs");
 			return JobsResponseSchema.parse(raw).jobs;
 		},
 		staleTime: 30_000

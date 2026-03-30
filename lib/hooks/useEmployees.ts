@@ -10,7 +10,7 @@ export function useEmployees() {
 	return useQuery({
 		queryKey: employeesQueryKey,
 		queryFn: async () => {
-			const raw = await apiFetch<unknown>("/employees");
+			const raw = await apiFetch<unknown>("/api/employees");
 			return EmployeesResponseSchema.parse(raw).employees;
 		},
 		staleTime: 60_000 // 60s — employee list changes infrequently
