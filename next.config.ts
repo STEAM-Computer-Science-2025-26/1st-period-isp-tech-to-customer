@@ -1,20 +1,29 @@
 import type { NextConfig } from "next";
 
-const FASTIFY_URL =
-	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
-
 const nextConfig: NextConfig = {
-	async rewrites() {
-		return [
-			{
-				// Proxy all /api/* requests to Fastify (strips the /api prefix).
-				// This keeps frontend fetch calls relative ("/api/verify/send")
-				// while all logic lives in Fastify.
-				source: "/api/:path*",
-				destination: `${FASTIFY_URL}/:path*`
-			}
-		];
-	}
+	// Keep Fastify and its ecosystem out of webpack bundling.
+	// They rely on dynamic requires that webpack can't handle correctly,
+	// so we let Next.js load them natively as Node.js modules at runtime.
+	serverExternalPackages: [
+		"fastify",
+		"@fastify/jwt",
+		"@fastify/cors",
+		"fastify-raw-body",
+		"@fastify/formbody",
+		"fastify-plugin",
+		"pg",
+		"pg-pool",
+		"@neondatabase/serverless",
+		"undici",
+		"pino",
+		"pino-pretty",
+		"bcryptjs",
+		"jsonwebtoken",
+		"node-quickbooks",
+		"stripe",
+		"twilio",
+		"nodemailer"
+	]
 };
 
 export default nextConfig;

@@ -100,13 +100,7 @@ function JobDetailPanel({
 	jobId: string | null;
 	onOpenFull: () => void;
 }) {
-	const {
-		data: job,
-		isLoading,
-		error,
-		refetch,
-		isFetching
-	} = useJob(jobId);
+	const { data: job, isLoading, error, refetch, isFetching } = useJob(jobId);
 
 	if (!jobId) {
 		return (
