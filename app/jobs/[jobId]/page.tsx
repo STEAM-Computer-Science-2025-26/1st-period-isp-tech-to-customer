@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import MainContent from "@/components/layout/MainContent";
 import { useJob, useUpdateJobStatus, useUpdateJob } from "@/lib/hooks/useJob";
 import { cn } from "@/lib/utils";
+import { formatReadableDateTime } from "@/lib/utils";
 import {
 	ArrowLeft,
 	MapPin,
@@ -20,21 +21,6 @@ import {
 	FileText,
 	Navigation
 } from "lucide-react";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatDate(iso?: unknown) {
-	if (iso == null) return "—";
-	const d = new Date(iso as any);
-	if (Number.isNaN(d.getTime())) return "—";
-	return d.toLocaleString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-		hour: "numeric",
-		minute: "2-digit"
-	});
-}
 
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
@@ -279,7 +265,7 @@ export default function JobDetailPage() {
 										</span>
 										<span className="flex items-center gap-1">
 											<Clock className="w-3 h-3" />
-											Created {formatDate(job.createdAt)}
+											Created {formatReadableDateTime(job.createdAt)}
 										</span>
 									</div>
 								</div>
@@ -311,7 +297,7 @@ export default function JobDetailPage() {
 										Scheduled
 									</p>
 									<p className="text-sm font-medium text-text-main">
-										{formatDate(job.scheduledTime)}
+										{formatReadableDateTime(job.scheduledTime)}
 									</p>
 								</div>
 								<div>
@@ -319,7 +305,7 @@ export default function JobDetailPage() {
 										Completed
 									</p>
 									<p className="text-sm font-medium text-text-main">
-										{formatDate(job.completedAt)}
+										{formatReadableDateTime(job.completedAt)}
 									</p>
 								</div>
 								<div>
@@ -397,7 +383,7 @@ export default function JobDetailPage() {
 								<InfoRow
 									icon={<Clock className="w-4 h-4" />}
 									label="Last Updated"
-									value={formatDate(job.updatedAt)}
+									value={formatReadableDateTime(job.updatedAt)}
 								/>
 								{job.geocodingStatus === "failed" && (
 									<div className="mt-3 pt-3 border-t border-background-secondary">

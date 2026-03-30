@@ -212,7 +212,7 @@ function LeadGate({ onUnlock }: { onUnlock: (email: string) => void }) {
 	return (
 		<div className="min-h-screen bg-background-main flex">
 			{/* ── Left: branding + tool preview ── */}
-			<div className="hidden lg:flex flex-col justify-between w-[460px] shrink-0 bg-foreground px-14 py-16">
+			<div className="hidden lg:flex flex-col justify-between w-115 shrink-0 bg-foreground px-14 py-16">
 				<div>
 					{/* Logo */}
 					<div className="flex items-center gap-3 mb-16">

@@ -1,62 +1,11 @@
 "use client";
 
 import { useState } from "react";
-
-function fmt(n: number) {
-	if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(1) + "M";
-	if (n >= 1_000) return "$" + Math.round(n / 1_000) + "k";
-	return "$" + Math.round(n).toLocaleString();
-}
+import { fmt } from "@/lib/utils/formatCurrency";
+import { Slider } from "@/components/resources/shared/Slider";
 
 function ttcPrice(t: number) {
 	return t <= 3 ? 149 : t <= 6 ? 199 : t <= 10 ? 299 : 399;
-}
-
-function Slider({
-	label,
-	question,
-	value,
-	min,
-	max,
-	step,
-	onChange,
-	display
-}: {
-	label: string;
-	question: string;
-	value: number;
-	min: number;
-	max: number;
-	step: number;
-	onChange: (v: number) => void;
-	display: string;
-}) {
-	return (
-		<div className="bg-white border border-background-secondary rounded-xl p-5">
-			<div className="font-mono text-[10px] tracking-widest uppercase text-text-tertiary mb-1">
-				{label}
-			</div>
-			<div className="text-[13px] font-medium text-text-primary mb-3 leading-snug">
-				{question}
-			</div>
-			<div className="text-[28px] font-bold text-accent-main tracking-tight mb-2.5 leading-none">
-				{display}
-			</div>
-			<input
-				type="range"
-				min={min}
-				max={max}
-				step={step}
-				value={value}
-				onChange={(e) => onChange(+e.target.value)}
-				className="w-full h-1 rounded-full outline-none cursor-pointer accent-accent-main"
-			/>
-			<div className="flex justify-between mt-1.5 font-mono text-[10px] text-text-tertiary">
-				<span>{min}</span>
-				<span>{max}</span>
-			</div>
-		</div>
-	);
 }
 
 export default function HiringTool({ email: _ }: { email: string }) {
@@ -301,7 +250,9 @@ export default function HiringTool({ email: _ }: { email: string }) {
 						{fmt(Math.abs(saved))}
 					</span>
 					<span className="text-[15px] text-white/40">
-						saved in Year 1 by choosing TTC over hiring
+						{saved > 0
+							? "saved in Year 1 by choosing TTC over hiring"
+							: "more revenue generated in Year 1 by hiring"}
 					</span>
 				</div>
 				<div

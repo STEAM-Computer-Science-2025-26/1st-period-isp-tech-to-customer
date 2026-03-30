@@ -5,11 +5,11 @@ import type { Job } from "@/lib/schemas/jobSchemas";
 
 export const jobQueryKey = (jobId: string) => ["job", jobId] as const;
 
-export function useJob(jobId: string) {
+export function useJob(jobId: string | null) {
 	return useQuery({
-		queryKey: jobQueryKey(jobId),
+		queryKey: ["job", jobId] as const,
 		queryFn: async () => {
-			const raw = await apiFetch<unknown>(`/api/jobs/${jobId}`);
+			const raw = await apiFetch<unknown>(`/jobs/${jobId!}`);
 			return JobResponseSchema.parse(raw).job;
 		},
 		enabled: !!jobId
@@ -20,7 +20,7 @@ export function useUpdateJobStatus(jobId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (body: { status: string; completionNotes?: string }) =>
-			apiFetch(`/api/jobs/${jobId}/status`, {
+			apiFetch(`/jobs/${jobId}/status`, {
 				method: "PUT",
 				body: JSON.stringify(body)
 			}),
@@ -34,7 +34,7 @@ export function useUpdateJob(jobId: string) {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: (body: Partial<Job>) =>
-			apiFetch(`/api/jobs/${jobId}`, {
+			apiFetch(`/jobs/${jobId}`, {
 				method: "PATCH",
 				body: JSON.stringify(body)
 			}),

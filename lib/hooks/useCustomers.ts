@@ -1,18 +1,13 @@
-// lib/hooks/useCustomers.ts
-
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { useApiQuery } from "@/lib/hooks/useApiQuery";
 import { CustomersResponseSchema } from "@/lib/schemas/customerSchemas";
 
 export const customersQueryKey = ["customers"] as const;
 
 export function useCustomers() {
-	return useQuery({
-		queryKey: customersQueryKey,
-		queryFn: async () => {
-			const raw = await apiFetch<unknown>("/api/customers");
-			return CustomersResponseSchema.parse(raw).customers;
-		},
-		staleTime: 60_000 // 60s — customer list changes infrequently
-	});
+	return useApiQuery(
+		customersQueryKey,
+		"/customers",
+		CustomersResponseSchema.transform((r) => r.customers),
+		60_000 // 60s — customer list changes infrequently
+	);
 }

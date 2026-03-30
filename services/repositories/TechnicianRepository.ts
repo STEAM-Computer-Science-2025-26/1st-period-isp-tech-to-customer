@@ -10,11 +10,11 @@ export type TechRecord = {
 	companyId: string;
 	isActive: boolean;
 	isAvailable: boolean;
-	currentJobsCount: number;
-	maxConcurrentJobs: number;
-	latitude: number;
-	longitude: number;
-	maxTravelDistanceMiles: number;
+	currentJobsCount: number | string;
+	maxConcurrentJobs: number | string;
+	latitude: number | string;
+	longitude: number | string;
+	maxTravelDistanceMiles: number | string;
 	skills: string[];
 	skillLevel: Record<string, number>;
 };
@@ -40,7 +40,7 @@ export class TechnicianRepository {
 				max_concurrent_jobs AS "maxConcurrentJobs",
 				latitude, 
 				longitude,
-				max_travel_distance_miles AS "maxTravelDistanceMiles",
+				50 AS "maxTravelDistanceMiles",
 				skills,
 				skill_level AS "skillLevel"
 			FROM employees
@@ -124,6 +124,12 @@ export class TechnicianRepository {
 		const metricsMap = await this.batchQueryMetrics(techIds);
 
 		return techs.map((tech) => {
+			const latitude = Number(tech.latitude);
+			const longitude = Number(tech.longitude);
+			const currentJobsCount = Number(tech.currentJobsCount) || 0;
+			const maxConcurrentJobs = Number(tech.maxConcurrentJobs) || 1;
+			const maxTravelDistanceMiles = Number(tech.maxTravelDistanceMiles) || 50;
+
 			const metrics = metricsMap.get(tech.id) || {
 				dailyJobCount: 0,
 				recentJobCount: 0,
@@ -136,14 +142,14 @@ export class TechnicianRepository {
 				companyId: tech.companyId,
 				isActive: tech.isActive,
 				isAvailable: tech.isAvailable,
-				currentJobsCount: tech.currentJobsCount,
-				maxConcurrentJobs: tech.maxConcurrentJobs,
+				currentJobsCount,
+				maxConcurrentJobs,
 				dailyJobCount: metrics.dailyJobCount,
 				recentJobCount: metrics.recentJobCount,
 				recentCompletionRate: metrics.recentCompletionRate,
-				latitude: tech.latitude,
-				longitude: tech.longitude,
-				maxTravelDistanceMiles: tech.maxTravelDistanceMiles,
+				latitude,
+				longitude,
+				maxTravelDistanceMiles,
 				skills: tech.skills,
 				skillLevel: tech.skillLevel
 			};

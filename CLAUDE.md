@@ -76,6 +76,7 @@ Shared TypeScript types live in `services/types/` (e.g., `jobTypes`, `employeeTy
 ## Environment
 
 Copy `.env.example` to `.env.local` and fill in:
+
 - `DATABASE_URL` — Neon PostgreSQL connection string
 - `JWT_SECRET` — Secret for signing JWTs
 - `NEXT_PUBLIC_FASTIFY_URL` — Fastify server URL (defaults to `http://localhost:3001`)

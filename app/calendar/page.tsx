@@ -7,6 +7,7 @@ import SidePanel from "@/components/layout/SidePanel";
 import FadeEnd from "@/components/ui/FadeEnd";
 import type { JobDTO } from "@/app/types/types";
 import { useUiStore } from "@/lib/stores/uiStore";
+import { apiFetch } from "@/lib/api";
 import { Eye, Settings, Filter } from "lucide-react";
 
 type EventTone = "urgent" | "normal" | "info";
@@ -106,7 +107,7 @@ const mapJobsToDayEvents = (
 			title: getJobTitle(job),
 			duration: job.jobType.replace("_", " "),
 			tech: job.assignedTechId ? `Tech #${job.assignedTechId}` : "Unassigned",
-			window: formatWindow(job.scheduledTime),
+			window: formatWindow(job.scheduledTime ?? undefined),
 			tone: toEventTone(job)
 		});
 	}
@@ -144,15 +145,8 @@ const CalendarPage = () => {
 
 		const loadJobs = async () => {
 			try {
-				const response = await fetch("/api/jobs", { method: "GET" });
-				if (!response.ok) {
-					if (isMounted) setJobs([]);
-					return;
-				}
-
-				const payload = (await response.json()) as { jobs?: JobDTO[] };
-				const jobs = payload.jobs ?? [];
-				if (isMounted) setJobs(jobs);
+				const payload = await apiFetch<{ jobs?: JobDTO[] }>("/jobs");
+				if (isMounted) setJobs(payload.jobs ?? []);
 			} catch {
 				if (isMounted) setJobs([]);
 			}
@@ -630,7 +624,7 @@ const CalendarPage = () => {
 										<div
 											key={dayKey}
 											className={cn(
-												"min-h-[100px] border border-accent-text/20 p-1",
+												"min-h-25 border border-accent-text/20 p-1",
 												!isCurrentMonth && "bg-background-secondary/20"
 											)}
 										>

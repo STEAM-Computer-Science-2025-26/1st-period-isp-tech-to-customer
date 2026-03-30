@@ -6,7 +6,8 @@ import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
-import { getToken, authHeaders } from "@/lib/auth";
+import { formatReadableDate } from "@/lib/utils";
+import { apiFetch } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import {
 	Phone,
@@ -100,12 +101,7 @@ function initials(first: string, last: string) {
 }
 
 function formatDate(iso?: string) {
-	if (!iso) return "—";
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric"
-	});
+	return formatReadableDate(iso);
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -774,21 +770,13 @@ export default function CustomerDetailPage() {
 
 		void (async () => {
 			try {
-				const token = getToken();
-				const headers: HeadersInit = token
-					? { Authorization: `Bearer ${token}` }
-					: {};
-				const res = await fetch(`/api/customers/${customerId}`, {
-					headers
-				});
-				if (!res.ok) throw new Error(`Customer not found (${res.status})`);
-				const data = (await res.json()) as {
+				const data = await apiFetch<{
 					customer: Customer;
 					locations: Location[];
 					equipment: Equipment[];
 					jobs: Job[];
 					communications: Communication[];
-				};
+				}>(`/customers/${customerId}`);
 				if (mounted) {
 					setCustomer(data.customer);
 					setLocations(data.locations ?? []);
@@ -939,10 +927,7 @@ export default function CustomerDetailPage() {
 								label="Last Service"
 								value={
 									jobs[0]?.completedAt
-										? new Date(jobs[0].completedAt).toLocaleDateString(
-												"en-US",
-												{ month: "short", day: "numeric", year: "numeric" }
-											)
+										? formatReadableDate(jobs[0].completedAt)
 										: "—"
 								}
 								sub={jobs[0]?.jobType?.replace("_", " ")}
@@ -967,7 +952,7 @@ export default function CustomerDetailPage() {
 									{t.count != null && t.count > 0 && (
 										<span
 											className={cn(
-												"text-xs px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center",
+												"text-xs px-1.5 py-0.5 rounded-full min-w-5 text-center",
 												activeTab === t.id
 													? "bg-accent-main/15 text-accent-text"
 													: "bg-background-secondary text-text-tertiary"

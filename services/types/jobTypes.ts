@@ -54,16 +54,16 @@ export type JobDTO = {
 	priority: JobPriority;
 
 	// Assignment
-	assignedTechId?: string;
+	assignedTechId?: string | null;
 
 	// Timing
-	scheduledTime?: ISODateString; // ISO 8601
+	scheduledTime?: ISODateString | null; // ISO 8601
 	createdAt: ISODateString; // ISO 8601
-	completedAt?: ISODateString; // ISO 8601
+	completedAt?: ISODateString | null; // ISO 8601
 
 	// Notes
-	initialNotes?: string;
-	completionNotes?: string;
+	initialNotes?: string | null;
+	completionNotes?: string | null;
 };
 
 /**

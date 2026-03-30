@@ -19,9 +19,10 @@ export async function apiFetch<T>(
 	path: string,
 	options?: RequestInit
 ): Promise<T> {
-	// All paths should start with /api/ so they go through the Next.js proxy
-	// rewrite (next.config.ts), which forwards to Fastify.
-	const url = path;
+	// All requests go through the Next.js /api/ proxy rewrite (next.config.ts),
+	// which forwards them to Fastify. This works in both local dev and on Vercel.
+	const normalized = path.startsWith("/") ? path : `/${path}`;
+	const url = normalized.startsWith("/api/") ? normalized : `/api${normalized}`;
 
 	const res = await fetch(url, {
 		...options,

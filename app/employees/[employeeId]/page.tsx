@@ -22,6 +22,8 @@ import {
 	ChevronRight
 } from "lucide-react";
 
+const API_BASE = "/api";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type EmployeeSkill =
@@ -250,8 +252,8 @@ export default function EmployeeDetailPage() {
 					: {};
 
 				const [empRes, jobsRes] = await Promise.allSettled([
-					fetch(`/api/employees/${employeeId}`, { headers }),
-					fetch(`/api/jobs?assignedTechId=${employeeId}`, {
+					fetch(`${API_BASE}/employees/${employeeId}`, { headers }),
+					fetch(`${API_BASE}/jobs?assignedTechId=${employeeId}`, {
 						headers
 					})
 				]);
@@ -287,7 +289,7 @@ export default function EmployeeDetailPage() {
 		setToggling(true);
 		try {
 			const token = getToken();
-			const res = await fetch(`/api/employees/${employee.id}`, {
+			const res = await fetch(`${API_BASE}/employees/${employee.id}`, {
 				method: "PATCH",
 				headers: {
 					"Content-Type": "application/json",
