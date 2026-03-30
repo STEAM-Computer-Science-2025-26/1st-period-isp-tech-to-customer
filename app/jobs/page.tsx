@@ -73,7 +73,7 @@ function StatusBadge({ status }: { status: JobDTO["status"] }) {
 				classes[status]
 			)}
 		>
-			{status.replace("_", " ")}
+			{status.replaceAll("_", " ")}
 		</span>
 	);
 }
@@ -158,7 +158,7 @@ function JobDetailPanel({
 					<PriorityBadge priority={job.priority} />
 					<span className="text-xs text-text-tertiary capitalize flex items-center gap-1">
 						<Wrench className="w-3 h-3" />
-						{job.jobType.replace("_", " ")}
+						{job.jobType.replaceAll("_", " ")}
 					</span>
 				</div>
 
@@ -424,7 +424,7 @@ const JobsPage = () => {
 										{job.address}
 									</p>
 									<p className="text-sm capitalize text-text-secondary">
-										{job.jobType.replace("_", " ")}
+										{job.jobType.replaceAll("_", " ")}
 									</p>
 									<StatusBadge status={job.status} />
 									<PriorityBadge priority={job.priority} />

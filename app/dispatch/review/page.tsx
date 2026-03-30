@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import MainContent from "@/components/layout/MainContent";
 import { apiFetch } from "@/lib/api";
-import { cn, formatReadableDateTime } from "@/lib/utils";
+import { formatReadableDateTime } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import {
 	AlertCircle,
@@ -14,7 +14,6 @@ import {
 	Save,
 	TriangleAlert
 } from "lucide-react";
-import type { JobPriority } from "@/app/types/types";
 import type { DispatchRecommendation } from "@/lib/types/dispatch";
 import {
 	BATCH_PLAN_STORAGE_KEY,
@@ -63,6 +62,9 @@ function PriorityBadge({ priority }: { priority: JobPriority }) {
 		</span>
 	);
 }
+import { BATCH_PLAN_STORAGE_KEY } from "@/lib/constants/dispatch";
+import type { BatchPlan } from "@/app/dispatch/types";
+import PriorityBadge from "@/app/dispatch/PriorityBadge";
 
 export default function DispatchReviewPage() {
 	const router = useRouter();
@@ -126,23 +128,25 @@ export default function DispatchReviewPage() {
 								recommendation: DispatchRecommendation;
 							}>(`/jobs/${job.id}/recommendations`);
 							recommendations[job.id] = response.recommendation;
+			await Promise.allSettled(
+				plan.selectedJobs.map(async (job) => {
+					const response = await apiFetch<{
+						recommendation: DispatchRecommendation;
+					}>(`/jobs/${job.id}/recommendations`);
+					recommendations[job.id] = response.recommendation;
 
-							const suggested = plan.assignments.find(
-								(assignment) => assignment.jobId === job.id
-							);
-							const fallbackTechId =
-								response.recommendation.recommendations[0]?.techId;
-							if (suggested?.techId) {
-								selectedTechMap[job.id] = suggested.techId;
-							} else if (fallbackTechId) {
-								selectedTechMap[job.id] = fallbackTechId;
-							}
-						} catch {
-							// Keep loading other jobs even if one fails.
-						}
-					})
-				);
-			}
+					const suggested = plan.assignments.find(
+						(assignment) => assignment.jobId === job.id
+					);
+					const fallbackTechId =
+						response.recommendation.recommendations[0]?.techId;
+					if (suggested?.techId) {
+						selectedTechMap[job.id] = suggested.techId;
+					} else if (fallbackTechId) {
+						selectedTechMap[job.id] = fallbackTechId;
+					}
+				})
+			);
 
 			if (!cancelled) {
 				setRecommendationByJob(recommendations);
@@ -194,6 +198,7 @@ export default function DispatchReviewPage() {
 				setError(
 					`${response.assignedCount} assigned, ${response.failedCount} failed. Review queue again before retrying.`
 				);
+				return;
 			}
 
 			sessionStorage.removeItem(BATCH_PLAN_STORAGE_KEY);
