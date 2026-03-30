@@ -18,6 +18,8 @@ import {
 	Zap,
 	Filter
 } from "lucide-react";
+import type { BatchPlan } from "@/app/dispatch/types";
+import PriorityBadge from "@/app/dispatch/PriorityBadge";
 import type { JobDTO, JobPriority } from "@/app/types/types";
 import { useRouter } from "next/navigation";
 import type { DispatchRecommendation } from "@/lib/types/dispatch";
@@ -44,46 +46,12 @@ type BatchRecommendationResponse = {
 	};
 };
 
-type BatchPlan = {
-	createdAt: string;
-	assignments: BatchRecommendationResponse["assignments"];
-	unassigned: BatchRecommendationResponse["unassigned"];
-	selectedJobs: Array<{
-		id: string;
-		customerName: string;
-		address: string;
-		priority: JobPriority;
-	}>;
-};
-
 const PRIORITY_ORDER: Record<JobPriority, number> = {
 	emergency: 0,
 	high: 1,
 	medium: 2,
 	low: 3
 };
-
-function PriorityBadge({ priority }: { priority: JobPriority }) {
-	const classes: Record<JobPriority, string> = {
-		emergency:
-			"bg-destructive-background/15 text-destructive-text border border-destructive-foreground/30",
-		high: "bg-warning-background/25 text-warning-text border border-warning-foreground/30",
-		medium: "bg-accent-main/10 text-accent-text border border-accent-main/30",
-		low: "bg-background-secondary/50 text-text-secondary border border-background-secondary"
-	};
-
-	return (
-		<span
-			className={cn(
-				"inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize",
-				classes[priority]
-			)}
-		>
-			{priority === "emergency" && <TriangleAlert className="w-3 h-3" />}
-			{priority}
-		</span>
-	);
-}
 
 function SingleDispatchPanel({
 	job,
@@ -182,7 +150,7 @@ function SingleDispatchPanel({
 					<div className="flex items-center gap-2 mb-1">
 						<PriorityBadge priority={job.priority} />
 						<span className="text-xs text-text-tertiary capitalize">
-							{job.jobType.replace("_", " ")}
+							{job.jobType.replaceAll("_", " ")}
 						</span>
 					</div>
 					<h2 className="text-sm font-semibold text-text-main truncate">
@@ -368,7 +336,6 @@ export default function DispatchPage() {
 	const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
 	const [activeJobId, setActiveJobId] = useState<string | null>(null);
 	const [batchPlan, setBatchPlan] = useState<BatchPlan | null>(null);
-	const [batchNotice, setBatchNotice] = useState(false);
 	const [batchLoading, setBatchLoading] = useState(false);
 	const [batchAssigning, setBatchAssigning] = useState(false);
 	const [batchError, setBatchError] = useState<string | null>(null);
@@ -496,7 +463,6 @@ export default function DispatchPage() {
 			};
 
 			setBatchPlan(plan);
-			setBatchNotice(true);
 		} catch (dispatchError) {
 			setBatchError(
 				dispatchError instanceof Error
@@ -548,7 +514,6 @@ export default function DispatchPage() {
 				);
 			} else {
 				setBatchPlan(null);
-				setBatchNotice(false);
 			}
 		} catch (assignError) {
 			setBatchError(
@@ -664,7 +629,7 @@ export default function DispatchPage() {
 					</div>
 				)}
 
-				{batchNotice && batchPlan && (
+				{batchPlan && (
 					<div className="rounded-xl border border-info-foreground/30 bg-info-background/15 px-4 py-3">
 						<div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
 							<div>
