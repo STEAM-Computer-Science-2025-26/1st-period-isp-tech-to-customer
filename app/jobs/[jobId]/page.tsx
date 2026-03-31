@@ -14,8 +14,9 @@ import {
 	User,
 	Wrench,
 	AlertTriangle,
-	CheckCircle2,
-	XCircle,
+	Check,
+	Pencil,
+	X,
 	ChevronRight,
 	RefreshCw,
 	FileText,
@@ -185,6 +186,7 @@ export default function JobDetailPage() {
 	const [showCompleteModal, setShowCompleteModal] = useState(false);
 	const [editingNotes, setEditingNotes] = useState(false);
 	const [notesValue, setNotesValue] = useState("");
+	const notesUnchanged = notesValue === (job?.initialNotes ?? "");
 
 	const transitions = STATUS_TRANSITIONS[job?.status ?? "unassigned"] ?? [];
 
@@ -359,9 +361,17 @@ export default function JobDetailPage() {
 									label="Required Skills"
 									value={
 										Array.isArray(job.requiredSkills) &&
-										job.requiredSkills.length > 0
-											? job.requiredSkills.join(", ")
-											: "None specified"
+										job.requiredSkills.length > 0 ? (
+											<span className="capitalize">
+												{job.requiredSkills
+													.map((skill) =>
+														skill.replace("_", " ").replace(/hvac/gi, "HVAC")
+													)
+													.join(", ")}
+											</span>
+										) : (
+											"None specified"
+										)
 									}
 								/>
 								<InfoRow
@@ -402,44 +412,48 @@ export default function JobDetailPage() {
 									<h3 className="text-sm font-semibold text-text-main">
 										Notes
 									</h3>
-									{!editingNotes && (
-										<button
-											onClick={() => {
-												setNotesValue(job.initialNotes ?? "");
-												setEditingNotes(true);
-											}}
-											className="text-xs text-accent-text hover:underline"
-										>
-											Edit
-										</button>
-									)}
+									<div className="flex items-center gap-1">
+										{editingNotes ? (
+											<>
+												<button
+													onClick={() => setEditingNotes(false)}
+													className="inline-flex items-center justify-center size-6 rounded-md text-text-tertiary hover:text-text-main transition-colors"
+													aria-label="Cancel editing"
+												>
+													<X className="w-4 h-4" />
+												</button>
+												<button
+													onClick={handleSaveNotes}
+													disabled={updateJob.isPending || notesUnchanged}
+													className="inline-flex items-center justify-center size-6 rounded-md text-accent-text hover:text-text-main disabled:opacity-50 transition-colors"
+													aria-label="Save notes"
+												>
+													<Check className="w-4 h-4" />
+												</button>
+											</>
+										) : (
+											<button
+												onClick={() => {
+													setNotesValue(job.initialNotes ?? "");
+													setEditingNotes(true);
+												}}
+												className="inline-flex items-center justify-center size-6 rounded-md text-accent-text hover:text-text-main transition-colors"
+												aria-label="Edit notes"
+											>
+												<Pencil className="w-4 h-4" />
+											</button>
+										)}
+									</div>
 								</div>
 
 								{editingNotes ? (
-									<div className="flex flex-col gap-2">
-										<textarea
-											value={notesValue}
-											onChange={(e) => setNotesValue(e.target.value)}
-											rows={5}
-											className="w-full text-sm bg-background-main border border-background-secondary rounded-lg px-3 py-2 text-text-main placeholder:text-text-tertiary resize-none outline-none focus:border-accent-text transition-colors"
-											placeholder="Job notes..."
-										/>
-										<div className="flex gap-2">
-											<button
-												onClick={() => setEditingNotes(false)}
-												className="flex-1 py-1.5 rounded-lg text-xs border border-background-secondary text-text-secondary hover:bg-background-secondary transition-colors"
-											>
-												Cancel
-											</button>
-											<button
-												onClick={handleSaveNotes}
-												disabled={updateJob.isPending}
-												className="flex-1 py-1.5 rounded-lg text-xs bg-accent-main text-white font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-											>
-												{updateJob.isPending ? "Saving..." : "Save"}
-											</button>
-										</div>
-									</div>
+									<textarea
+										value={notesValue}
+										onChange={(e) => setNotesValue(e.target.value)}
+										rows={5}
+										className="w-full text-sm bg-background-main border border-background-secondary rounded-lg px-3 py-2 text-text-main placeholder:text-text-tertiary resize-none outline-none focus:border-accent-text transition-colors"
+										placeholder="Job notes..."
+									/>
 								) : (
 									<p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
 										{job.initialNotes ?? (

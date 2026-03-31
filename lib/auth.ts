@@ -14,7 +14,10 @@ function decodeJwtPayload(token: string): JwtPayload | null {
 		const rawPayload = token.split(".")[1];
 		if (!rawPayload) return null;
 		const base64 = rawPayload.replace(/-/g, "+").replace(/_/g, "/");
-		const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+		const padded = base64.padEnd(
+			base64.length + ((4 - (base64.length % 4)) % 4),
+			"="
+		);
 		const json = atob(padded);
 		return JSON.parse(json) as JwtPayload;
 	} catch {

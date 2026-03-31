@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	Suspense,
 	useEffect,
 	useRef,
 	useState,
@@ -8,6 +9,7 @@ import {
 	useMemo,
 	type KeyboardEvent
 } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
 	APIProvider,
 	Map,
@@ -421,15 +423,19 @@ function PlacesInput({
 	);
 }
 
-export default function MapPage() {
+function MapPageContent() {
 	const companyId = getCompanyId();
 	const setSidePanelOpen = useUiStore((s) => s.setSidePanelOpen);
 	const sidebarAutoCollapse = useUiStore((s) => s.sidebarAutoCollapse);
 	const sidebarIsStrip = useUiStore((s) => s.sidebarIsStrip);
 	const { lgUp, smDown } = useBreakpoints();
+	const searchParams = useSearchParams();
+	const router = useRouter();
 
 	const [selectedJob, setSelectedJob] = useState<MapJob | null>(null);
 	const [selectedTech, setSelectedTech] = useState<MapTech | null>(null);
+	// Stores a job ID from deep-link params until panelData loads
+	const pendingJobIdRef = useRef<string | null>(null);
 	const [mapFilters, setMapFilters] = useState<PanelFilter>(() =>
 		createEmptyFilter()
 	);
@@ -525,6 +531,37 @@ export default function MapPage() {
 		setZoomTarget({ ...loc, id: ++zoomIdRef.current });
 	}, []);
 
+	// Deep-link support: ?job=<id> or ?lat=<lat>&lng=<lng>
+	useEffect(() => {
+		const jobId = searchParams.get("job");
+		const lat = searchParams.get("lat");
+		const lng = searchParams.get("lng");
+		if (lat && lng) {
+			handleZoomTo({ lat: parseFloat(lat), lng: parseFloat(lng) });
+			router.replace("/map", { scroll: false });
+			return;
+		}
+		if (jobId) {
+			pendingJobIdRef.current = jobId;
+			router.replace("/map", { scroll: false });
+		}
+	}, [searchParams, handleZoomTo, router]);
+
+	// Once panelData loads, resolve any pending deep-link job
+	useEffect(() => {
+		const pendingId = pendingJobIdRef.current;
+		if (!pendingId || !panelData) return;
+		const job = panelData.jobs.find((j) => j.id === pendingId);
+		if (job) {
+			handleJobClick(job);
+			if (job.latitude !== null && job.longitude !== null) {
+				handleZoomTo({ lat: job.latitude, lng: job.longitude });
+			}
+			pendingJobIdRef.current = null;
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [panelData, handleZoomTo]);
+
 	const locatedTechs = (mapData?.techs ?? []).filter(
 		(t) => t.latitude !== null && t.longitude !== null
 	);
@@ -533,7 +570,7 @@ export default function MapPage() {
 	const visibleJobs = applyPanelFilter(mapData?.jobs ?? [], mapFilters);
 
 	return (
-		<MainContent>
+		<MainContent showFab={false}>
 			<APIProvider
 				apiKey={MAPS_API_KEY}
 				libraries={["routes", "geometry", "places"]}
@@ -628,6 +665,22 @@ export default function MapPage() {
 						) : null}
 					</div>
 				</div>
+				<div
+					className={cn(
+						`fixed right-4 bottom-4 w-12 h-24 rounded-md bg-background-secondary/50 backdrop-blur-md border-accent-text-dark-3 flex flex-col divide-y divide-text-secondary/70 overflow-hidden p-1.25`
+					)}
+				>
+					<button
+						className={cn(
+							`w-full mb-[calc(6/8*1rem)] h-full hover:bg-background-secondary/70`
+						)}
+					></button>
+					<button
+						className={cn(
+							`w-full mt-0.625 h-full hover:bg-background-secondary/70`
+						)}
+					></button>
+				</div>
 			</APIProvider>
 
 			<SidePanel>
@@ -642,5 +695,13 @@ export default function MapPage() {
 				/>
 			</SidePanel>
 		</MainContent>
+	);
+}
+
+export default function MapPage() {
+	return (
+		<Suspense fallback={null}>
+			<MapPageContent />
+		</Suspense>
 	);
 }

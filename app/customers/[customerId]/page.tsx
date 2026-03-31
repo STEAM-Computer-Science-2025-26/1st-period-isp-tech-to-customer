@@ -4,11 +4,14 @@ import Header from "@/components/layout/Header";
 import MainContent from "@/components/layout/MainContent";
 import Sidebar from "@/components/layout/sidebar/Sidebar";
 import { defaultSidebarItems } from "@/components/layout/sidebar/SidebarItems";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils/index";
-import { formatReadableDate } from "@/lib/utils";
+import { formatPhoneNumber, formatReadableDate } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
+import { APIProvider } from "@vis.gl/react-google-maps";
+import CustomSelect from "@/components/ui/CustomSelect";
+import AddressAutocomplete from "@/components/ui/AddressAutocomplete";
 import {
 	Phone,
 	Mail,
@@ -16,13 +19,18 @@ import {
 	AlertCircle,
 	CheckCircle2,
 	XCircle,
+	Check,
+	X,
 	ArrowLeft,
 	Wrench,
 	Calendar,
 	MessageSquare,
 	LayoutGrid,
-	ChevronRight
+	ChevronRight,
+	Pencil
 } from "lucide-react";
+
+const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -137,10 +145,13 @@ function TypeBadge({ type }: { type: string }) {
 
 function JobStatusBadge({ status }: { status: string }) {
 	const map: Record<string, string> = {
-		completed: "text-success-text bg-success/10 border-success/20",
-		cancelled: "text-error-text bg-error/10 border-error/20",
-		in_progress: "text-info-text bg-info/10 border-info/20",
-		assigned: "text-warning-text bg-warning/10 border-warning/20",
+		completed:
+			"text-success-text bg-success-background/50 border-success-foreground",
+		cancelled:
+			"text-destructive-text bg-destructive-background/50 border-destructive-foreground",
+		in_progress: "text-info-text bg-info-background/50 border-info-foreground",
+		assigned:
+			"text-warning-text bg-warning-background/50 border-warning-foreground",
 		unassigned:
 			"text-text-tertiary bg-background-secondary border-background-secondary"
 	};
@@ -225,16 +236,146 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 function OverviewTab({
 	customer,
 	jobs,
-	equipment
+	equipment,
+	onCustomerUpdate,
+	onError
 }: {
 	customer: Customer;
 	jobs: Job[];
 	equipment: Equipment[];
+	onCustomerUpdate: (updates: Partial<Customer>) => void;
+	onError: (message: string) => void;
 }) {
 	const lastJob = jobs[0];
 	const alertEquipment = equipment.find(
 		(e) => e.ageYears && e.ageYears >= 10 && e.condition !== "excellent"
 	);
+	const [editingContact, setEditingContact] = useState(false);
+	const [editingNotes, setEditingNotes] = useState(false);
+	const [savingContact, setSavingContact] = useState(false);
+	const [savingNotes, setSavingNotes] = useState(false);
+	const [contactDraft, setContactDraft] = useState(() => ({
+		firstName: customer.firstName,
+		lastName: customer.lastName,
+		phone: formatPhoneNumber(customer.phone),
+		altPhone: formatPhoneNumber(customer.altPhone ?? ""),
+		email: customer.email,
+		customerType: customer.customerType,
+		isActive: customer.isActive,
+		address: customer.address,
+		city: customer.city,
+		state: customer.state,
+		zip: customer.zip
+	}));
+	const [notesDraft, setNotesDraft] = useState(customer.notes ?? "");
+	const inputClassName =
+		"w-full rounded-lg border border-background-secondary bg-background-primary/50 px-2 py-1 text-sm text-text-main focus:outline-none focus:border-accent-main/50";
+	const customerTypeOptions = useMemo(() => {
+		const values = [customer.customerType, "residential", "commercial"];
+		return Array.from(new Set(values))
+			.filter(Boolean)
+			.map((value) => ({
+				value,
+				label: value.replaceAll("_", " ")
+			}));
+	}, [customer.customerType]);
+	const statusOptions = [
+		{ value: "active", label: "Active" },
+		{ value: "inactive", label: "Inactive" }
+	] as const;
+	const contactUnchanged =
+		contactDraft.firstName === customer.firstName &&
+		contactDraft.lastName === customer.lastName &&
+		contactDraft.phone === formatPhoneNumber(customer.phone) &&
+		contactDraft.altPhone === formatPhoneNumber(customer.altPhone ?? "") &&
+		contactDraft.email === customer.email &&
+		contactDraft.customerType === customer.customerType &&
+		contactDraft.isActive === customer.isActive &&
+		contactDraft.address === customer.address &&
+		contactDraft.city === customer.city &&
+		contactDraft.state === customer.state &&
+		contactDraft.zip === customer.zip;
+	const notesUnchanged = notesDraft === (customer.notes ?? "");
+
+	const startContactEdit = () => {
+		setContactDraft({
+			firstName: customer.firstName,
+			lastName: customer.lastName,
+			phone: formatPhoneNumber(customer.phone),
+			altPhone: formatPhoneNumber(customer.altPhone ?? ""),
+			email: customer.email,
+			customerType: customer.customerType,
+			isActive: customer.isActive,
+			address: customer.address,
+			city: customer.city,
+			state: customer.state,
+			zip: customer.zip
+		});
+		setEditingContact(true);
+	};
+
+	const startNotesEdit = () => {
+		setNotesDraft(customer.notes ?? "");
+		setEditingNotes(true);
+	};
+
+	const handleSaveContact = async () => {
+		setSavingContact(true);
+		const nextPhone = contactDraft.phone.replace(/\D/g, "");
+		const nextAltPhone = contactDraft.altPhone.replace(/\D/g, "");
+		try {
+			await apiFetch(`/customers/${customer.id}`, {
+				method: "PATCH",
+				body: JSON.stringify({
+					firstName: contactDraft.firstName,
+					lastName: contactDraft.lastName,
+					phone: nextPhone,
+					altPhone: nextAltPhone || null,
+					email: contactDraft.email,
+					customerType: contactDraft.customerType,
+					isActive: contactDraft.isActive,
+					address: contactDraft.address,
+					city: contactDraft.city,
+					state: contactDraft.state,
+					zip: contactDraft.zip
+				})
+			});
+			onCustomerUpdate({
+				firstName: contactDraft.firstName,
+				lastName: contactDraft.lastName,
+				phone: nextPhone,
+				altPhone: nextAltPhone || undefined,
+				email: contactDraft.email,
+				customerType: contactDraft.customerType,
+				isActive: contactDraft.isActive,
+				address: contactDraft.address,
+				city: contactDraft.city,
+				state: contactDraft.state,
+				zip: contactDraft.zip
+			});
+			setEditingContact(false);
+		} catch (e) {
+			onError(e instanceof Error ? e.message : "Failed to update customer");
+		} finally {
+			setSavingContact(false);
+		}
+	};
+
+	const handleSaveNotes = async () => {
+		setSavingNotes(true);
+		try {
+			await apiFetch(`/customers/${customer.id}`, {
+				method: "PATCH",
+				body: JSON.stringify({ notes: notesDraft })
+			});
+			onCustomerUpdate({ notes: notesDraft });
+			setEditingNotes(false);
+		} catch (e) {
+			onError(e instanceof Error ? e.message : "Failed to update notes");
+		} finally {
+			setSavingNotes(false);
+		}
+	};
 
 	return (
 		<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -244,75 +385,255 @@ function OverviewTab({
 					<h3 className="text-sm font-semibold text-text-main">
 						Contact Information
 					</h3>
-					<button className="text-xs text-accent-text hover:underline">
-						Edit
-					</button>
+					<div className="flex items-center gap-1">
+						{editingContact ? (
+							<>
+								<button
+									onClick={handleSaveContact}
+									disabled={savingContact || contactUnchanged}
+									className="inline-flex items-center justify-center size-6 rounded-md text-accent-text hover:text-text-main disabled:opacity-50 transition-colors"
+									title="Save contact"
+								>
+									<Check className="w-4 h-4" />
+								</button>
+								<button
+									onClick={() => setEditingContact(false)}
+									className="inline-flex items-center justify-center size-6 rounded-md text-text-tertiary hover:text-text-main transition-colors"
+									title="Cancel edits"
+								>
+									<X className="w-4 h-4" />
+								</button>
+							</>
+						) : (
+							<button
+								onClick={startContactEdit}
+								className="inline-flex items-center justify-center size-6 rounded-md text-accent-text hover:text-text-main transition-colors"
+								title="Edit contact"
+							>
+								<Pencil className="w-4 h-4" />
+							</button>
+						)}
+					</div>
 				</div>
 				<div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
 					<div>
 						<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
 							First Name
 						</p>
-						<p className="text-text-main">{customer.firstName}</p>
+						{editingContact ? (
+							<input
+								value={contactDraft.firstName}
+								onChange={(event) =>
+									setContactDraft((prev) => ({
+										...prev,
+										firstName: event.target.value
+									}))
+								}
+								className={inputClassName}
+							/>
+						) : (
+							<p className="text-text-main">{customer.firstName}</p>
+						)}
 					</div>
 					<div>
 						<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
 							Last Name
 						</p>
-						<p className="text-text-main">{customer.lastName}</p>
+						{editingContact ? (
+							<input
+								value={contactDraft.lastName}
+								onChange={(event) =>
+									setContactDraft((prev) => ({
+										...prev,
+										lastName: event.target.value
+									}))
+								}
+								className={inputClassName}
+							/>
+						) : (
+							<p className="text-text-main">{customer.lastName}</p>
+						)}
 					</div>
 					<div>
 						<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
 							Primary Phone
 						</p>
-						<p className="text-text-main">{customer.phone}</p>
+						{editingContact ? (
+							<input
+								value={contactDraft.phone}
+								onChange={(event) =>
+									setContactDraft((prev) => ({
+										...prev,
+										phone: formatPhoneNumber(event.target.value)
+									}))
+								}
+								className={inputClassName}
+							/>
+						) : (
+							<p className="text-text-main">
+								{formatPhoneNumber(customer.phone)}
+							</p>
+						)}
 					</div>
 					<div>
 						<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
 							Alt Phone
 						</p>
-						<p className="text-text-main">{customer.altPhone ?? "—"}</p>
+						{editingContact ? (
+							<input
+								value={contactDraft.altPhone}
+								onChange={(event) =>
+									setContactDraft((prev) => ({
+										...prev,
+										altPhone: formatPhoneNumber(event.target.value)
+									}))
+								}
+								className={inputClassName}
+							/>
+						) : (
+							<p className="text-text-main">
+								{formatPhoneNumber(customer.altPhone ?? "") || "—"}
+							</p>
+						)}
 					</div>
 					<div className="col-span-2">
 						<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
 							Email
 						</p>
-						<p className="text-text-main">{customer.email}</p>
+						{editingContact ? (
+							<input
+								value={contactDraft.email}
+								onChange={(event) =>
+									setContactDraft((prev) => ({
+										...prev,
+										email: event.target.value
+									}))
+								}
+								className={inputClassName}
+							/>
+						) : (
+							<p className="text-text-main">{customer.email}</p>
+						)}
 					</div>
 					<div>
 						<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
 							Type
 						</p>
-						<TypeBadge type={customer.customerType} />
+						{editingContact ? (
+							<CustomSelect
+								value={contactDraft.customerType}
+								onChange={(value) =>
+									setContactDraft((prev) => ({
+										...prev,
+										customerType: value
+									}))
+								}
+								options={customerTypeOptions}
+								className="w-full"
+								buttonClassName="w-full justify-between px-2 py-1 text-sm"
+								menuClassName="w-full"
+							/>
+						) : (
+							<TypeBadge type={customer.customerType} />
+						)}
 					</div>
 					<div>
 						<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
 							Status
 						</p>
-						<StatusBadge active={customer.isActive} />
+						{editingContact ? (
+							<CustomSelect
+								value={contactDraft.isActive ? "active" : "inactive"}
+								onChange={(value) =>
+									setContactDraft((prev) => ({
+										...prev,
+										isActive: value === "active"
+									}))
+								}
+								options={statusOptions.map((option) => ({ ...option }))}
+								className="w-full"
+								buttonClassName="w-full justify-between px-2 py-1 text-sm"
+								menuClassName="w-full"
+							/>
+						) : (
+							<StatusBadge active={customer.isActive} />
+						)}
 					</div>
 					<div className="col-span-2">
 						<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
 							Primary Address
 						</p>
-						<p className="text-text-main">
-							{customer.address}, {customer.city}, {customer.state}{" "}
-							{customer.zip}
-						</p>
+						{editingContact ? (
+							<div className="flex flex-col gap-2">
+								<AddressAutocomplete
+									value={contactDraft.address}
+									onChange={(value) =>
+										setContactDraft((prev) => ({
+											...prev,
+											address: value
+										}))
+									}
+									onAddressSelected={(selection) =>
+										setContactDraft((prev) => ({
+											...prev,
+											address: selection.streetAddress || prev.address,
+											city: selection.city || prev.city,
+											state: selection.state || prev.state,
+											zip: selection.postalCode || prev.zip
+										}))
+									}
+									className="w-full"
+									inputClassName={inputClassName}
+									placeholder="Start typing an address..."
+								/>
+								<div className="grid grid-cols-3 gap-2">
+									<input
+										value={contactDraft.city}
+										onChange={(event) =>
+											setContactDraft((prev) => ({
+												...prev,
+												city: event.target.value
+											}))
+										}
+										className={inputClassName}
+										placeholder="City"
+									/>
+									<input
+										value={contactDraft.state}
+										onChange={(event) =>
+											setContactDraft((prev) => ({
+												...prev,
+												state: event.target.value
+											}))
+										}
+										className={inputClassName}
+										placeholder="State"
+									/>
+									<input
+										value={contactDraft.zip}
+										onChange={(event) =>
+											setContactDraft((prev) => ({
+												...prev,
+												zip: event.target.value
+											}))
+										}
+										className={inputClassName}
+										placeholder="Zip"
+									/>
+								</div>
+							</div>
+						) : (
+							<p className="text-text-main">
+								{customer.address}, {customer.city}, {customer.state}{" "}
+								{customer.zip}
+							</p>
+						)}
 					</div>
 					<div>
 						<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
 							Member Since
 						</p>
 						<p className="text-text-main">{formatDate(customer.createdAt)}</p>
-					</div>
-					<div>
-						<p className="text-xs text-text-tertiary uppercase tracking-wide mb-0.5">
-							Customer ID
-						</p>
-						<p className="text-text-tertiary font-mono text-xs">
-							{customer.id.split("-")[0]}...
-						</p>
 					</div>
 				</div>
 			</div>
@@ -368,21 +689,55 @@ function OverviewTab({
 				)}
 
 				{/* Notes */}
-				{customer.notes && (
-					<div className="bg-background-primary rounded-xl border border-background-secondary p-5 flex flex-col gap-2">
-						<div className="flex items-center justify-between">
-							<h3 className="text-sm font-semibold text-text-main">
-								Customer Notes
-							</h3>
-							<button className="text-xs text-accent-text hover:underline">
-								Edit Notes
-							</button>
+				<div className="bg-background-primary rounded-xl border border-background-secondary p-5 flex flex-col gap-2">
+					<div className="flex items-center justify-between">
+						<h3 className="text-sm font-semibold text-text-main">
+							Customer Notes
+						</h3>
+						<div className="flex items-center gap-1">
+							{editingNotes ? (
+								<>
+									<button
+										onClick={handleSaveNotes}
+										disabled={savingNotes || notesUnchanged}
+										className="inline-flex items-center justify-center size-6 rounded-md text-accent-text hover:text-text-main disabled:opacity-50 transition-colors"
+										title="Save notes"
+									>
+										<Check className="w-4 h-4" />
+									</button>
+									<button
+										onClick={() => setEditingNotes(false)}
+										className="inline-flex items-center justify-center size-6 rounded-md text-text-tertiary hover:text-text-main transition-colors"
+										title="Cancel edits"
+									>
+										<X className="w-4 h-4" />
+									</button>
+								</>
+							) : (
+								<button
+									onClick={startNotesEdit}
+									className="inline-flex items-center justify-center size-6 rounded-md text-accent-text hover:text-text-main transition-colors"
+									title="Edit notes"
+								>
+									<Pencil className="w-4 h-4" />
+								</button>
+							)}
 						</div>
-						<p className="text-sm text-text-secondary leading-relaxed">
-							{customer.notes}
-						</p>
 					</div>
-				)}
+					{editingNotes ? (
+						<textarea
+							value={notesDraft}
+							onChange={(event) => setNotesDraft(event.target.value)}
+							rows={4}
+							className="w-full rounded-lg border border-background-secondary bg-background-primary/50 px-3 py-2 text-sm text-text-main placeholder:text-text-tertiary resize-none outline-none focus:border-accent-main/50"
+							placeholder="Add customer notes..."
+						/>
+					) : (
+						<p className="text-sm text-text-secondary leading-relaxed">
+							{customer.notes ?? "No notes added."}
+						</p>
+					)}
+				</div>
 			</div>
 		</div>
 	);
@@ -763,6 +1118,14 @@ export default function CustomerDetailPage() {
 	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
 	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+	const handleCustomerUpdate = (updates: Partial<Customer>) => {
+		setCustomer((prev) => (prev ? { ...prev, ...updates } : prev));
+	};
+
+	const handleCustomerError = (message: string) => {
+		setError(message);
+	};
+
 	useEffect(() => {
 		if (!customerId) return;
 		let mounted = true;
@@ -812,7 +1175,7 @@ export default function CustomerDetailPage() {
 	});
 
 	return (
-		<>
+		<APIProvider apiKey={MAPS_API_KEY} libraries={["places"]}>
 			<Header
 				sidebarAutoCollapse={sidebarAutoCollapse}
 				sidebarIsStrip={sidebarIsStrip}
@@ -870,15 +1233,12 @@ export default function CustomerDetailPage() {
 										<TypeBadge type={customer.customerType} />
 									</div>
 									<p className="text-xs text-text-tertiary">
-										Customer since {formatDate(customer.createdAt)} ·{" "}
-										<span className="font-mono">
-											{customer.id.split("-")[0]}...
-										</span>
+										Customer since {formatDate(customer.createdAt)}
 									</p>
 									<div className="flex items-center gap-4 text-xs text-text-secondary mt-0.5 flex-wrap">
 										<span className="flex items-center gap-1">
 											<Phone className="w-3 h-3" />
-											{customer.phone}
+											{formatPhoneNumber(customer.phone)}
 										</span>
 										<span className="flex items-center gap-1">
 											<Mail className="w-3 h-3" />
@@ -972,6 +1332,8 @@ export default function CustomerDetailPage() {
 									customer={customer}
 									jobs={jobs}
 									equipment={equipment}
+									onCustomerUpdate={handleCustomerUpdate}
+									onError={handleCustomerError}
 								/>
 							)}
 							{activeTab === "jobs" && <JobHistoryTab jobs={jobs} />}
@@ -1000,6 +1362,6 @@ export default function CustomerDetailPage() {
 					setSidebarIsStrip(isStrip);
 				}}
 			/>
-		</>
+		</APIProvider>
 	);
 }
