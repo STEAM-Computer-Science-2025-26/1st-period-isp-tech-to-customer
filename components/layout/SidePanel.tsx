@@ -35,30 +35,29 @@ const SidePanel = ({
 		>
 			<div
 				className={cn(
-					`absolute inset-y-0 -left-10 w-10 h-full flex flex-col justify-center transition-all duration-300`,
+					"absolute inset-y-0 -left-10 flex h-full items-center transition-all duration-300",
 					isOpen && "left-0"
 				)}
 			>
-				<div
+				<button
+					type="button"
+					onClick={() => setIsOpen(!isOpen)}
 					className={cn(
-						`group w-full h-12 z-40 cursor-pointer rounded-l-xl border-y border-l backdrop-blur-md translate-x-8 border-accent-text/50 p-1 py-1.5`,
+						"group relative h-12 border-accent-text/50 backdrop-blur-md transition-all duration-200",
 						isOpen
-							? "border-none bg-transparent translate-x-0"
-							: "backdrop-blur-md bg-background-secondary/50 duration-200 hover:translate-x-0"
+							? "w-2 rounded-r-xl border-y border-r bg-background-secondary/70 hover:w-10"
+							: "w-10 rounded-l-xl border-y border-l bg-background-secondary/50 translate-x-8 hover:translate-x-0"
 					)}
 					style={{ backdropFilter: isOpen ? "none" : "blur(10px)" }}
-					onClick={() => setIsOpen(!isOpen)}
 				>
-					{!isOpen ? (
-						<ChevronLeft className={cn(`z-30 size-8`)}></ChevronLeft>
-					) : (
-						<ChevronRight
-							className={cn(
-								`z-30 size-8 opacity-0 transition-opacity duration-200 group-hover:opacity-100`
-							)}
-						></ChevronRight>
-					)}
-				</div>
+					<span className="absolute inset-0 flex items-center justify-center">
+						{!isOpen ? (
+							<ChevronLeft className="size-8" />
+						) : (
+							<ChevronRight className="size-8 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+						)}
+					</span>
+				</button>
 			</div>
 
 			{children && <div className="h-full overflow-hidden">{children}</div>}

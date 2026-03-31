@@ -10,5 +10,6 @@ export {
 	formatReadableDate,
 	formatReadableDateTime,
 	formatReadableShortDateTime,
+	formatNumericDate,
 	formatRelativeTime
 } from "./dateTime";

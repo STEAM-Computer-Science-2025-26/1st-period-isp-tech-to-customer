@@ -21,7 +21,7 @@ import {
 import type { BatchPlan } from "@/app/dispatch/types";
 import PriorityBadge from "@/app/dispatch/PriorityBadge";
 import type { JobDTO, JobPriority } from "@/app/types/types";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { DispatchRecommendation } from "@/lib/types/dispatch";
 import { BATCH_PLAN_STORAGE_KEY } from "@/lib/constants/dispatch";
 
@@ -325,6 +325,7 @@ function SingleDispatchPanel({
 
 export default function DispatchPage() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [jobs, setJobs] = useState<JobDTO[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -368,6 +369,14 @@ export default function DispatchPage() {
 	useEffect(() => {
 		void loadJobs();
 	}, [loadJobs]);
+
+	// Deep-link support: ?job=<id>
+	useEffect(() => {
+		const jobId = searchParams.get("job");
+		if (!jobId) return;
+		setActiveJobId(jobId);
+		router.replace("/dispatch", { scroll: false });
+	}, [searchParams, router]);
 
 	const filteredJobs = useMemo(() => {
 		const needle = search.trim().toLowerCase();

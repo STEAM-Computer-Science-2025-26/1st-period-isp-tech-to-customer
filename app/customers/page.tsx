@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import MainContent from "@/components/layout/MainContent";
 import SidePanel from "@/components/layout/SidePanel";
 import { cn } from "@/lib/utils/index";
@@ -294,6 +295,7 @@ function CustomerDetailPanel({
 export default function CustomersPage() {
 	const { data: customers = [], isLoading: loading, error } = useCustomers();
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [search, setSearch] = useState("");
 	const [typeFilter, setTypeFilter] = useState<
 		"all" | "residential" | "commercial"
@@ -305,6 +307,20 @@ export default function CustomersPage() {
 		null
 	);
 	const [sidePanelOpen, setSidePanelOpen] = useState(false);
+
+	// Deep-link support: ?customer=<id>&view=panel|full
+	useEffect(() => {
+		const customerId = searchParams.get("customer");
+		if (!customerId) return;
+		const view = searchParams.get("view");
+		if (view === "full") {
+			router.replace(`/customers/${customerId}`);
+			return;
+		}
+		setSelectedCustomerId(customerId);
+		setSidePanelOpen(true);
+		router.replace("/customers", { scroll: false });
+	}, [searchParams, router]);
 
 	const active = customers.filter((c) => c.isActive).length;
 	const residential = customers.filter(

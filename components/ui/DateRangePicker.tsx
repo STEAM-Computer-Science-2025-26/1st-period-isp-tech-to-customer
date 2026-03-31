@@ -28,6 +28,8 @@ type Props = {
 	selection: DateSelection;
 	onChange: (selection: DateSelection) => void;
 	onClear?: () => void;
+	time?: string;
+	onTimeChange?: (time: string) => void;
 	className?: string;
 };
 
@@ -114,6 +116,8 @@ export default function DateRangePicker({
 	selection,
 	onChange,
 	onClear,
+	time,
+	onTimeChange,
 	className
 }: Props) {
 	const [interactionMode, setInteractionMode] = useState<InteractionMode>(
@@ -377,6 +381,19 @@ export default function DateRangePicker({
 					);
 				})}
 			</div>
+
+			{/* Time input */}
+			{onTimeChange !== undefined && (
+				<div className="mt-3 flex items-center gap-2 border-t border-accent-text/15 pt-3">
+					<span className="shrink-0 text-xs text-text-tertiary">Time</span>
+					<input
+						type="time"
+						value={time ?? ""}
+						onChange={(e) => onTimeChange(e.target.value)}
+						className="flex-1 rounded-lg border border-accent-text/20 bg-background-primary/60 px-2 py-1 text-sm text-text-primary focus:outline-none"
+					/>
+				</div>
+			)}
 
 			{/* Footer */}
 			<div className="mt-4 flex items-center justify-between gap-3 border-t border-accent-text/15 pt-3">

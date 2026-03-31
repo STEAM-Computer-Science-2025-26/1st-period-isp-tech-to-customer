@@ -20,6 +20,19 @@ export function formatReadableDate(
 	});
 }
 
+export function formatNumericDate(
+	value?: unknown,
+	fallback = DEFAULT_FALLBACK
+): string {
+	const date = toValidDate(value);
+	if (!date) return fallback;
+	return date.toLocaleDateString("en-US", {
+		month: "2-digit",
+		day: "2-digit",
+		year: "numeric"
+	});
+}
+
 export function formatReadableDateTime(
 	value?: unknown,
 	fallback = DEFAULT_FALLBACK
