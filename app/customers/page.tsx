@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { Suspense, useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import MainContent from "@/components/layout/MainContent";
 import SidePanel from "@/components/layout/SidePanel";
@@ -9,12 +9,12 @@ import { KpiCard } from "@/components/ui/Card";
 import FadeEnd from "@/components/ui/FadeEnd";
 import { useRouter } from "next/navigation";
 import { useCustomers } from "@/lib/hooks/useCustomers";
+import { useCustomerDetail } from "@/lib/hooks/useCustomerDetail";
 import {
 	useOpenToCustomer,
 	useOpenToJob,
 	useOpenToLocation
 } from "@/lib/hooks/useOpenTo";
-import { apiFetch } from "@/lib/api";
 import {
 	formatReadableDate,
 	formatReadableDateTime,
@@ -127,45 +127,7 @@ function CustomerDetailPanel({
 }) {
 	const openToJob = useOpenToJob();
 	const openToLocation = useOpenToLocation();
-	const [data, setData] = useState<CustomerDetailResponse | null>(null);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-
-	useEffect(() => {
-		if (!customerId) {
-			setData(null);
-			setError(null);
-			setLoading(false);
-			return;
-		}
-
-		let cancelled = false;
-		setLoading(true);
-		setError(null);
-
-		void (async () => {
-			try {
-				const detail = await apiFetch<CustomerDetailResponse>(
-					`/customers/${customerId}`
-				);
-				if (!cancelled) setData(detail);
-			} catch (fetchError) {
-				if (!cancelled) {
-					setError(
-						fetchError instanceof Error
-							? fetchError.message
-							: "Failed to load customer details"
-					);
-				}
-			} finally {
-				if (!cancelled) setLoading(false);
-			}
-		})();
-
-		return () => {
-			cancelled = true;
-		};
-	}, [customerId]);
+	const { data, isLoading: loading, error } = useCustomerDetail(customerId);
 
 	if (!customerId) {
 		return (
@@ -184,10 +146,14 @@ function CustomerDetailPanel({
 	}
 
 	if (error || !data) {
+		const message =
+			error instanceof Error
+				? error.message
+				: "Failed to load customer details.";
 		return (
 			<div className="h-full flex flex-col items-center justify-center p-5 gap-3 text-sm text-destructive-text">
 				<AlertCircle className="w-5 h-5" />
-				<p>{error ?? "Failed to load customer details."}</p>
+				<p>{message}</p>
 			</div>
 		);
 	}
@@ -347,7 +313,7 @@ function CustomerDetailPanel({
 	);
 }
 
-export default function CustomersPage() {
+function CustomersPageContent() {
 	const { data: customers = [], isLoading: loading, error } = useCustomers();
 	const router = useRouter();
 	const openToCustomer = useOpenToCustomer();
@@ -428,12 +394,8 @@ export default function CustomersPage() {
 				return false;
 			}
 			if (filters.statuses.size > 0) {
-				const needed = filters.statuses.has("active");
-				if (filters.statuses.size === 1 && customer.isActive !== needed)
-					return false;
-				if (filters.statuses.size === 2) {
-					/* both selected — no filter */
-				}
+				const key = customer.isActive ? "active" : "inactive";
+				if (!filters.statuses.has(key)) return false;
 			}
 
 			if (!needle) return true;
@@ -498,15 +460,7 @@ export default function CustomersPage() {
 		try {
 			await navigator.clipboard.writeText(text);
 		} catch {
-			const fallback = document.createElement("textarea");
-			fallback.value = text;
-			fallback.setAttribute("readonly", "true");
-			fallback.style.position = "absolute";
-			fallback.style.left = "-9999px";
-			document.body.appendChild(fallback);
-			fallback.select();
-			document.execCommand("copy");
-			document.body.removeChild(fallback);
+			// Clipboard can be blocked by browser permissions/user settings.
 		}
 	};
 
@@ -696,13 +650,15 @@ export default function CustomersPage() {
 								</li>
 							)}
 							{filteredCustomers.map((c) => {
-								const latitude = typeof c.latitude === "number" ? c.latitude : null;
+								const latitude =
+									typeof c.latitude === "number" ? c.latitude : null;
 								const longitude =
 									typeof c.longitude === "number" ? c.longitude : null;
 								const hasCoordinates = latitude !== null && longitude !== null;
-								const fullAddress = `${c.address}, ${c.city}, ${c.state} ${c.zip}`
-									.replace(/\s+/g, " ")
-									.trim();
+								const fullAddress =
+									`${c.address}, ${c.city}, ${c.state} ${c.zip}`
+										.replace(/\s+/g, " ")
+										.trim();
 
 								return (
 									<li
@@ -808,5 +764,13 @@ export default function CustomersPage() {
 				/>
 			</SidePanel>
 		</>
+	);
+}
+
+export default function CustomersPage() {
+	return (
+		<Suspense fallback={null}>
+			<CustomersPageContent />
+		</Suspense>
 	);
 }

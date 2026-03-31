@@ -212,7 +212,6 @@ export default function JobsFilterDropdown({
 					</p>
 				) : null}
 			</div>
-
 		</div>
 	);
 }

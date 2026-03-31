@@ -95,8 +95,6 @@ export function toggleSet<T extends string>(current: Set<T>, value: T): Set<T> {
 
 export function countActiveFilters(filters: JobsFilter): number {
 	return (
-		filters.statuses.size +
-		filters.priorities.size +
-		filters.jobTypes.size
+		filters.statuses.size + filters.priorities.size + filters.jobTypes.size
 	);
 }

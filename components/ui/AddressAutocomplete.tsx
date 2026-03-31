@@ -35,7 +35,8 @@ function parseSelection(
 	place: google.maps.places.PlaceResult | null
 ): AddressSelection {
 	const components = place?.address_components;
-	const streetNumber = getComponent(components, "street_number")?.long_name ?? "";
+	const streetNumber =
+		getComponent(components, "street_number")?.long_name ?? "";
 	const route = getComponent(components, "route")?.long_name ?? "";
 	const city =
 		getComponent(components, "locality")?.long_name ??
@@ -46,8 +47,10 @@ function parseSelection(
 		getComponent(components, "administrative_area_level_1")?.short_name ?? "";
 	const postalCode = getComponent(components, "postal_code")?.long_name ?? "";
 	const fullAddress = place?.formatted_address ?? prediction.description;
-	const fallbackStreet = prediction.structured_formatting.main_text || fullAddress;
-	const streetAddress = [streetNumber, route].filter(Boolean).join(" ") || fallbackStreet;
+	const fallbackStreet =
+		prediction.structured_formatting.main_text || fullAddress;
+	const streetAddress =
+		[streetNumber, route].filter(Boolean).join(" ") || fallbackStreet;
 
 	return {
 		streetAddress,

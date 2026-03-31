@@ -145,10 +145,13 @@ function TypeBadge({ type }: { type: string }) {
 
 function JobStatusBadge({ status }: { status: string }) {
 	const map: Record<string, string> = {
-		completed: "text-success-text bg-success-background/50 border-success-foreground",
-		cancelled: "text-destructive-text bg-destructive-background/50 border-destructive-foreground",
+		completed:
+			"text-success-text bg-success-background/50 border-success-foreground",
+		cancelled:
+			"text-destructive-text bg-destructive-background/50 border-destructive-foreground",
 		in_progress: "text-info-text bg-info-background/50 border-info-foreground",
-		assigned: "text-warning-text bg-warning-background/50 border-warning-foreground",
+		assigned:
+			"text-warning-text bg-warning-background/50 border-warning-foreground",
 		unassigned:
 			"text-text-tertiary bg-background-secondary border-background-secondary"
 	};
@@ -687,54 +690,54 @@ function OverviewTab({
 
 				{/* Notes */}
 				<div className="bg-background-primary rounded-xl border border-background-secondary p-5 flex flex-col gap-2">
-						<div className="flex items-center justify-between">
-							<h3 className="text-sm font-semibold text-text-main">
-								Customer Notes
-							</h3>
-							<div className="flex items-center gap-1">
-								{editingNotes ? (
-									<>
-										<button
-											onClick={handleSaveNotes}
-											disabled={savingNotes || notesUnchanged}
-											className="inline-flex items-center justify-center size-6 rounded-md text-accent-text hover:text-text-main disabled:opacity-50 transition-colors"
-											title="Save notes"
-										>
-											<Check className="w-4 h-4" />
-										</button>
-										<button
-											onClick={() => setEditingNotes(false)}
-											className="inline-flex items-center justify-center size-6 rounded-md text-text-tertiary hover:text-text-main transition-colors"
-											title="Cancel edits"
-										>
-											<X className="w-4 h-4" />
-										</button>
-									</>
-								) : (
+					<div className="flex items-center justify-between">
+						<h3 className="text-sm font-semibold text-text-main">
+							Customer Notes
+						</h3>
+						<div className="flex items-center gap-1">
+							{editingNotes ? (
+								<>
 									<button
-										onClick={startNotesEdit}
-										className="inline-flex items-center justify-center size-6 rounded-md text-accent-text hover:text-text-main transition-colors"
-										title="Edit notes"
+										onClick={handleSaveNotes}
+										disabled={savingNotes || notesUnchanged}
+										className="inline-flex items-center justify-center size-6 rounded-md text-accent-text hover:text-text-main disabled:opacity-50 transition-colors"
+										title="Save notes"
 									>
-										<Pencil className="w-4 h-4" />
+										<Check className="w-4 h-4" />
 									</button>
-								)}
-							</div>
+									<button
+										onClick={() => setEditingNotes(false)}
+										className="inline-flex items-center justify-center size-6 rounded-md text-text-tertiary hover:text-text-main transition-colors"
+										title="Cancel edits"
+									>
+										<X className="w-4 h-4" />
+									</button>
+								</>
+							) : (
+								<button
+									onClick={startNotesEdit}
+									className="inline-flex items-center justify-center size-6 rounded-md text-accent-text hover:text-text-main transition-colors"
+									title="Edit notes"
+								>
+									<Pencil className="w-4 h-4" />
+								</button>
+							)}
 						</div>
-						{editingNotes ? (
-							<textarea
-								value={notesDraft}
-								onChange={(event) => setNotesDraft(event.target.value)}
-								rows={4}
-								className="w-full rounded-lg border border-background-secondary bg-background-primary/50 px-3 py-2 text-sm text-text-main placeholder:text-text-tertiary resize-none outline-none focus:border-accent-main/50"
-								placeholder="Add customer notes..."
-							/>
-						) : (
-							<p className="text-sm text-text-secondary leading-relaxed">
-								{customer.notes ?? "No notes added."}
-							</p>
-						)}
 					</div>
+					{editingNotes ? (
+						<textarea
+							value={notesDraft}
+							onChange={(event) => setNotesDraft(event.target.value)}
+							rows={4}
+							className="w-full rounded-lg border border-background-secondary bg-background-primary/50 px-3 py-2 text-sm text-text-main placeholder:text-text-tertiary resize-none outline-none focus:border-accent-main/50"
+							placeholder="Add customer notes..."
+						/>
+					) : (
+						<p className="text-sm text-text-secondary leading-relaxed">
+							{customer.notes ?? "No notes added."}
+						</p>
+					)}
+				</div>
 			</div>
 		</div>
 	);
@@ -1229,13 +1232,13 @@ export default function CustomerDetailPage() {
 										<StatusBadge active={customer.isActive} />
 										<TypeBadge type={customer.customerType} />
 									</div>
-										<p className="text-xs text-text-tertiary">
-											Customer since {formatDate(customer.createdAt)}
-										</p>
+									<p className="text-xs text-text-tertiary">
+										Customer since {formatDate(customer.createdAt)}
+									</p>
 									<div className="flex items-center gap-4 text-xs text-text-secondary mt-0.5 flex-wrap">
 										<span className="flex items-center gap-1">
 											<Phone className="w-3 h-3" />
-												{formatPhoneNumber(customer.phone)}
+											{formatPhoneNumber(customer.phone)}
 										</span>
 										<span className="flex items-center gap-1">
 											<Mail className="w-3 h-3" />

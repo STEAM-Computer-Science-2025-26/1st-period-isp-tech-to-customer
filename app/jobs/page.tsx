@@ -1,7 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import {
+	Suspense,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import MainContent from "@/components/layout/MainContent";
 import SidePanel from "@/components/layout/SidePanel";
 import { cn } from "@/lib/utils/index";
@@ -9,7 +16,7 @@ import { KpiCard } from "@/components/ui/Card";
 import { JobDTO } from "@/app/types/types";
 import FadeEnd from "@/components/ui/FadeEnd";
 import { useJobs } from "@/lib/hooks/useJobs";
-import { useJob } from "@/lib/hooks/useJob";
+import { useJob, useUpdateJob } from "@/lib/hooks/useJob";
 import {
 	useOpenToCustomer,
 	useOpenToJob,
@@ -60,7 +67,6 @@ import { PopoverDatePicker } from "@/components/ui/DateRangePicker";
 import { CopyCell } from "@/components/ui/CopyCell";
 
 const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-import { useRouter } from "next/navigation";
 
 type DashboardAnalyticsResponse = {
 	jobsToday: number;
@@ -154,8 +160,10 @@ function JobDetailPanel({
 	onOpenFull: () => void;
 }) {
 	const { data: job, isLoading, error, refetch, isFetching } = useJob(jobId);
+	const updateJob = useUpdateJob(jobId ?? "");
 	const openToJobOnMap = useOpenToJobOnMap();
 	const [isEditing, setIsEditing] = useState(false);
+	const [saveError, setSaveError] = useState<string | null>(null);
 	const [draft, setDraft] = useState({
 		customerName: "",
 		address: "",
@@ -169,7 +177,6 @@ function JobDetailPanel({
 		initialNotes: "",
 		completionNotes: ""
 	});
-	const [localOverride, setLocalOverride] = useState<JobDTO | null>(null);
 	const [openPicker, setOpenPicker] = useState<
 		"scheduled" | "created" | "completed" | null
 	>(null);
@@ -180,7 +187,7 @@ function JobDetailPanel({
 	useEffect(() => {
 		if (!job) return;
 		setIsEditing(false);
-		setLocalOverride(null);
+		setSaveError(null);
 		setDraft({
 			customerName: job.customerName ?? "",
 			address: job.address ?? "",
@@ -227,14 +234,11 @@ function JobDetailPanel({
 		);
 	}
 
-	const displayJob = isEditing
-		? { ...job, ...draft }
-		: localOverride
-			? localOverride
-			: job;
+	const displayJob = isEditing ? { ...job, ...draft } : job;
 
 	const handleCancelEdit = () => {
 		if (!displayJob) return;
+		setSaveError(null);
 		setIsEditing(false);
 		setDraft({
 			customerName: displayJob.customerName ?? "",
@@ -251,23 +255,41 @@ function JobDetailPanel({
 		});
 	};
 
-	const handleSaveEdit = () => {
+	const handleSaveEdit = async () => {
 		if (!job) return;
-		setLocalOverride({
-			...job,
-			customerName: draft.customerName,
-			address: draft.address,
-			phone: draft.phone.replace(/\D/g, ""),
-			jobType: draft.jobType as JobDTO["jobType"],
-			status: draft.status,
-			priority: draft.priority,
-			scheduledTime: draft.scheduledTime || null,
-			createdAt: draft.createdAt || job.createdAt,
-			completedAt: draft.completedAt || null,
-			initialNotes: draft.initialNotes,
-			completionNotes: draft.completionNotes
-		});
-		setIsEditing(false);
+		setSaveError(null);
+		try {
+			const nextPhone = draft.phone.replace(/\D/g, "");
+			await updateJob.mutateAsync({
+				customerName: draft.customerName,
+				address: draft.address,
+				phone: nextPhone,
+				jobType: draft.jobType as JobDTO["jobType"],
+				status: draft.status,
+				priority: draft.priority,
+				scheduledTime: draft.scheduledTime || undefined,
+				initialNotes: draft.initialNotes
+			});
+
+			if (draft.completionNotes !== (job.completionNotes ?? "")) {
+				await apiFetch(`/jobs/${job.id}/status`, {
+					method: "PUT",
+					body: JSON.stringify({
+						status: draft.status,
+						completionNotes: draft.completionNotes || undefined
+					})
+				});
+			}
+
+			await refetch();
+			setIsEditing(false);
+		} catch (saveEditError) {
+			setSaveError(
+				saveEditError instanceof Error
+					? saveEditError.message
+					: "Failed to save job edits"
+			);
+		}
 	};
 
 	return (
@@ -315,7 +337,8 @@ function JobDetailPanel({
 					{isEditing ? (
 						<>
 							<button
-								onClick={handleSaveEdit}
+								onClick={() => void handleSaveEdit()}
+								disabled={updateJob.isPending}
 								className="size-8 grid place-items-center rounded-lg border border-background-secondary text-text-secondary hover:bg-background-secondary transition-colors"
 								title="Save edits"
 							>
@@ -323,6 +346,7 @@ function JobDetailPanel({
 							</button>
 							<button
 								onClick={handleCancelEdit}
+								disabled={updateJob.isPending}
 								className="size-8 grid place-items-center rounded-lg border border-background-secondary text-text-secondary hover:bg-background-secondary transition-colors"
 								title="Cancel edits"
 							>
@@ -332,6 +356,7 @@ function JobDetailPanel({
 					) : (
 						<button
 							onClick={() => setIsEditing(true)}
+							disabled={updateJob.isPending}
 							className="size-8 grid place-items-center rounded-lg border border-background-secondary text-text-secondary hover:bg-background-secondary transition-colors"
 							title="Edit details"
 						>
@@ -340,6 +365,12 @@ function JobDetailPanel({
 					)}
 				</div>
 			</div>
+
+			{saveError ? (
+				<div className="border-b border-background-secondary px-4 py-2 text-xs text-destructive-text">
+					{saveError}
+				</div>
+			) : null}
 
 			<div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 min-h-0">
 				<div className="flex items-center gap-2 flex-wrap">
@@ -695,7 +726,7 @@ function JobDetailPanel({
 	);
 }
 
-const JobsPage = () => {
+const JobsPageContent = () => {
 	const {
 		data: jobs = [],
 		isLoading: jobsLoading,
@@ -920,7 +951,8 @@ const JobsPage = () => {
 			const normalizedJobPhone = normalizePhone(job.phone ?? "");
 			if (normalizedJobPhone) {
 				const phoneMatch = nameMatches.find(
-					(customer) => normalizePhone(customer.phone ?? "") === normalizedJobPhone
+					(customer) =>
+						normalizePhone(customer.phone ?? "") === normalizedJobPhone
 				);
 				if (phoneMatch) return phoneMatch.id;
 			}
@@ -928,7 +960,9 @@ const JobsPage = () => {
 			const normalizedJobAddress = normalize(stripZipCode(job.address ?? ""));
 			const addressMatch = nameMatches.find((customer) => {
 				const customerAddress = normalize(
-					stripZipCode(`${customer.address}, ${customer.city}, ${customer.state}`)
+					stripZipCode(
+						`${customer.address}, ${customer.city}, ${customer.state}`
+					)
 				);
 				return customerAddress === normalizedJobAddress;
 			});
@@ -943,15 +977,7 @@ const JobsPage = () => {
 		try {
 			await navigator.clipboard.writeText(text);
 		} catch {
-			const fallback = document.createElement("textarea");
-			fallback.value = text;
-			fallback.setAttribute("readonly", "true");
-			fallback.style.position = "absolute";
-			fallback.style.left = "-9999px";
-			document.body.appendChild(fallback);
-			fallback.select();
-			document.execCommand("copy");
-			document.body.removeChild(fallback);
+			// Clipboard can be blocked by browser permissions/user settings.
 		}
 	};
 
@@ -1260,4 +1286,10 @@ const JobsPage = () => {
 	);
 };
 
-export default JobsPage;
+export default function JobsPage() {
+	return (
+		<Suspense fallback={null}>
+			<JobsPageContent />
+		</Suspense>
+	);
+}

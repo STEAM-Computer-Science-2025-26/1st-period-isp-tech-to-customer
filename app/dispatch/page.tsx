@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import MainContent from "@/components/layout/MainContent";
 import { apiFetch } from "@/lib/api";
 import { cn, formatReadableDateTime, formatRelativeTime } from "@/lib/utils";
@@ -323,7 +323,7 @@ function SingleDispatchPanel({
 	);
 }
 
-export default function DispatchPage() {
+function DispatchPageContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const [jobs, setJobs] = useState<JobDTO[]>([]);
@@ -791,5 +791,13 @@ export default function DispatchPage() {
 				)}
 			</div>
 		</MainContent>
+	);
+}
+
+export default function DispatchPage() {
+	return (
+		<Suspense fallback={null}>
+			<DispatchPageContent />
+		</Suspense>
 	);
 }

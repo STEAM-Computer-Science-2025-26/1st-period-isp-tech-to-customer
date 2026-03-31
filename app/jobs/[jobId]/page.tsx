@@ -361,19 +361,17 @@ export default function JobDetailPage() {
 									label="Required Skills"
 									value={
 										Array.isArray(job.requiredSkills) &&
-										job.requiredSkills.length > 0
-											? (
-												<span className="capitalize">
-													{job.requiredSkills
-														.map((skill) =>
-															skill
-																.replace("_", " ")
-																.replace(/hvac/gi, "HVAC")
-														)
-														.join(", ")}
-												</span>
-											)
-											: "None specified"
+										job.requiredSkills.length > 0 ? (
+											<span className="capitalize">
+												{job.requiredSkills
+													.map((skill) =>
+														skill.replace("_", " ").replace(/hvac/gi, "HVAC")
+													)
+													.join(", ")}
+											</span>
+										) : (
+											"None specified"
+										)
 									}
 								/>
 								<InfoRow

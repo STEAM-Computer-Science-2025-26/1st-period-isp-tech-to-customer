@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	Suspense,
 	useEffect,
 	useRef,
 	useState,
@@ -422,7 +423,7 @@ function PlacesInput({
 	);
 }
 
-export default function MapPage() {
+function MapPageContent() {
 	const companyId = getCompanyId();
 	const setSidePanelOpen = useUiStore((s) => s.setSidePanelOpen);
 	const sidebarAutoCollapse = useUiStore((s) => s.sidebarAutoCollapse);
@@ -694,5 +695,13 @@ export default function MapPage() {
 				/>
 			</SidePanel>
 		</MainContent>
+	);
+}
+
+export default function MapPage() {
+	return (
+		<Suspense fallback={null}>
+			<MapPageContent />
+		</Suspense>
 	);
 }
