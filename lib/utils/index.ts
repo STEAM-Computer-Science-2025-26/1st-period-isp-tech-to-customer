@@ -13,3 +13,5 @@ export {
 	formatNumericDate,
 	formatRelativeTime
 } from "./dateTime";
+
+export { formatPhoneNumber } from "./phone";

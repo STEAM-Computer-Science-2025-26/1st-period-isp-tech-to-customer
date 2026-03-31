@@ -9,15 +9,29 @@ import { KpiCard } from "@/components/ui/Card";
 import FadeEnd from "@/components/ui/FadeEnd";
 import { useRouter } from "next/navigation";
 import { useCustomers } from "@/lib/hooks/useCustomers";
+import {
+	useOpenToCustomer,
+	useOpenToJob,
+	useOpenToLocation
+} from "@/lib/hooks/useOpenTo";
 import { apiFetch } from "@/lib/api";
 import {
 	formatReadableDate,
 	formatReadableDateTime,
-	formatRelativeTime
+	formatRelativeTime,
+	formatNumericDate
 } from "@/lib/utils";
+import { CopyCell } from "@/components/ui/CopyCell";
+import CustomersFilterDropdown from "./components/CustomersFilterDropdown";
+import {
+	countActiveCustomerFilters,
+	createEmptyCustomersFilter,
+	findFirstCustomerFilterMatch,
+	toggleSet,
+	type CustomersFilter
+} from "./components/customersFilterUtils";
 import {
 	Search,
-	Filter,
 	Phone,
 	MapPin,
 	Calendar,
@@ -25,7 +39,12 @@ import {
 	AlertCircle,
 	Wrench,
 	ClipboardList,
-	Building2
+	Building2,
+	ArrowUp,
+	ArrowDown,
+	ArrowUpDown,
+	SlidersHorizontal,
+	ExternalLink
 } from "lucide-react";
 
 type CustomerDetailJob = {
@@ -51,6 +70,8 @@ type CustomerDetailResponse = {
 		city: string;
 		state: string;
 		zip: string;
+		latitude?: number | null;
+		longitude?: number | null;
 		notes?: string;
 		isActive: boolean;
 		noShowCount: number;
@@ -104,6 +125,8 @@ function CustomerDetailPanel({
 	customerId: string | null;
 	onOpenFull: () => void;
 }) {
+	const openToJob = useOpenToJob();
+	const openToLocation = useOpenToLocation();
 	const [data, setData] = useState<CustomerDetailResponse | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -170,6 +193,12 @@ function CustomerDetailPanel({
 	}
 
 	const { customer, jobs, equipment, locations, communications } = data;
+	const customerLatitude =
+		typeof customer.latitude === "number" ? customer.latitude : null;
+	const customerLongitude =
+		typeof customer.longitude === "number" ? customer.longitude : null;
+	const hasCustomerCoordinates =
+		customerLatitude !== null && customerLongitude !== null;
 
 	return (
 		<div className="h-full flex flex-col">
@@ -178,15 +207,21 @@ function CustomerDetailPanel({
 					<p className="text-xs text-text-tertiary uppercase tracking-wide">
 						Customer
 					</p>
-					<h3 className="text-sm font-semibold text-text-main truncate">
+					<button
+						type="button"
+						onClick={onOpenFull}
+						className="text-left text-sm font-semibold text-text-main truncate cursor-pointer transition-colors hover:text-accent-text"
+						title="Open full customer page"
+					>
 						{customer.firstName} {customer.lastName}
-					</h3>
+					</button>
 				</div>
 				<button
 					onClick={onOpenFull}
-					className="text-xs px-2.5 py-1 rounded-lg bg-accent-main text-white hover:opacity-90 transition-opacity"
+					className="size-8 grid place-items-center rounded-lg border border-background-secondary text-text-secondary hover:bg-background-secondary transition-colors"
+					title="Open full page"
 				>
-					Open Full Page
+					<ExternalLink className="w-4 h-4" />
 				</button>
 			</div>
 
@@ -209,10 +244,27 @@ function CustomerDetailPanel({
 					</div>
 					<div className="flex items-start gap-2 text-text-secondary">
 						<MapPin className="w-4 h-4 mt-0.5 text-text-tertiary" />
-						<span>
+						<button
+							type="button"
+							onClick={() => {
+								if (!hasCustomerCoordinates) return;
+								openToLocation(customerLatitude, customerLongitude);
+							}}
+							className={cn(
+								"text-left transition-colors",
+								hasCustomerCoordinates
+									? "cursor-pointer hover:text-text-main"
+									: "cursor-default"
+							)}
+							title={
+								hasCustomerCoordinates
+									? "Open customer location on map"
+									: "Customer location unavailable"
+							}
+						>
 							{customer.address}, {customer.city}, {customer.state}{" "}
 							{customer.zip}
-						</span>
+						</button>
 					</div>
 					<div className="flex items-center gap-2 text-text-secondary">
 						<Calendar className="w-4 h-4 text-text-tertiary" />
@@ -252,12 +304,15 @@ function CustomerDetailPanel({
 						<ClipboardList className="w-3 h-3" /> Recent Jobs
 					</p>
 					{jobs.slice(0, 4).map((job) => (
-						<div
+						<button
 							key={job.id}
-							className="rounded-lg border border-background-secondary px-2.5 py-2"
+							type="button"
+							onClick={() => openToJob(job.id, "full")}
+							title="Open full job page"
+							className="w-full rounded-lg border border-background-secondary px-2.5 py-2 text-left cursor-pointer transition-colors hover:bg-background-secondary/30"
 						>
 							<div className="flex items-center justify-between gap-2">
-								<p className="text-xs text-text-main capitalize font-medium">
+								<p className="text-xs text-text-main capitalize font-medium transition-colors">
 									{job.jobType.replace("_", " ")}
 								</p>
 								<p className="text-[11px] text-text-tertiary capitalize">
@@ -267,7 +322,7 @@ function CustomerDetailPanel({
 							<p className="text-[11px] text-text-tertiary mt-1">
 								{formatReadableDateTime(job.scheduledTime ?? job.completedAt)}
 							</p>
-						</div>
+						</button>
 					))}
 					{jobs.length === 0 && (
 						<p className="text-xs text-text-tertiary">No recent jobs.</p>
@@ -295,18 +350,47 @@ function CustomerDetailPanel({
 export default function CustomersPage() {
 	const { data: customers = [], isLoading: loading, error } = useCustomers();
 	const router = useRouter();
+	const openToCustomer = useOpenToCustomer();
+	const openToLocation = useOpenToLocation();
 	const searchParams = useSearchParams();
 	const [search, setSearch] = useState("");
-	const [typeFilter, setTypeFilter] = useState<
-		"all" | "residential" | "commercial"
-	>("all");
-	const [statusFilter, setStatusFilter] = useState<
-		"all" | "active" | "inactive"
-	>("all");
+	const [filterQuery, setFilterQuery] = useState("");
+	const [filters, setFilters] = useState<CustomersFilter>(
+		createEmptyCustomersFilter()
+	);
+	const [filterOpen, setFilterOpen] = useState(false);
 	const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
 		null
 	);
 	const [sidePanelOpen, setSidePanelOpen] = useState(false);
+
+	type SortKey =
+		| "name"
+		| "customerType"
+		| "phone"
+		| "city"
+		| "isActive"
+		| "createdAt"
+		| null;
+	const [sortKey, setSortKey] = useState<SortKey>(null);
+	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+	const [prevSort, setPrevSort] = useState<{
+		key: SortKey;
+		direction: "asc" | "desc";
+	}>({ key: null, direction: "asc" });
+
+	const handleSort = (key: NonNullable<SortKey>) => {
+		if (sortKey !== key) {
+			setPrevSort({ key: sortKey, direction: sortDirection });
+			setSortKey(key);
+			setSortDirection("asc");
+		} else if (sortDirection === "asc") {
+			setSortDirection("desc");
+		} else {
+			setSortKey(prevSort.key);
+			setSortDirection(prevSort.direction);
+		}
+	};
 
 	// Deep-link support: ?customer=<id>&view=panel|full
 	useEffect(() => {
@@ -334,14 +418,22 @@ export default function CustomersPage() {
 	const filteredCustomers = useMemo(() => {
 		const needle = search.trim().toLowerCase();
 
-		return customers.filter((customer) => {
-			if (typeFilter !== "all" && customer.customerType !== typeFilter) {
+		const base = customers.filter((customer) => {
+			if (
+				filters.types.size > 0 &&
+				!filters.types.has(
+					customer.customerType as "residential" | "commercial"
+				)
+			) {
 				return false;
 			}
-
-			if (statusFilter !== "all") {
-				const activeStatus = statusFilter === "active";
-				if (customer.isActive !== activeStatus) return false;
+			if (filters.statuses.size > 0) {
+				const needed = filters.statuses.has("active");
+				if (filters.statuses.size === 1 && customer.isActive !== needed)
+					return false;
+				if (filters.statuses.size === 2) {
+					/* both selected — no filter */
+				}
 			}
 
 			if (!needle) return true;
@@ -360,11 +452,62 @@ export default function CustomersPage() {
 				)
 				.some((value) => value.toLowerCase().includes(needle));
 		});
-	}, [customers, search, typeFilter, statusFilter]);
+
+		if (!sortKey) return base;
+
+		const direction = sortDirection === "asc" ? 1 : -1;
+		return [...base].sort((a, b) => {
+			switch (sortKey) {
+				case "name":
+					return (
+						`${a.firstName} ${a.lastName}`.localeCompare(
+							`${b.firstName} ${b.lastName}`
+						) * direction
+					);
+				case "customerType":
+					return a.customerType.localeCompare(b.customerType) * direction;
+				case "phone":
+					return a.phone.localeCompare(b.phone) * direction;
+				case "city":
+					return (
+						`${a.city}, ${a.state}`.localeCompare(`${b.city}, ${b.state}`) *
+						direction
+					);
+				case "isActive":
+					return (Number(b.isActive) - Number(a.isActive)) * direction;
+				case "createdAt":
+					return (
+						(new Date(a.createdAt).getTime() -
+							new Date(b.createdAt).getTime()) *
+						direction
+					);
+				default:
+					return 0;
+			}
+		});
+	}, [customers, search, filters, sortKey, sortDirection]);
 
 	const handleSelectCustomer = (customerId: string) => {
 		setSelectedCustomerId(customerId);
 		setSidePanelOpen(true);
+		openToCustomer(customerId, "panel");
+	};
+
+	const copyToClipboard = async (text: string) => {
+		if (!text) return;
+		try {
+			await navigator.clipboard.writeText(text);
+		} catch {
+			const fallback = document.createElement("textarea");
+			fallback.value = text;
+			fallback.setAttribute("readonly", "true");
+			fallback.style.position = "absolute";
+			fallback.style.left = "-9999px";
+			document.body.appendChild(fallback);
+			fallback.select();
+			document.execCommand("copy");
+			document.body.removeChild(fallback);
+		}
 	};
 
 	return (
@@ -408,117 +551,246 @@ export default function CustomersPage() {
 					/>
 				</FadeEnd>
 
-				<div className="mx-2 rounded-xl border border-background-secondary bg-background-primary p-3 flex flex-col gap-3">
+				<div className="mx-2 rounded-xl flex flex-col gap-3">
 					<div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:justify-between">
 						<div className="relative w-full lg:max-w-md">
-							<Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
-							<input
-								type="text"
-								value={search}
-								onChange={(event) => setSearch(event.target.value)}
-								placeholder="Search name, company, phone, or location"
-								className="w-full rounded-lg border border-background-secondary bg-background-main pl-9 pr-3 py-2 text-sm text-text-main placeholder:text-text-tertiary focus:outline-none focus:border-accent-main/50"
-							/>
+							<div className="flex w-full items-center gap-2">
+								<div className="relative z-30 w-full">
+									<Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
+									<input
+										type="text"
+										value={filterOpen ? filterQuery : search}
+										onChange={(event) => {
+											if (filterOpen) setFilterQuery(event.target.value);
+											else setSearch(event.target.value);
+										}}
+										onKeyDown={(event) => {
+											if (filterOpen && event.key === "Enter") {
+												event.preventDefault();
+												const match = findFirstCustomerFilterMatch(filterQuery);
+												if (!match) return;
+												setFilters((cur) => ({
+													...cur,
+													...(match.type === "customerType"
+														? { types: toggleSet(cur.types, match.value) }
+														: {
+																statuses: toggleSet(cur.statuses, match.value)
+															})
+												}));
+											}
+										}}
+										placeholder={
+											filterOpen
+												? "Search filters..."
+												: "Search name, company, phone, or location"
+										}
+										className={cn(
+											"w-full rounded-lg border border-background-secondary bg-background-primary pl-9 pr-3 py-2 text-sm text-text-main placeholder:text-text-tertiary focus:outline-none focus:border-accent-main/50",
+											filterOpen &&
+												"bg-transparent border-transparent focus:border-transparent"
+										)}
+									/>
+								</div>
+								<button
+									onClick={() => setFilterOpen((v) => !v)}
+									title="Toggle customer filters"
+									className={cn(
+										"relative z-30 flex size-10 shrink-0 items-center justify-center rounded-lg",
+										filterOpen
+											? "border-transparent bg-primary text-primary-foreground"
+											: "border border-accent-text/30 bg-background-primary text-text-secondary backdrop-blur-md transition-colors hover:bg-background-secondary/50 hover:text-text-primary"
+									)}
+								>
+									<SlidersHorizontal className="size-4" />
+									{countActiveCustomerFilters(filters) > 0 && (
+										<span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border border-background-secondary bg-accent-main/50 text-[10px] font-bold text-primary-foreground">
+											{countActiveCustomerFilters(filters)}
+										</span>
+									)}
+								</button>
+							</div>
+							{filterOpen && (
+								<CustomersFilterDropdown
+									className="absolute left-0 top-[calc(100%+0.5rem)] w-full"
+									searchQuery={filterQuery}
+									value={filters}
+									onChange={setFilters}
+									onClear={() => setFilters(createEmptyCustomersFilter())}
+								/>
+							)}
+						</div>
+						<button
+							onClick={() => {
+								setSearch("");
+								setFilterQuery("");
+								setFilters(createEmptyCustomersFilter());
+							}}
+							className="self-start rounded-lg border border-background-secondary px-2.5 py-2 text-xs text-text-secondary hover:bg-background-secondary transition-colors lg:self-auto"
+						>
+							Clear
+						</button>
+					</div>
+
+					<div className="w-full rounded-xl border border-background-secondary bg-background-primary relative pt-12">
+						<div
+							className="border-b px-3 border-secondary/50 h-12 absolute top-0 inset-x-4 items-center grid grid-cols-[1.3fr_1fr_1fr_1.2fr_1fr_1fr_1.5rem]"
+							role="row"
+						>
+							{(
+								[
+									{ label: "Name", key: "name" },
+									{ label: "Type", key: "customerType" },
+									{ label: "Phone", key: "phone" },
+									{ label: "Address", key: "city" },
+									{ label: "Status", key: "isActive" },
+									{ label: "Since", key: "createdAt" },
+									{ label: "", key: null }
+								] as const
+							).map((col) => (
+								<div
+									key={col.label}
+									role="columnheader"
+									className="text-sm font-medium text-foreground/60"
+								>
+									{col.key ? (
+										<button
+											type="button"
+											onClick={() => handleSort(col.key)}
+											className="group flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
+											aria-label={`Sort by ${col.label}`}
+										>
+											<span>{col.label}</span>
+											<span
+												className={cn(
+													"text-text-tertiary transition-opacity",
+													sortKey === col.key
+														? "opacity-100"
+														: "opacity-0 group-hover:opacity-100"
+												)}
+											>
+												{sortKey === col.key ? (
+													sortDirection === "asc" ? (
+														<ArrowUp className="w-3 h-3" />
+													) : (
+														<ArrowDown className="w-3 h-3" />
+													)
+												) : (
+													<ArrowUpDown className="w-3 h-3" />
+												)}
+											</span>
+										</button>
+									) : null}
+								</div>
+							))}
 						</div>
 
-						<div className="flex items-center gap-2 flex-wrap">
-							<div className="inline-flex items-center gap-2 text-xs text-text-tertiary">
-								<Filter className="w-3 h-3" />
-								Filters
-							</div>
-							<select
-								value={typeFilter}
-								onChange={(event) =>
-									setTypeFilter(event.target.value as typeof typeFilter)
-								}
-								className="rounded-lg border border-background-secondary bg-background-main px-2.5 py-2 text-xs text-text-main"
-							>
-								<option value="all">All Types</option>
-								<option value="residential">Residential</option>
-								<option value="commercial">Commercial</option>
-							</select>
-							<select
-								value={statusFilter}
-								onChange={(event) =>
-									setStatusFilter(event.target.value as typeof statusFilter)
-								}
-								className="rounded-lg border border-background-secondary bg-background-main px-2.5 py-2 text-xs text-text-main"
-							>
-								<option value="all">All Statuses</option>
-								<option value="active">Active</option>
-								<option value="inactive">Inactive</option>
-							</select>
-							<button
-								onClick={() => {
-									setSearch("");
-									setTypeFilter("all");
-									setStatusFilter("all");
-								}}
-								className="rounded-lg border border-background-secondary px-2.5 py-2 text-xs text-text-secondary hover:bg-background-secondary transition-colors"
-							>
-								Clear
-							</button>
-						</div>
+						<ul className="w-full divide-y divide-background-secondary/50 px-4 py-3">
+							{loading && (
+								<li className="text-xs text-text-tertiary py-3 px-4">
+									Loading customers...
+								</li>
+							)}
+							{!loading && filteredCustomers.length === 0 && (
+								<li className="text-xs text-text-tertiary py-3 px-4">
+									No customers match the current filters.
+								</li>
+							)}
+							{filteredCustomers.map((c) => {
+								const latitude = typeof c.latitude === "number" ? c.latitude : null;
+								const longitude =
+									typeof c.longitude === "number" ? c.longitude : null;
+								const hasCoordinates = latitude !== null && longitude !== null;
+								const fullAddress = `${c.address}, ${c.city}, ${c.state} ${c.zip}`
+									.replace(/\s+/g, " ")
+									.trim();
+
+								return (
+									<li
+										key={c.id}
+										className={cn(
+											"grid group grid-cols-[1.3fr_1fr_1fr_1.2fr_1fr_1fr_1.5rem] items-center px-4 py-3 cursor-pointer hover:bg-background-secondary/30 first:rounded-t-lg last:rounded-b-lg transition-colors",
+											selectedCustomerId === c.id && "bg-accent-main/10"
+										)}
+										role="row"
+										onClick={() => handleSelectCustomer(c.id)}
+										title="Open customer details in the side panel"
+									>
+										<div role="cell" className="min-w-0">
+											<button
+												type="button"
+												onClick={(event) => {
+													event.stopPropagation();
+													openToCustomer(c.id, "full");
+												}}
+												className="w-full truncate text-left text-sm font-medium text-text-main transition-colors hover:text-accent-text"
+												title="Open full customer page"
+											>
+												{c.firstName} {c.lastName}
+											</button>
+										</div>
+										<p className="text-sm capitalize text-text-secondary">
+											{c.customerType}
+										</p>
+										<CopyCell
+											value={c.phone}
+											copyText={c.phone}
+											className="text-sm text-text-secondary"
+											textClassName="truncate"
+											ariaLabel="Copy phone"
+											onCopy={copyToClipboard}
+										/>
+										<div role="cell" className="min-w-0">
+											<button
+												type="button"
+												onClick={(event) => {
+													if (!hasCoordinates) return;
+													event.stopPropagation();
+													openToLocation(latitude, longitude);
+												}}
+												className={cn(
+													"w-full truncate text-left text-sm transition-colors",
+													hasCoordinates
+														? "cursor-pointer text-text-secondary hover:text-accent-text"
+														: "cursor-default text-text-secondary"
+												)}
+												title={
+													hasCoordinates
+														? "Open customer location on map"
+														: "Customer location unavailable"
+												}
+											>
+												{fullAddress}
+											</button>
+										</div>
+										<div>
+											<CustomerStatusBadge active={c.isActive} />
+										</div>
+										<p className="text-xs text-text-tertiary">
+											{formatNumericDate(c.createdAt)} (
+											{formatRelativeTime(c.createdAt)})
+										</p>
+										<div role="cell" className="flex items-center justify-end">
+											<button
+												type="button"
+												onClick={(event) => {
+													event.stopPropagation();
+													handleSelectCustomer(c.id);
+												}}
+												className="inline-flex cursor-pointer items-center justify-center text-text-tertiary transition-colors hover:text-text-main"
+												title="Open customer detail panel"
+											>
+												<ChevronRight className="w-4 h-4 group-hover:scale-175 transition-transform" />
+											</button>
+										</div>
+									</li>
+								);
+							})}
+						</ul>
 					</div>
 
 					<div className="text-xs text-text-tertiary px-1">
 						Showing {filteredCustomers.length} of {customers.length} customers
 					</div>
-				</div>
-
-				<div
-					className={cn(
-						"mx-2 w-full bg-background-primary rounded-xl border border-background-secondary relative pt-12"
-					)}
-				>
-					<div className="border-b border-secondary/50 h-12 absolute top-0 inset-x-4 items-center grid grid-cols-[1.3fr_1fr_1fr_1.2fr_1fr_1fr_1.5rem]">
-						{["Name", "Type", "Phone", "Address", "Status", "Since", ""].map(
-							(col) => (
-								<p key={col} className="text-sm font-medium text-foreground/60">
-									{col}
-								</p>
-							)
-						)}
-					</div>
-					<ul className="w-full divide-y divide-background-secondary/50 px-4 py-3">
-						{loading && (
-							<li className="text-xs text-text-tertiary py-3 px-4">
-								Loading customers...
-							</li>
-						)}
-						{!loading && filteredCustomers.length === 0 && (
-							<li className="text-xs text-text-tertiary py-3 px-4">
-								No customers match the current filters.
-							</li>
-						)}
-						{filteredCustomers.map((c) => (
-							<li
-								key={c.id}
-								className={cn(
-									"grid grid-cols-[1.3fr_1fr_1fr_1.2fr_1fr_1fr_1.5rem] items-center px-4 py-3 cursor-pointer hover:bg-background-secondary/30 rounded-lg transition-colors",
-									selectedCustomerId === c.id && "bg-accent-main/10"
-								)}
-								onClick={() => handleSelectCustomer(c.id)}
-							>
-								<p className="text-sm font-medium truncate">
-									{c.firstName} {c.lastName}
-								</p>
-								<p className="text-sm capitalize text-text-secondary">
-									{c.customerType}
-								</p>
-								<p className="text-sm text-text-secondary">{c.phone}</p>
-								<p className="text-sm text-text-secondary truncate">
-									{c.city}, {c.state}
-								</p>
-								<CustomerStatusBadge active={c.isActive} />
-								<p className="text-xs text-text-tertiary">
-									{formatReadableDate(c.createdAt)} (
-									{formatRelativeTime(c.createdAt)})
-								</p>
-								<ChevronRight className="w-4 h-4 text-text-tertiary" />
-							</li>
-						))}
-					</ul>
 				</div>
 
 				{error && (
@@ -530,7 +802,7 @@ export default function CustomersPage() {
 					customerId={selectedCustomerId}
 					onOpenFull={() => {
 						if (!selectedCustomerId) return;
-						router.push(`/customers/${selectedCustomerId}`);
+						openToCustomer(selectedCustomerId, "full");
 						setSidePanelOpen(false);
 					}}
 				/>
