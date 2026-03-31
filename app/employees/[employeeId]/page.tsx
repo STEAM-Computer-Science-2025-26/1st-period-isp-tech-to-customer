@@ -3,7 +3,7 @@
 import MainContent from "@/components/layout/MainContent";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/index";
-import { getToken, authHeaders } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import {
 	ArrowLeft,
@@ -21,8 +21,6 @@ import {
 	ToggleRight,
 	ChevronRight
 } from "lucide-react";
-
-const API_BASE = "/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -246,30 +244,19 @@ export default function EmployeeDetailPage() {
 
 		void (async () => {
 			try {
-				const token = getToken();
-				const headers: HeadersInit = token
-					? { Authorization: `Bearer ${token}` }
-					: {};
-
 				const [empRes, jobsRes] = await Promise.allSettled([
-					fetch(`${API_BASE}/employees/${employeeId}`, { headers }),
-					fetch(`${API_BASE}/jobs?assignedTechId=${employeeId}`, {
-						headers
-					})
+					apiFetch<{ employee?: Employee }>(`/employees/${employeeId}`),
+					apiFetch<{ jobs?: Job[] }>(`/jobs?assignedTechId=${employeeId}`)
 				]);
 
 				if (empRes.status === "fulfilled") {
-					if (!empRes.value.ok)
-						throw new Error(`Employee not found (${empRes.value.status})`);
-					const data = (await empRes.value.json()) as { employee?: Employee };
-					if (mounted) setEmployee(data.employee ?? null);
+					if (mounted) setEmployee(empRes.value.employee ?? null);
 				} else {
 					throw empRes.reason;
 				}
 
-				if (jobsRes.status === "fulfilled" && jobsRes.value.ok) {
-					const data = (await jobsRes.value.json()) as { jobs?: Job[] };
-					if (mounted) setJobs(data.jobs ?? []);
+				if (jobsRes.status === "fulfilled") {
+					if (mounted) setJobs(jobsRes.value.jobs ?? []);
 				}
 			} catch (e) {
 				if (mounted)
@@ -288,17 +275,13 @@ export default function EmployeeDetailPage() {
 		if (!employee) return;
 		setToggling(true);
 		try {
-			const token = getToken();
-			const res = await fetch(`${API_BASE}/employees/${employee.id}`, {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-					...(token ? { Authorization: `Bearer ${token}` } : {})
-				},
-				body: JSON.stringify({ isAvailable: !employee.isAvailable })
-			});
-			if (!res.ok) throw new Error("Failed to update availability");
-			const data = (await res.json()) as { employee?: Employee };
+			const data = await apiFetch<{ employee?: Employee }>(
+				`/employees/${employee.id}`,
+				{
+					method: "PATCH",
+					body: JSON.stringify({ isAvailable: !employee.isAvailable })
+				}
+			);
 			if (data.employee) setEmployee(data.employee);
 		} catch {
 			// silently fail — badge stays as-is
