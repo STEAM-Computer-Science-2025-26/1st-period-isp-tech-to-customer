@@ -5,39 +5,41 @@ import { cn } from "@/lib/utils/index";
 import MainContent from "@/components/layout/MainContent";
 import SidePanel from "@/components/layout/SidePanel";
 import FadeEnd from "@/components/ui/FadeEnd";
+import { FilterSearchBar } from "@/components/ui/FilterSearchBar";
+import CalendarFilterDropdown from "@/app/calendar/components/CalendarFilterDropdown";
 import type { JobDTO } from "@/app/types/types";
-import { useUiStore } from "@/lib/stores/uiStore";
 import { apiFetch } from "@/lib/api";
-import { Eye, Settings, Filter } from "lucide-react";
+import { Eye } from "lucide-react";
+import { JobDetailPanel } from "@/components/panels/JobDetailPanel";
+import { useOpenToJob } from "@/lib/hooks/useOpenTo";
 
 type EventTone = "urgent" | "normal" | "info";
 
 type CalendarEvent = {
-	id: string;
+	jobId: string;
 	title: string;
-	duration: string;
-	tech: string;
-	window: string;
+	jobType: string;
+	address: string;
+	scheduledTime: string | null;
 	tone: EventTone;
+};
+
+type EmployeeSummary = {
+	id: string;
+	name: string;
 };
 
 type FilterOption = { value: string; label: string };
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const createEmptyDayEvents = (): Record<string, CalendarEvent[]> => ({
-	Sun: [],
-	Mon: [],
-	Tue: [],
-	Wed: [],
-	Thu: [],
-	Fri: [],
-	Sat: []
-});
+const START_HOUR = 7;
+const END_HOUR = 20;
+const HOUR_HEIGHT = 72; // px per hour
 
 const getWeekDays = (date: Date): Date[] => {
 	const startOfWeek = new Date(date);
-	startOfWeek.setDate(date.getDate() - date.getDay()); // Sunday
+	startOfWeek.setDate(date.getDate() - date.getDay());
 	const days = [];
 	for (let i = 0; i < 7; i++) {
 		const day = new Date(startOfWeek);
@@ -53,23 +55,15 @@ const getMonthDays = (date: Date): Date[] => {
 	const firstDay = new Date(year, month, 1);
 	const lastDay = new Date(year, month + 1, 0);
 	const startDate = new Date(firstDay);
-	startDate.setDate(firstDay.getDate() - firstDay.getDay()); // start from Sunday
+	startDate.setDate(firstDay.getDate() - firstDay.getDay());
 	const days = [];
 	let current = new Date(startDate);
 	while (current <= lastDay || days.length % 7 !== 0) {
 		days.push(new Date(current));
 		current.setDate(current.getDate() + 1);
-		if (days.length > 42) break; // safety
+		if (days.length > 42) break;
 	}
 	return days;
-};
-
-const getJobTitle = (job: JobDTO): string => {
-	const explicitTitle = (job as JobDTO & { title?: string }).title?.trim();
-	if (explicitTitle) return explicitTitle;
-	if (job.address?.trim()) return job.address.trim();
-	if (job.customerName?.trim()) return job.customerName.trim();
-	return "Untitled Job";
 };
 
 const toEventTone = (job: JobDTO): EventTone => {
@@ -78,14 +72,22 @@ const toEventTone = (job: JobDTO): EventTone => {
 	return "info";
 };
 
-const formatWindow = (iso?: string): string => {
-	if (!iso) return "Unscheduled";
-	const date = new Date(iso);
-	if (Number.isNaN(date.getTime())) return "Unscheduled";
-	return date.toLocaleTimeString("en-US", {
-		hour: "numeric",
-		minute: "2-digit"
-	});
+const formatHour = (hour: number): string => {
+	if (hour === 0) return "12am";
+	if (hour === 12) return "12pm";
+	return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
+};
+
+const formatEventTime = (iso: string): string => {
+	const d = new Date(iso);
+	if (isNaN(d.getTime())) return "";
+	const h = d.getHours();
+	const m = d.getMinutes();
+	const label = h === 0 ? "12" : h <= 12 ? String(h) : String(h - 12);
+	const ampm = h < 12 ? "am" : "pm";
+	return m === 0
+		? `${label}${ampm}`
+		: `${label}:${String(m).padStart(2, "0")}${ampm}`;
 };
 
 const mapJobsToDayEvents = (
@@ -96,18 +98,18 @@ const mapJobsToDayEvents = (
 	for (const job of jobs) {
 		const sourceTime = job.scheduledTime ?? job.createdAt;
 		const sourceDate = sourceTime ? new Date(sourceTime) : null;
-		if (!sourceDate || Number.isNaN(sourceDate.getTime())) continue;
+		if (!sourceDate || isNaN(sourceDate.getTime())) continue;
 
-		const dayKey = sourceDate.toISOString().split("T")[0]; // YYYY-MM-DD
+		const dayKey = sourceDate.toISOString().split("T")[0];
 
 		if (!grouped[dayKey]) grouped[dayKey] = [];
 
 		grouped[dayKey].push({
-			id: String(job.id),
-			title: getJobTitle(job),
-			duration: job.jobType.replace("_", " "),
-			tech: job.assignedTechId ? `Tech #${job.assignedTechId}` : "Unassigned",
-			window: formatWindow(job.scheduledTime ?? undefined),
+			jobId: String(job.id),
+			title: job.customerName?.trim() || "Unnamed Customer",
+			jobType: job.jobType.replace(/_/g, " "),
+			address: job.address?.trim() || "",
+			scheduledTime: job.scheduledTime ?? null,
 			tone: toEventTone(job)
 		});
 	}
@@ -123,10 +125,163 @@ const toneClasses: Record<EventTone, string> = {
 	info: "border-l-info-foreground bg-info-background/10 text-info-text"
 };
 
+const toneDotClasses: Record<EventTone, string> = {
+	urgent: "bg-destructive-foreground",
+	normal: "bg-success-foreground",
+	info: "bg-info-foreground"
+};
+
+// ── Day view with time grid ──────────────────────────────────────────────────
+
+const DayTimeGrid = ({
+	events,
+	onSelect,
+	selectedJobId
+}: {
+	events: CalendarEvent[];
+	onSelect: (jobId: string) => void;
+	selectedJobId: string | null;
+}) => {
+	const hours = Array.from(
+		{ length: END_HOUR - START_HOUR + 1 },
+		(_, i) => START_HOUR + i
+	);
+	const totalHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
+
+	// Split events into positioned (have scheduledTime) and unscheduled
+	const positioned = events.filter((e) => {
+		if (!e.scheduledTime) return false;
+		const d = new Date(e.scheduledTime);
+		const h = d.getHours();
+		return h >= START_HOUR && h < END_HOUR;
+	});
+	const unscheduled = events.filter((e) => {
+		if (!e.scheduledTime) return true;
+		const d = new Date(e.scheduledTime);
+		const h = d.getHours();
+		return h < START_HOUR || h >= END_HOUR;
+	});
+
+	return (
+		<div className="flex flex-col h-full overflow-y-auto">
+			{unscheduled.length > 0 && (
+				<div className="px-4 py-3 border-b border-background-secondary/40">
+					<p className="text-[11px] font-semibold uppercase tracking-wide text-text-tertiary mb-2">
+						Outside hours / Unscheduled
+					</p>
+					<div className="flex flex-col gap-1.5">
+						{unscheduled.map((event) => (
+							<EventCard
+								key={event.jobId}
+								event={event}
+								onSelect={onSelect}
+								selected={selectedJobId === event.jobId}
+								compact
+							/>
+						))}
+					</div>
+				</div>
+			)}
+			<div className="relative flex-1" style={{ minHeight: totalHeight }}>
+				{/* Hour lines */}
+				{hours.map((hour) => (
+					<div
+						key={hour}
+						className="absolute inset-x-0 flex items-start pointer-events-none"
+						style={{ top: (hour - START_HOUR) * HOUR_HEIGHT }}
+					>
+						<span className="w-14 shrink-0 pr-2 text-right text-[11px] text-text-tertiary -mt-2 select-none">
+							{formatHour(hour)}
+						</span>
+						<div className="flex-1 border-t border-background-secondary/40" />
+					</div>
+				))}
+
+				{/* Events */}
+				<div className="absolute inset-y-0 left-14 right-3">
+					{positioned.map((event) => {
+						const d = new Date(event.scheduledTime!);
+						const top =
+							(d.getHours() - START_HOUR) * HOUR_HEIGHT +
+							(d.getMinutes() / 60) * HOUR_HEIGHT;
+						return (
+							<div
+								key={event.jobId}
+								className="absolute left-0 right-0"
+								style={{ top, minHeight: HOUR_HEIGHT * 0.75 }}
+							>
+								<EventCard
+									event={event}
+									onSelect={onSelect}
+									selected={selectedJobId === event.jobId}
+								/>
+							</div>
+						);
+					})}
+				</div>
+			</div>
+		</div>
+	);
+};
+
+// ── Event card ───────────────────────────────────────────────────────────────
+
+const EventCard = ({
+	event,
+	onSelect,
+	selected,
+	compact = false
+}: {
+	event: CalendarEvent;
+	onSelect: (jobId: string) => void;
+	selected: boolean;
+	compact?: boolean;
+}) => {
+	return (
+		<button
+			type="button"
+			onClick={() => onSelect(event.jobId)}
+			className={cn(
+				"w-full text-left rounded-r-lg border border-accent-main/20 border-l-2 px-3 py-2 transition-all cursor-pointer",
+				"hover:shadow-md hover:brightness-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-main/50",
+				toneClasses[event.tone],
+				selected && "ring-2 ring-accent-main/60 shadow-md"
+			)}
+		>
+			<div className="flex min-w-0 items-center gap-2">
+				<span
+					className={cn(
+						"size-1.5 shrink-0 rounded-full",
+						toneDotClasses[event.tone]
+					)}
+				/>
+				<p className="min-w-0 flex-1 truncate text-sm font-semibold leading-5">
+					{event.title}
+				</p>
+				<span className="shrink-0 rounded-md bg-background-main/70 px-1.5 py-0.5 text-[11px] font-medium capitalize text-text-secondary">
+					{event.jobType}
+				</span>
+			</div>
+			{!compact && (
+				<div className="mt-1.5 flex min-w-0 items-center justify-between gap-2 text-[11px] text-text-secondary/80">
+					<span className="min-w-0 truncate">{event.address}</span>
+					{event.scheduledTime && (
+						<span className="shrink-0 whitespace-nowrap font-medium">
+							{formatEventTime(event.scheduledTime)}
+						</span>
+					)}
+				</div>
+			)}
+		</button>
+	);
+};
+
+// ── Main page ────────────────────────────────────────────────────────────────
+
 const CalendarPage = () => {
-	const isSidePanelOpen = useUiStore((state) => state.sidePanelOpen);
-	const setSidePanelOpen = useUiStore((state) => state.setSidePanelOpen);
+	const openToJob = useOpenToJob();
 	const [jobs, setJobs] = useState<JobDTO[]>([]);
+	const [employees, setEmployees] = useState<EmployeeSummary[]>([]);
 	const [filterOpen, setFilterOpen] = useState(false);
 	const [viewOpen, setViewOpen] = useState(false);
 	const [filterQuery, setFilterQuery] = useState("");
@@ -138,11 +293,11 @@ const CalendarPage = () => {
 		"week"
 	);
 	const [currentDate, setCurrentDate] = useState(new Date());
-	const rightPanelOffset = isSidePanelOpen ? "16rem" : "0px";
+	const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+	const [sidePanelOpen, setSidePanelOpen] = useState(false);
 
 	useEffect(() => {
 		let isMounted = true;
-
 		const loadJobs = async () => {
 			try {
 				const payload = await apiFetch<{ jobs?: JobDTO[] }>("/jobs");
@@ -151,50 +306,65 @@ const CalendarPage = () => {
 				if (isMounted) setJobs([]);
 			}
 		};
-
 		void loadJobs();
-
 		return () => {
 			isMounted = false;
 		};
 	}, []);
 
+	useEffect(() => {
+		let isMounted = true;
+		const loadEmployees = async () => {
+			try {
+				const payload = await apiFetch<{ employees?: EmployeeSummary[] }>(
+					"/employees"
+				);
+				if (isMounted) setEmployees(payload.employees ?? []);
+			} catch {
+				if (isMounted) setEmployees([]);
+			}
+		};
+		void loadEmployees();
+		return () => {
+			isMounted = false;
+		};
+	}, []);
+
+	const handleSelectJob = (jobId: string) => {
+		setSelectedJobId(jobId);
+		setSidePanelOpen(true);
+	};
+
 	const employeeOptions = useMemo<FilterOption[]>(() => {
+		const employeeMap = new Map(
+			employees.map((employee) => [String(employee.id), employee.name])
+		);
 		const unique = new Map<string, string>();
 		let hasUnassigned = false;
-
 		for (const job of jobs) {
 			if (job.assignedTechId) {
-				const shortId = String(job.assignedTechId).slice(0, 8);
-				unique.set(String(job.assignedTechId), `Tech #${shortId}`);
+				const techId = String(job.assignedTechId);
+				const name = employeeMap.get(techId) ?? "Unknown tech";
+				unique.set(techId, name);
 			} else {
 				hasUnassigned = true;
 			}
 		}
-
 		const options = Array.from(unique.entries())
 			.map(([value, label]) => ({ value, label }))
 			.sort((a, b) => a.label.localeCompare(b.label));
-
-		if (hasUnassigned) {
+		if (hasUnassigned)
 			options.unshift({ value: "unassigned", label: "Unassigned" });
-		}
-
 		return options;
-	}, [jobs]);
+	}, [employees, jobs]);
 
 	const priorityOrder = ["emergency", "high", "medium", "low"];
 	const priorityOptions = useMemo<FilterOption[]>(() => {
 		const unique = new Set<string>();
-		for (const job of jobs) {
-			if (job.priority) unique.add(job.priority);
-		}
+		for (const job of jobs) if (job.priority) unique.add(job.priority);
 		return Array.from(unique)
 			.sort((a, b) => priorityOrder.indexOf(a) - priorityOrder.indexOf(b))
-			.map((value) => ({
-				value,
-				label: value.replace(/_/g, " ")
-			}));
+			.map((value) => ({ value, label: value.replace(/_/g, " ") }));
 	}, [jobs]);
 
 	const statusOrder = [
@@ -206,37 +376,19 @@ const CalendarPage = () => {
 	];
 	const statusOptions = useMemo<FilterOption[]>(() => {
 		const unique = new Set<string>();
-		for (const job of jobs) {
-			if (job.status) unique.add(job.status);
-		}
+		for (const job of jobs) if (job.status) unique.add(job.status);
 		return Array.from(unique)
 			.sort((a, b) => statusOrder.indexOf(a) - statusOrder.indexOf(b))
-			.map((value) => ({
-				value,
-				label: value.replace(/_/g, " ")
-			}));
+			.map((value) => ({ value, label: value.replace(/_/g, " ") }));
 	}, [jobs]);
 
 	const jobTypeOptions = useMemo<FilterOption[]>(() => {
 		const unique = new Set<string>();
-		for (const job of jobs) {
-			if (job.jobType) unique.add(job.jobType);
-		}
+		for (const job of jobs) if (job.jobType) unique.add(job.jobType);
 		return Array.from(unique)
 			.sort()
-			.map((value) => ({
-				value,
-				label: value.replace(/_/g, " ")
-			}));
+			.map((value) => ({ value, label: value.replace(/_/g, " ") }));
 	}, [jobs]);
-
-	const normalizedQuery = filterQuery.trim().toLowerCase();
-	const filterOptionsByQuery = (options: FilterOption[]) => {
-		if (!normalizedQuery) return options;
-		return options.filter((option) =>
-			option.label.toLowerCase().includes(normalizedQuery)
-		);
-	};
 
 	const toggleSelection = (
 		value: string,
@@ -258,22 +410,21 @@ const CalendarPage = () => {
 					: "unassigned";
 				if (!selectedEmployees.includes(techId)) return false;
 			}
-
-			if (selectedPriorities.length > 0) {
-				const priority = job.priority ?? "unknown";
-				if (!selectedPriorities.includes(priority)) return false;
-			}
-
-			if (selectedStatuses.length > 0) {
-				const status = job.status ?? "unknown";
-				if (!selectedStatuses.includes(status)) return false;
-			}
-
-			if (selectedJobTypes.length > 0) {
-				const jobType = job.jobType ?? "unknown";
-				if (!selectedJobTypes.includes(jobType)) return false;
-			}
-
+			if (
+				selectedPriorities.length > 0 &&
+				!selectedPriorities.includes(job.priority ?? "")
+			)
+				return false;
+			if (
+				selectedStatuses.length > 0 &&
+				!selectedStatuses.includes(job.status ?? "")
+			)
+				return false;
+			if (
+				selectedJobTypes.length > 0 &&
+				!selectedJobTypes.includes(job.jobType ?? "")
+			)
+				return false;
 			return true;
 		});
 	}, [
@@ -284,303 +435,197 @@ const CalendarPage = () => {
 		selectedJobTypes
 	]);
 
+	const activeFilterCount =
+		selectedEmployees.length +
+		selectedPriorities.length +
+		selectedStatuses.length +
+		selectedJobTypes.length;
+
 	const dayEvents = useMemo(
 		() => mapJobsToDayEvents(filteredJobs),
 		[filteredJobs]
 	);
 
+	const navigate = (delta: number) => {
+		const d = new Date(currentDate);
+		if (currentView === "day") d.setDate(d.getDate() + delta);
+		else if (currentView === "week") d.setDate(d.getDate() + delta * 7);
+		else d.setMonth(d.getMonth() + delta);
+		setCurrentDate(d);
+	};
+
+	const viewLabel =
+		currentView === "week"
+			? `Week of ${getWeekDays(currentDate)[0].toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+			: currentView === "month"
+				? currentDate.toLocaleDateString("en-US", {
+						year: "numeric",
+						month: "long"
+					})
+				: currentDate.toLocaleDateString("en-US", {
+						weekday: "long",
+						year: "numeric",
+						month: "long",
+						day: "numeric"
+					});
+
 	return (
 		<MainContent>
+			{/* Toolbar */}
 			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-				<div className="flex items-center gap-2">
-					<div className="relative">
-						<button
-							type="button"
-							className="rounded-md border border-background-secondary/60 bg-background-primary/60 px-1.5 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:bg-background-secondary"
-							onClick={() => setFilterOpen((open) => !open)}
-						>
-							<Filter className="h-4 w-4" />
-						</button>
-						{filterOpen ? (
-							<div className="absolute left-0 z-30 mt-2 w-72 rounded-lg border border-background-secondary/60 bg-background-main p-3 shadow-lg">
-								<input
-									type="text"
-									value={filterQuery}
-									onChange={(event) => setFilterQuery(event.target.value)}
-									placeholder="Search filters..."
-									className="w-full rounded-md border border-background-secondary/60 bg-background-primary/60 px-2 py-1 text-xs text-text-main"
-								/>
-
-								<div className="mt-3 space-y-3 text-xs">
-									<div>
-										<p className="mb-1 text-[11px] font-semibold uppercase text-text-tertiary">
-											Employees
-										</p>
-										<div className="space-y-1">
-											{filterOptionsByQuery(employeeOptions).map((option) => (
-												<label
-													key={option.value}
-													className="flex items-center gap-2 text-text-secondary"
-												>
-													<input
-														type="checkbox"
-														checked={selectedEmployees.includes(option.value)}
-														onChange={() =>
-															toggleSelection(
-																option.value,
-																selectedEmployees,
-																setSelectedEmployees
-															)
-														}
-													/>
-													{option.label}
-												</label>
-											))}
-										</div>
-									</div>
-
-									<div>
-										<p className="mb-1 text-[11px] font-semibold uppercase text-text-tertiary">
-											Priorities
-										</p>
-										<div className="space-y-1">
-											{filterOptionsByQuery(priorityOptions).map((option) => (
-												<label
-													key={option.value}
-													className="flex items-center gap-2 text-text-secondary"
-												>
-													<input
-														type="checkbox"
-														checked={selectedPriorities.includes(option.value)}
-														onChange={() =>
-															toggleSelection(
-																option.value,
-																selectedPriorities,
-																setSelectedPriorities
-															)
-														}
-													/>
-													{option.label}
-												</label>
-											))}
-										</div>
-									</div>
-
-									<div>
-										<p className="mb-1 text-[11px] font-semibold uppercase text-text-tertiary">
-											Status
-										</p>
-										<div className="space-y-1">
-											{filterOptionsByQuery(statusOptions).map((option) => (
-												<label
-													key={option.value}
-													className="flex items-center gap-2 text-text-secondary"
-												>
-													<input
-														type="checkbox"
-														checked={selectedStatuses.includes(option.value)}
-														onChange={() =>
-															toggleSelection(
-																option.value,
-																selectedStatuses,
-																setSelectedStatuses
-															)
-														}
-													/>
-													{option.label}
-												</label>
-											))}
-										</div>
-									</div>
-
-									<div>
-										<p className="mb-1 text-[11px] font-semibold uppercase text-text-tertiary">
-											Job Type
-										</p>
-										<div className="space-y-1">
-											{filterOptionsByQuery(jobTypeOptions).map((option) => (
-												<label
-													key={option.value}
-													className="flex items-center gap-2 text-text-secondary"
-												>
-													<input
-														type="checkbox"
-														checked={selectedJobTypes.includes(option.value)}
-														onChange={() =>
-															toggleSelection(
-																option.value,
-																selectedJobTypes,
-																setSelectedJobTypes
-															)
-														}
-													/>
-													{option.label}
-												</label>
-											))}
-										</div>
-									</div>
-								</div>
-							</div>
-						) : null}
-					</div>
-					<button className="rounded-md border border-background-secondary/60 bg-background-primary/60 px-1.5 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:bg-background-secondary">
-						<Settings className="h-4 w-4" />
+				<div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+					{/* Nav */}
+					<button
+						className="p-1.5 rounded-md border border-background-secondary/60 bg-background-primary/60 hover:bg-background-secondary transition-colors text-lg leading-none text-text-secondary"
+						onClick={() => navigate(-1)}
+					>
+						‹
 					</button>
+					<span className="text-sm font-semibold text-text-main whitespace-nowrap">
+						{viewLabel}
+					</span>
+					<button
+						className="p-1.5 rounded-md border border-background-secondary/60 bg-background-primary/60 hover:bg-background-secondary transition-colors text-lg leading-none text-text-secondary"
+						onClick={() => navigate(1)}
+					>
+						›
+					</button>
+
+					<FilterSearchBar
+						filterOpen={filterOpen}
+						onFilterOpenChange={setFilterOpen}
+						activeFilterCount={activeFilterCount}
+						onClearFilters={() => {
+							setFilterQuery("");
+							setSelectedEmployees([]);
+							setSelectedPriorities([]);
+							setSelectedStatuses([]);
+							setSelectedJobTypes([]);
+						}}
+						filterQuery={filterQuery}
+						onFilterQueryChange={setFilterQuery}
+						filterPlaceholder="Search filters..."
+						filterDropdown={
+							<CalendarFilterDropdown
+								searchQuery={filterQuery}
+								employeeOptions={employeeOptions}
+								priorityOptions={priorityOptions}
+								statusOptions={statusOptions}
+								jobTypeOptions={jobTypeOptions}
+								selectedEmployees={selectedEmployees}
+								selectedPriorities={selectedPriorities}
+								selectedStatuses={selectedStatuses}
+								selectedJobTypes={selectedJobTypes}
+								onToggleEmployee={(value) =>
+									toggleSelection(value, selectedEmployees, setSelectedEmployees)
+								}
+								onTogglePriority={(value) =>
+									toggleSelection(value, selectedPriorities, setSelectedPriorities)
+								}
+								onToggleStatus={(value) =>
+									toggleSelection(value, selectedStatuses, setSelectedStatuses)
+								}
+								onToggleJobType={(value) =>
+									toggleSelection(value, selectedJobTypes, setSelectedJobTypes)
+								}
+							/>
+						}
+						className="w-full max-w-md"
+					/>
 				</div>
+
+				{/* View switcher — desktop */}
 				<div className="hidden items-center rounded-lg border border-background-secondary/60 bg-background-primary/60 overflow-hidden text-xs font-semibold sm:flex">
-					<button
-						className="px-3 py-1.5 text-text-secondary transition-colors hover:text-text-main"
-						onClick={() => setCurrentView("day")}
-					>
-						Day
-					</button>
-					<button
-						className=" px-3 py-1.5 text-text-secondary transition-colors hover:text-text-main"
-						onClick={() => setCurrentView("month")}
-					>
-						Month
-					</button>
-					<button
-						className={cn(
-							"px-3 py-1.5 shadow-sm",
-							currentView === "week"
-								? "bg-background-secondary/75 text-text-main"
-								: "text-text-secondary"
-						)}
-						onClick={() => setCurrentView("week")}
-					>
-						Week
-					</button>
+					{(["day", "week", "month"] as const).map((v) => (
+						<button
+							key={v}
+							className={cn(
+								"px-3 py-1.5 capitalize transition-colors",
+								currentView === v
+									? "bg-background-secondary/75 text-text-main shadow-sm"
+									: "text-text-secondary hover:text-text-main"
+							)}
+							onClick={() => setCurrentView(v)}
+						>
+							{v}
+						</button>
+					))}
 				</div>
+
+				{/* View switcher — mobile */}
 				<div className="relative sm:hidden">
 					<button
 						type="button"
 						className="flex items-center gap-2 rounded-md border border-background-secondary/60 bg-background-primary/60 px-3 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:bg-background-secondary"
-						onClick={() => setViewOpen((open) => !open)}
+						onClick={() => setViewOpen((o) => !o)}
 					>
 						<Eye className="h-4 w-4" />
-						View
+						{currentView.charAt(0).toUpperCase() + currentView.slice(1)}
 					</button>
-					{viewOpen ? (
+					{viewOpen && (
 						<div className="absolute right-0 z-30 mt-2 w-32 rounded-lg border border-background-secondary/60 bg-background-main p-1 shadow-lg">
-							<button
-								className="flex w-full items-center rounded-md px-2 py-1 text-left text-xs text-text-secondary hover:bg-background-primary/60"
-								onClick={() => {
-									setCurrentView("day");
-									setViewOpen(false);
-								}}
-							>
-								Day
-							</button>
-							<button
-								className="flex w-full items-center rounded-md px-2 py-1 text-left text-xs text-text-secondary hover:bg-background-primary/60"
-								onClick={() => {
-									setCurrentView("month");
-									setViewOpen(false);
-								}}
-							>
-								Month
-							</button>
-							<button
-								className={cn(
-									"flex w-full items-center rounded-md px-2 py-1 text-left text-xs font-semibold",
-									currentView === "week"
-										? "bg-background-primary/60 text-text-main"
-										: "text-text-secondary"
-								)}
-								onClick={() => {
-									setCurrentView("week");
-									setViewOpen(false);
-								}}
-							>
-								Week
-							</button>
+							{(["day", "week", "month"] as const).map((v) => (
+								<button
+									key={v}
+									className={cn(
+										"flex w-full items-center rounded-md px-2 py-1 text-left text-xs capitalize",
+										currentView === v
+											? "bg-background-primary/60 text-text-main font-semibold"
+											: "text-text-secondary hover:bg-background-primary/60"
+									)}
+									onClick={() => {
+										setCurrentView(v);
+										setViewOpen(false);
+									}}
+								>
+									{v}
+								</button>
+							))}
 						</div>
-					) : null}
+					)}
 				</div>
 			</div>
-			<div className="h-[calc(100vh-8rem)] overflow-hidden">
-				<div className="p-4 border-b border-background-secondary/60">
-					<div className="flex items-center justify-center gap-4">
-						<button
-							className="p-2 rounded-md border border-background-secondary/60 bg-background-primary/60 hover:bg-background-secondary transition-colors"
-							onClick={() => {
-								const newDate = new Date(currentDate);
-								if (currentView === "day") {
-									newDate.setDate(newDate.getDate() - 1);
-								} else if (currentView === "week") {
-									newDate.setDate(newDate.getDate() - 7);
-								} else if (currentView === "month") {
-									newDate.setMonth(newDate.getMonth() - 1);
-								}
-								setCurrentDate(newDate);
-							}}
-						>
-							‹
-						</button>
-						<h1 className="text-xl font-semibold">
-							{currentView === "week" &&
-								`Week of ${getWeekDays(currentDate)[0].toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
-							{currentView === "month" &&
-								currentDate.toLocaleDateString("en-US", {
-									year: "numeric",
-									month: "long"
-								})}
-							{currentView === "day" &&
-								currentDate.toLocaleDateString("en-US", {
-									weekday: "long",
-									year: "numeric",
-									month: "long",
-									day: "numeric"
-								})}
-						</h1>
-						<button
-							className="p-2 rounded-md border border-background-secondary/60 bg-background-primary/60 hover:bg-background-secondary transition-colors"
-							onClick={() => {
-								const newDate = new Date(currentDate);
-								if (currentView === "day") {
-									newDate.setDate(newDate.getDate() + 1);
-								} else if (currentView === "week") {
-									newDate.setDate(newDate.getDate() + 7);
-								} else if (currentView === "month") {
-									newDate.setMonth(newDate.getMonth() + 1);
-								}
-								setCurrentDate(newDate);
-							}}
-						>
-							›
-						</button>
-					</div>
-				</div>
-				<div
-					className={cn(
-						"h-full overflow-x-auto overflow-y-hidden transition-[width,padding] duration-300"
-					)}
-					style={
-						isSidePanelOpen
-							? {
-									width: `calc(100% - ${rightPanelOffset})`,
-									paddingRight: "1rem"
-								}
-							: { width: "100%", paddingRight: 0 }
-					}
-				>
-					{currentView === "week" ? (
-						<div className="grid h-full min-w-245 w-[calc(100vw-7rem)] grid-cols-7">
+
+			{/* Calendar area */}
+			<div className="h-[calc(100vh-8rem)] flex flex-col overflow-hidden">
+				{/* View content */}
+				<div className="flex-1 overflow-hidden">
+					{currentView === "week" && (
+						<div className="grid h-full min-w-245 w-full grid-cols-7 overflow-x-auto">
 							{getWeekDays(currentDate).map((date) => {
 								const dayKey = date.toISOString().split("T")[0];
 								const dayName = date.toLocaleDateString("en-US", {
 									weekday: "short"
 								});
+								const isToday =
+									date.toDateString() === new Date().toDateString();
+								const events = dayEvents[dayKey] ?? [];
 								return (
 									<div
 										key={dayKey}
 										className="flex min-w-0 flex-col border-r border-accent-text/80 last:border-r-0"
 									>
-										<div className="border-b-2 sticky top-0 border-accent-text/80 bg-background-main/90 px-3 py-2">
-											<p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent-text-dark-3">
-												{dayName} {date.getDate()}
-											</p>
+										<div
+											className={cn(
+												"border-b-2 sticky top-0 border-accent-text/80 bg-background-main/90 px-3 py-2",
+												isToday && "border-b-accent-main/60"
+											)}
+										>
+											<div className="flex items-center gap-1.5">
+												<span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent-text-dark-3">
+													{dayName}
+												</span>
+												<span
+													className={cn(
+														"text-[10px] font-semibold leading-none",
+														isToday
+															? "flex size-4 items-center justify-center rounded-full bg-accent-main/20 text-accent-text"
+															: "text-accent-text-dark-3"
+													)}
+												>
+													{date.getDate()}
+												</span>
+											</div>
 										</div>
 										<FadeEnd
 											prefix="after"
@@ -589,14 +634,19 @@ const CalendarPage = () => {
 											fromColorClass="background-primary"
 											className="h-[calc(100%-2.25rem)] overflow-y-auto p-2"
 										>
-											<div className="space-y-2">
-												{(dayEvents[dayKey] ?? []).length > 0 ? (
-													(dayEvents[dayKey] ?? []).map((event) => (
-														<EventCard key={event.id} event={event} />
+											<div className="space-y-1.5">
+												{events.length > 0 ? (
+													events.map((event) => (
+														<EventCard
+															key={event.jobId}
+															event={event}
+															onSelect={handleSelectJob}
+															selected={selectedJobId === event.jobId}
+														/>
 													))
 												) : (
-													<div className="py-4 text-center text-xs font-medium text-text-secondary">
-														No events scheduled
+													<div className="py-4 text-center text-xs font-medium text-text-secondary/50">
+														No jobs
 													</div>
 												)}
 											</div>
@@ -605,7 +655,9 @@ const CalendarPage = () => {
 								);
 							})}
 						</div>
-					) : currentView === "month" ? (
+					)}
+
+					{currentView === "month" && (
 						<div className="h-full overflow-y-auto p-4">
 							<div className="grid grid-cols-7 gap-1">
 								{daysOfWeek.map((day) => (
@@ -620,34 +672,50 @@ const CalendarPage = () => {
 									const dayKey = date.toISOString().split("T")[0];
 									const isCurrentMonth =
 										date.getMonth() === currentDate.getMonth();
+									const isToday =
+										date.toDateString() === new Date().toDateString();
+									const events = dayEvents[dayKey] ?? [];
 									return (
 										<div
 											key={dayKey}
 											className={cn(
-												"min-h-25 border border-accent-text/20 p-1",
-												!isCurrentMonth && "bg-background-secondary/20"
+												"min-h-24 rounded-lg border border-accent-text/15 p-1.5",
+												!isCurrentMonth &&
+													"bg-background-secondary/20 opacity-60"
 											)}
 										>
-											<div className="text-xs font-semibold mb-1">
+											<div
+												className={cn(
+													"mb-1 inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold",
+													isToday
+														? "bg-accent-main/20 text-accent-text"
+														: "text-text-secondary"
+												)}
+											>
 												{date.getDate()}
 											</div>
-											<div className="space-y-1">
-												{(dayEvents[dayKey] ?? []).slice(0, 3).map((event) => (
-													<div
-														key={event.id}
+											<div className="space-y-0.5">
+												{events.slice(0, 3).map((event) => (
+													<button
+														key={event.jobId}
+														type="button"
+														onClick={() => handleSelectJob(event.jobId)}
 														className={cn(
-															"text-xs p-1 rounded truncate",
-															toneClasses[event.tone]
+															"w-full text-left text-[11px] px-1.5 py-0.5 rounded truncate transition-all",
+															"hover:brightness-105 focus:outline-none",
+															toneClasses[event.tone],
+															selectedJobId === event.jobId &&
+																"ring-1 ring-accent-main/60"
 														)}
 														title={event.title}
 													>
 														{event.title}
-													</div>
+													</button>
 												))}
-												{(dayEvents[dayKey] ?? []).length > 3 && (
-													<div className="text-xs text-text-secondary">
-														+{(dayEvents[dayKey] ?? []).length - 3} more
-													</div>
+												{events.length > 3 && (
+													<p className="text-[11px] text-text-tertiary px-1">
+														+{events.length - 3} more
+													</p>
 												)}
 											</div>
 										</div>
@@ -655,50 +723,29 @@ const CalendarPage = () => {
 								})}
 							</div>
 						</div>
-					) : (
-						<div className="h-full overflow-y-auto p-4">
-							<div className="space-y-2">
-								{(dayEvents[currentDate.toISOString().split("T")[0]] ?? [])
-									.length > 0 ? (
-									(
-										dayEvents[currentDate.toISOString().split("T")[0]] ?? []
-									).map((event) => <EventCard key={event.id} event={event} />)
-								) : (
-									<div className="py-4 text-center text-sm font-medium text-text-secondary">
-										No events scheduled
-									</div>
-								)}
-							</div>
-						</div>
+					)}
+
+					{currentView === "day" && (
+						<DayTimeGrid
+							events={dayEvents[currentDate.toISOString().split("T")[0]] ?? []}
+							onSelect={handleSelectJob}
+							selectedJobId={selectedJobId}
+						/>
 					)}
 				</div>
 			</div>
-			<SidePanel isOpen={isSidePanelOpen} onOpenChange={setSidePanelOpen} />
-		</MainContent>
-	);
-};
 
-const EventCard = ({ event }: { event: CalendarEvent }) => {
-	return (
-		<div
-			className={cn(
-				"group min-w-0 rounded-r-lg border border-accent-main/20 border-l-2 px-3 py-2 hover:shadow-md transition-shadow cursor-pointer",
-				toneClasses[event.tone]
-			)}
-		>
-			<div className="flex min-w-0 items-start gap-2">
-				<p className="min-w-0 flex-1 truncate text-sm font-semibold leading-5">
-					{event.title}
-				</p>
-				<span className="shrink-0 rounded-md bg-background-main/80 px-1.5 py-0.5 text-[11px] font-semibold text-text-primary">
-					{event.duration}
-				</span>
-			</div>
-			<div className="mt-2 flex min-w-0 items-center justify-between gap-2 text-[11px] text-text-secondary">
-				<span className="min-w-0 truncate">{event.tech}</span>
-				<span className="shrink-0 whitespace-nowrap">{event.window}</span>
-			</div>
-		</div>
+			<SidePanel isOpen={sidePanelOpen} onOpenChange={setSidePanelOpen}>
+				<JobDetailPanel
+					jobId={selectedJobId}
+					onOpenFull={() => {
+						if (!selectedJobId) return;
+						openToJob(selectedJobId, "full");
+						setSidePanelOpen(false);
+					}}
+				/>
+			</SidePanel>
+		</MainContent>
 	);
 };
 

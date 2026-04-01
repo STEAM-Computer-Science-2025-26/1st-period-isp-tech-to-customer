@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 // Atlanta — sensible default center for an HVAC dispatch map
-const DEFAULT_CENTER = { lat: 33.749, lng: -84.388 };
+const DEFAULT_CENTER = { lat: 33.124683, lng: -96.692649 };
 
 // Draws a polyline using the imperative Maps API since @vis.gl/react-google-maps
 // v1.7.1 does not export a Polyline component.
@@ -578,7 +578,7 @@ function MapPageContent() {
 				<Map
 					className="fixed h-dvh w-dvw top-0 left-0"
 					defaultCenter={DEFAULT_CENTER}
-					defaultZoom={11}
+					defaultZoom={20}
 					gestureHandling="greedy"
 					disableDefaultUI
 					mapId="dispatch-map"
