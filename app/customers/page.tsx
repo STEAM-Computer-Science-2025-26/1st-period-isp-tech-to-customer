@@ -31,7 +31,6 @@ import {
 	type CustomersFilter
 } from "./components/customersFilterUtils";
 import {
-	Search,
 	Phone,
 	MapPin,
 	Calendar,
@@ -43,9 +42,9 @@ import {
 	ArrowUp,
 	ArrowDown,
 	ArrowUpDown,
-	SlidersHorizontal,
 	ExternalLink
 } from "lucide-react";
+import { FilterSearchBar } from "@/components/ui/FilterSearchBar";
 
 type CustomerDetailJob = {
 	id: string;
@@ -325,6 +324,18 @@ function CustomersPageContent() {
 		createEmptyCustomersFilter()
 	);
 	const [filterOpen, setFilterOpen] = useState(false);
+
+	const handleFilterSubmit = (query: string) => {
+		const match = findFirstCustomerFilterMatch(query);
+		if (!match) return;
+		setFilters((cur) => ({
+			...cur,
+			...(match.type === "customerType"
+				? { types: toggleSet(cur.types, match.value) }
+				: { statuses: toggleSet(cur.statuses, match.value) })
+		}));
+	};
+
 	const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
 		null
 	);
@@ -506,84 +517,32 @@ function CustomersPageContent() {
 				</FadeEnd>
 
 				<div className="mx-2 rounded-xl flex flex-col gap-3">
-					<div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:justify-between">
-						<div className="relative w-full lg:max-w-md">
-							<div className="flex w-full items-center gap-2">
-								<div className="relative z-30 w-full">
-									<Search className="w-4 h-4 text-text-tertiary absolute left-3 top-1/2 -translate-y-1/2" />
-									<input
-										type="text"
-										value={filterOpen ? filterQuery : search}
-										onChange={(event) => {
-											if (filterOpen) setFilterQuery(event.target.value);
-											else setSearch(event.target.value);
-										}}
-										onKeyDown={(event) => {
-											if (filterOpen && event.key === "Enter") {
-												event.preventDefault();
-												const match = findFirstCustomerFilterMatch(filterQuery);
-												if (!match) return;
-												setFilters((cur) => ({
-													...cur,
-													...(match.type === "customerType"
-														? { types: toggleSet(cur.types, match.value) }
-														: {
-																statuses: toggleSet(cur.statuses, match.value)
-															})
-												}));
-											}
-										}}
-										placeholder={
-											filterOpen
-												? "Search filters..."
-												: "Search name, company, phone, or location"
-										}
-										className={cn(
-											"w-full rounded-lg border border-background-secondary bg-background-primary pl-9 pr-3 py-2 text-sm text-text-main placeholder:text-text-tertiary focus:outline-none focus:border-accent-main/50",
-											filterOpen &&
-												"bg-transparent border-transparent focus:border-transparent"
-										)}
-									/>
-								</div>
-								<button
-									onClick={() => setFilterOpen((v) => !v)}
-									title="Toggle customer filters"
-									className={cn(
-										"relative z-30 flex size-10 shrink-0 items-center justify-center rounded-lg",
-										filterOpen
-											? "border-transparent bg-primary text-primary-foreground"
-											: "border border-accent-text/30 bg-background-primary text-text-secondary backdrop-blur-md transition-colors hover:bg-background-secondary/50 hover:text-text-primary"
-									)}
-								>
-									<SlidersHorizontal className="size-4" />
-									{countActiveCustomerFilters(filters) > 0 && (
-										<span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border border-background-secondary bg-accent-main/50 text-[10px] font-bold text-primary-foreground">
-											{countActiveCustomerFilters(filters)}
-										</span>
-									)}
-								</button>
-							</div>
-							{filterOpen && (
-								<CustomersFilterDropdown
-									className="absolute left-0 top-[calc(100%+0.5rem)] w-full"
-									searchQuery={filterQuery}
-									value={filters}
-									onChange={setFilters}
-									onClear={() => setFilters(createEmptyCustomersFilter())}
-								/>
-							)}
-						</div>
-						<button
-							onClick={() => {
-								setSearch("");
-								setFilterQuery("");
-								setFilters(createEmptyCustomersFilter());
-							}}
-							className="self-start rounded-lg border border-background-secondary px-2.5 py-2 text-xs text-text-secondary hover:bg-background-secondary transition-colors lg:self-auto"
-						>
-							Clear
-						</button>
-					</div>
+					<FilterSearchBar
+						doubleSearch
+						searchQuery={search}
+						onSearchChange={setSearch}
+						searchPlaceholder="Search name, company, phone, or location"
+						filterOpen={filterOpen}
+						onFilterOpenChange={setFilterOpen}
+						activeFilterCount={countActiveCustomerFilters(filters)}
+						onClearFilters={() => {
+							setSearch("");
+							setFilterQuery("");
+							setFilters(createEmptyCustomersFilter());
+						}}
+						filterQuery={filterQuery}
+						onFilterQueryChange={setFilterQuery}
+						onFilterQuerySubmit={handleFilterSubmit}
+						filterDropdown={
+							<CustomersFilterDropdown
+								searchQuery={filterQuery}
+								value={filters}
+								onChange={setFilters}
+								onClear={() => setFilters(createEmptyCustomersFilter())}
+							/>
+						}
+						className="w-full lg:max-w-md"
+					/>
 
 					<div className="w-full rounded-xl border border-background-secondary bg-background-primary relative pt-12">
 						<div
