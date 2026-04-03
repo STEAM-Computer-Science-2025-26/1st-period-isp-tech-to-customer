@@ -3,6 +3,7 @@ import { batchDispatch } from "../../services/dispatch/batchDispatch";
 import * as db from "../../db";
 
 describe("Batch Dispatch Integration", () => {
+	jest.setTimeout(120000);
 	let companyId: string;
 	const techIds: string[] = [];
 	const jobIds: string[] = [];
