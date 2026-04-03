@@ -1,6 +1,7 @@
 "use client";
 
 import { AdvancedMarker } from "@vis.gl/react-google-maps";
+import { Wrench } from "lucide-react";
 import { type MapJob } from "@/lib/schemas/mapSchemas";
 
 type Props = {
@@ -16,17 +17,8 @@ const PRIORITY_COLORS: Record<MapJob["priority"], string> = {
 	low: "#22c55e"
 };
 
-const STATUS_LABELS: Record<MapJob["status"], string> = {
-	unassigned: "U",
-	assigned: "A",
-	in_progress: "►",
-	completed: "✓",
-	cancelled: "✕"
-};
-
 export default function JobMarker({ job, isSelected, onClick }: Props) {
 	const color = PRIORITY_COLORS[job.priority];
-	const label = STATUS_LABELS[job.status];
 	const isPulsing =
 		job.status === "in_progress" || job.priority === "emergency";
 
@@ -55,7 +47,7 @@ export default function JobMarker({ job, isSelected, onClick }: Props) {
 						transform: isSelected ? "scale(1.15)" : "scale(1)"
 					}}
 				>
-					{label}
+					<Wrench className="size-4" />
 				</div>
 				{/* Pointer triangle */}
 				<div

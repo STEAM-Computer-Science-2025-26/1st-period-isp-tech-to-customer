@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { cn } from "@/lib/utils/index";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import MainContent from "@/components/layout/MainContent";
+import type { JobDTO } from "@/app/types/types";
+import { apiFetch } from "@/lib/api";
+import { useOpenToJob } from "@/lib/hooks/useOpenTo";
+import { cn } from "@/lib/utils/index";
 import SidePanel from "@/components/layout/SidePanel";
+import { useUiStore } from "@/lib/stores/uiStore";
 import FadeEnd from "@/components/ui/FadeEnd";
 import { FilterSearchBar } from "@/components/ui/FilterSearchBar";
 import CalendarFilterDropdown from "@/app/calendar/components/CalendarFilterDropdown";
-import type { JobDTO } from "@/app/types/types";
-import { apiFetch } from "@/lib/api";
-import { Eye } from "lucide-react";
+import { Eye, SlidersHorizontal } from "lucide-react";
 import { JobDetailPanel } from "@/components/panels/JobDetailPanel";
-import { useOpenToJob } from "@/lib/hooks/useOpenTo";
 
 type EventTone = "urgent" | "normal" | "info";
 
@@ -47,6 +48,20 @@ const getWeekDays = (date: Date): Date[] => {
 		days.push(day);
 	}
 	return days;
+};
+
+const formatWeekRange = (date: Date): string => {
+	const [start, , , , , , end] = getWeekDays(date);
+	if (!start || !end) return "";
+	const startLabel = start.toLocaleDateString("en-US", {
+		month: "long",
+		day: "numeric"
+	});
+	const endLabel = end.toLocaleDateString("en-US", {
+		month: "long",
+		day: "numeric"
+	});
+	return `${startLabel}-${endLabel}`;
 };
 
 const getMonthDays = (date: Date): Date[] => {
@@ -131,42 +146,62 @@ const toneDotClasses: Record<EventTone, string> = {
 	info: "bg-info-foreground"
 };
 
-// ── Day view with time grid ──────────────────────────────────────────────────
+const toneBarClasses: Record<EventTone, string> = {
+	urgent: "border-destructive-background bg-destructive-background/30",
+	normal: "border-success-foreground bg-success-background/30",
+	info: "border-info-foreground bg-info-background/30"
+};
 
 const DayTimeGrid = ({
 	events,
 	onSelect,
-	selectedJobId
+	selectedJobId,
+	showSelection
 }: {
 	events: CalendarEvent[];
 	onSelect: (jobId: string) => void;
 	selectedJobId: string | null;
+	showSelection: boolean;
 }) => {
+	const [now, setNow] = useState(() => new Date());
+
+	useEffect(() => {
+		const timer = setInterval(() => {
+			setNow(new Date());
+		}, 30000);
+		return () => clearInterval(timer);
+	}, []);
+
 	const hours = Array.from(
 		{ length: END_HOUR - START_HOUR + 1 },
 		(_, i) => START_HOUR + i
 	);
+	const nowMinutes = now.getHours() * 60 + now.getMinutes();
+	const dayStartMinutes = START_HOUR * 60;
+	const dayEndMinutes = END_HOUR * 60;
+	const showNowLine =
+		nowMinutes >= dayStartMinutes && nowMinutes <= dayEndMinutes;
+	const nowTop = ((nowMinutes - dayStartMinutes) / 60) * HOUR_HEIGHT - 12;
 	const totalHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
 
-	// Split events into positioned (have scheduledTime) and unscheduled
-	const positioned = events.filter((e) => {
-		if (!e.scheduledTime) return false;
-		const d = new Date(e.scheduledTime);
+	const positioned = events.filter((event) => {
+		if (!event.scheduledTime) return false;
+		const d = new Date(event.scheduledTime);
 		const h = d.getHours();
 		return h >= START_HOUR && h < END_HOUR;
 	});
-	const unscheduled = events.filter((e) => {
-		if (!e.scheduledTime) return true;
-		const d = new Date(e.scheduledTime);
+	const unscheduled = events.filter((event) => {
+		if (!event.scheduledTime) return true;
+		const d = new Date(event.scheduledTime);
 		const h = d.getHours();
 		return h < START_HOUR || h >= END_HOUR;
 	});
 
 	return (
-		<div className="flex flex-col h-full overflow-y-auto">
+		<div className="flex h-full flex-col overflow-y-auto pt-3">
 			{unscheduled.length > 0 && (
-				<div className="px-4 py-3 border-b border-background-secondary/40">
-					<p className="text-[11px] font-semibold uppercase tracking-wide text-text-tertiary mb-2">
+				<div className="border-b border-background-secondary/40 px-4 py-3">
+					<p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
 						Outside hours / Unscheduled
 					</p>
 					<div className="flex flex-col gap-1.5">
@@ -175,7 +210,7 @@ const DayTimeGrid = ({
 								key={event.jobId}
 								event={event}
 								onSelect={onSelect}
-								selected={selectedJobId === event.jobId}
+								selected={showSelection && selectedJobId === event.jobId}
 								compact
 							/>
 						))}
@@ -183,21 +218,32 @@ const DayTimeGrid = ({
 				</div>
 			)}
 			<div className="relative flex-1" style={{ minHeight: totalHeight }}>
-				{/* Hour lines */}
+				{showNowLine && (
+					<div
+						className="absolute inset-x-0 z-10 flex items-center"
+						style={{ top: nowTop }}
+					>
+						<div className="w-14 pr-2 text-right">
+							<span className="inline-flex items-center rounded bg-destructive-background px-1 py-0.5 text-[9px] font-semibold text-white">
+								{formatEventTime(now.toISOString())}
+							</span>
+						</div>
+						<div className="h-px flex-1 bg-destructive-foreground/80" />
+					</div>
+				)}
 				{hours.map((hour) => (
 					<div
 						key={hour}
-						className="absolute inset-x-0 flex items-start pointer-events-none"
+						className="pointer-events-none absolute inset-x-0 flex items-start"
 						style={{ top: (hour - START_HOUR) * HOUR_HEIGHT }}
 					>
-						<span className="w-14 shrink-0 pr-2 text-right text-[11px] text-text-tertiary -mt-2 select-none">
+						<span className="-mt-2 w-14 shrink-0 select-none pr-2 text-right text-[11px] text-text-tertiary">
 							{formatHour(hour)}
 						</span>
 						<div className="flex-1 border-t border-background-secondary/40" />
 					</div>
 				))}
 
-				{/* Events */}
 				<div className="absolute inset-y-0 left-14 right-3">
 					{positioned.map((event) => {
 						const d = new Date(event.scheduledTime!);
@@ -213,7 +259,7 @@ const DayTimeGrid = ({
 								<EventCard
 									event={event}
 									onSelect={onSelect}
-									selected={selectedJobId === event.jobId}
+									selected={showSelection && selectedJobId === event.jobId}
 								/>
 							</div>
 						);
@@ -223,8 +269,6 @@ const DayTimeGrid = ({
 		</div>
 	);
 };
-
-// ── Event card ───────────────────────────────────────────────────────────────
 
 const EventCard = ({
 	event,
@@ -242,7 +286,7 @@ const EventCard = ({
 			type="button"
 			onClick={() => onSelect(event.jobId)}
 			className={cn(
-				"w-full text-left rounded-r-lg border border-accent-main/20 border-l-2 px-3 py-2 transition-all cursor-pointer",
+				"w-full cursor-pointer rounded-r-lg border border-accent-main/20 border-l-2 px-3 py-2 text-left transition-all",
 				"hover:shadow-md hover:brightness-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-main/50",
 				toneClasses[event.tone],
 				selected && "ring-2 ring-accent-main/60 shadow-md"
@@ -250,17 +294,11 @@ const EventCard = ({
 		>
 			<div className="flex min-w-0 items-center gap-2">
 				<span
-					className={cn(
-						"size-1.5 shrink-0 rounded-full",
-						toneDotClasses[event.tone]
-					)}
+					className={cn("size-1.5 shrink-0 rounded-full", toneDotClasses[event.tone])}
 				/>
 				<p className="min-w-0 flex-1 truncate text-sm font-semibold leading-5">
 					{event.title}
 				</p>
-				<span className="shrink-0 rounded-md bg-background-main/70 px-1.5 py-0.5 text-[11px] font-medium capitalize text-text-secondary">
-					{event.jobType}
-				</span>
 			</div>
 			{!compact && (
 				<div className="mt-1.5 flex min-w-0 items-center justify-between gap-2 text-[11px] text-text-secondary/80">
@@ -275,8 +313,6 @@ const EventCard = ({
 		</button>
 	);
 };
-
-// ── Main page ────────────────────────────────────────────────────────────────
 
 const CalendarPage = () => {
 	const openToJob = useOpenToJob();
@@ -294,7 +330,8 @@ const CalendarPage = () => {
 	);
 	const [currentDate, setCurrentDate] = useState(new Date());
 	const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-	const [sidePanelOpen, setSidePanelOpen] = useState(false);
+	const sidePanelOpen = useUiStore((state) => state.sidePanelOpen);
+	const setSidePanelOpen = useUiStore((state) => state.setSidePanelOpen);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -456,7 +493,7 @@ const CalendarPage = () => {
 
 	const viewLabel =
 		currentView === "week"
-			? `Week of ${getWeekDays(currentDate)[0].toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+			? formatWeekRange(currentDate)
 			: currentView === "month"
 				? currentDate.toLocaleDateString("en-US", {
 						year: "numeric",
@@ -471,270 +508,382 @@ const CalendarPage = () => {
 
 	return (
 		<MainContent>
-			{/* Toolbar */}
-			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-				<div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-					{/* Nav */}
-					<button
-						className="p-1.5 rounded-md border border-background-secondary/60 bg-background-primary/60 hover:bg-background-secondary transition-colors text-lg leading-none text-text-secondary"
-						onClick={() => navigate(-1)}
-					>
-						‹
-					</button>
-					<span className="text-sm font-semibold text-text-main whitespace-nowrap">
-						{viewLabel}
-					</span>
-					<button
-						className="p-1.5 rounded-md border border-background-secondary/60 bg-background-primary/60 hover:bg-background-secondary transition-colors text-lg leading-none text-text-secondary"
-						onClick={() => navigate(1)}
-					>
-						›
-					</button>
+			<div
+				className={cn(
+					"relative h-[calc(100vh-8rem)] w-full transition-[padding] duration-300 ease-in-out",
+					sidePanelOpen && "pr-[calc(max(30vw,20rem)-1.5rem)]"
+				)}
+			>
+				<div className="flex h-full w-full flex-col overflow-hidden">
+					<div className="flex absolute top-0 inset-x-0 flex-wrap items-center justify-between gap-3 pb-3">
+						<div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+							<button
+								className="rounded-md border border-background-secondary/60 bg-background-primary/60 p-1.5 text-lg leading-none text-text-secondary transition-colors hover:bg-background-secondary"
+								onClick={() => navigate(-1)}
+							>
+								‹
+							</button>
+							<span className="whitespace-nowrap text-sm font-semibold text-text-main">
+								{viewLabel}
+							</span>
+							<button
+								className="rounded-md border border-background-secondary/60 bg-background-primary/60 p-1.5 text-lg leading-none text-text-secondary transition-colors hover:bg-background-secondary"
+								onClick={() => navigate(1)}
+							>
+								›
+							</button>
 
-					<FilterSearchBar
-						filterOpen={filterOpen}
-						onFilterOpenChange={setFilterOpen}
-						activeFilterCount={activeFilterCount}
-						onClearFilters={() => {
-							setFilterQuery("");
-							setSelectedEmployees([]);
-							setSelectedPriorities([]);
-							setSelectedStatuses([]);
-							setSelectedJobTypes([]);
-						}}
-						filterQuery={filterQuery}
-						onFilterQueryChange={setFilterQuery}
-						filterPlaceholder="Search filters..."
-						filterDropdown={
-							<CalendarFilterDropdown
-								searchQuery={filterQuery}
-								employeeOptions={employeeOptions}
-								priorityOptions={priorityOptions}
-								statusOptions={statusOptions}
-								jobTypeOptions={jobTypeOptions}
-								selectedEmployees={selectedEmployees}
-								selectedPriorities={selectedPriorities}
-								selectedStatuses={selectedStatuses}
-								selectedJobTypes={selectedJobTypes}
-								onToggleEmployee={(value) =>
-									toggleSelection(value, selectedEmployees, setSelectedEmployees)
-								}
-								onTogglePriority={(value) =>
-									toggleSelection(value, selectedPriorities, setSelectedPriorities)
-								}
-								onToggleStatus={(value) =>
-									toggleSelection(value, selectedStatuses, setSelectedStatuses)
-								}
-								onToggleJobType={(value) =>
-									toggleSelection(value, selectedJobTypes, setSelectedJobTypes)
-								}
-							/>
-						}
-						className="w-full max-w-md"
-					/>
-				</div>
-
-				{/* View switcher — desktop */}
-				<div className="hidden items-center rounded-lg border border-background-secondary/60 bg-background-primary/60 overflow-hidden text-xs font-semibold sm:flex">
-					{(["day", "week", "month"] as const).map((v) => (
-						<button
-							key={v}
-							className={cn(
-								"px-3 py-1.5 capitalize transition-colors",
-								currentView === v
-									? "bg-background-secondary/75 text-text-main shadow-sm"
-									: "text-text-secondary hover:text-text-main"
-							)}
-							onClick={() => setCurrentView(v)}
-						>
-							{v}
-						</button>
-					))}
-				</div>
-
-				{/* View switcher — mobile */}
-				<div className="relative sm:hidden">
-					<button
-						type="button"
-						className="flex items-center gap-2 rounded-md border border-background-secondary/60 bg-background-primary/60 px-3 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:bg-background-secondary"
-						onClick={() => setViewOpen((o) => !o)}
-					>
-						<Eye className="h-4 w-4" />
-						{currentView.charAt(0).toUpperCase() + currentView.slice(1)}
-					</button>
-					{viewOpen && (
-						<div className="absolute right-0 z-30 mt-2 w-32 rounded-lg border border-background-secondary/60 bg-background-main p-1 shadow-lg">
-							{(["day", "week", "month"] as const).map((v) => (
-								<button
-									key={v}
-									className={cn(
-										"flex w-full items-center rounded-md px-2 py-1 text-left text-xs capitalize",
-										currentView === v
-											? "bg-background-primary/60 text-text-main font-semibold"
-											: "text-text-secondary hover:bg-background-primary/60"
-									)}
-									onClick={() => {
-										setCurrentView(v);
-										setViewOpen(false);
+							<div className="hidden lg:flex">
+								<FilterSearchBar
+									filterOpen={filterOpen}
+									onFilterOpenChange={setFilterOpen}
+									activeFilterCount={activeFilterCount}
+									onClearFilters={() => {
+										setFilterQuery("");
+										setSelectedEmployees([]);
+										setSelectedPriorities([]);
+										setSelectedStatuses([]);
+										setSelectedJobTypes([]);
 									}}
+									filterQuery={filterQuery}
+									onFilterQueryChange={setFilterQuery}
+									filterPlaceholder="Search filters..."
+									filterDropdown={
+										<CalendarFilterDropdown
+											searchQuery={filterQuery}
+											employeeOptions={employeeOptions}
+											priorityOptions={priorityOptions}
+											statusOptions={statusOptions}
+											jobTypeOptions={jobTypeOptions}
+											selectedEmployees={selectedEmployees}
+											selectedPriorities={selectedPriorities}
+											selectedStatuses={selectedStatuses}
+											selectedJobTypes={selectedJobTypes}
+											onToggleEmployee={(value) =>
+												toggleSelection(
+													value,
+													selectedEmployees,
+													setSelectedEmployees
+												)
+											}
+											onTogglePriority={(value) =>
+												toggleSelection(
+													value,
+													selectedPriorities,
+													setSelectedPriorities
+												)
+											}
+											onToggleStatus={(value) =>
+												toggleSelection(
+													value,
+													selectedStatuses,
+													setSelectedStatuses
+												)
+											}
+											onToggleJobType={(value) =>
+												toggleSelection(
+													value,
+													selectedJobTypes,
+													setSelectedJobTypes
+												)
+											}
+									/>
+								}
+								className="w-full max-w-md"
+							/>
+							</div>
+
+							<div className="relative lg:hidden">
+								<button
+									type="button"
+									onClick={() => setFilterOpen((open) => !open)}
+									className={cn(
+										"relative flex size-9 items-center justify-center rounded-lg transition-colors",
+										filterOpen
+											? "border-transparent bg-primary text-primary-foreground"
+											: "border border-accent-text/30 bg-background-primary text-text-secondary backdrop-blur-md hover:bg-background-secondary/50 hover:text-text-primary"
+									)}
+									title="Toggle filters"
 								>
-									{v}
+									<SlidersHorizontal className="size-4" />
+									{activeFilterCount > 0 && !filterOpen && (
+										<span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border border-background-secondary bg-accent-main/50 text-[10px] font-bold text-primary-foreground">
+											{activeFilterCount}
+										</span>
+									)}
+								</button>
+								{filterOpen && (
+									<div className="absolute left-0 top-[calc(100%+0.5rem)] z-20 w-64">
+										<CalendarFilterDropdown
+											searchQuery={filterQuery}
+											employeeOptions={employeeOptions}
+											priorityOptions={priorityOptions}
+											statusOptions={statusOptions}
+											jobTypeOptions={jobTypeOptions}
+											selectedEmployees={selectedEmployees}
+											selectedPriorities={selectedPriorities}
+											selectedStatuses={selectedStatuses}
+											selectedJobTypes={selectedJobTypes}
+											onToggleEmployee={(value) =>
+												toggleSelection(
+													value,
+													selectedEmployees,
+													setSelectedEmployees
+												)
+											}
+											onTogglePriority={(value) =>
+												toggleSelection(
+													value,
+													selectedPriorities,
+													setSelectedPriorities
+												)
+											}
+											onToggleStatus={(value) =>
+												toggleSelection(
+													value,
+													selectedStatuses,
+													setSelectedStatuses
+												)
+											}
+											onToggleJobType={(value) =>
+												toggleSelection(
+													value,
+													selectedJobTypes,
+													setSelectedJobTypes
+												)
+											}
+										/>
+									</div>
+								)}
+							</div>
+						</div>
+
+						<div className="hidden items-center overflow-hidden rounded-lg border border-background-secondary/60 bg-background-primary/60 text-xs font-semibold sm:flex">
+							{(["day", "week", "month"] as const).map((view) => (
+								<button
+									key={view}
+									className={cn(
+										"px-3 py-1.5 capitalize transition-colors",
+										currentView === view
+											? "bg-background-secondary/75 text-text-main shadow-sm"
+											: "text-text-secondary hover:text-text-main"
+									)}
+								onClick={() => setCurrentView(view)}
+								>
+									{view}
 								</button>
 							))}
 						</div>
-					)}
-				</div>
-			</div>
 
-			{/* Calendar area */}
-			<div className="h-[calc(100vh-8rem)] flex flex-col overflow-hidden">
-				{/* View content */}
-				<div className="flex-1 overflow-hidden">
-					{currentView === "week" && (
-						<div className="grid h-full min-w-245 w-full grid-cols-7 overflow-x-auto">
-							{getWeekDays(currentDate).map((date) => {
-								const dayKey = date.toISOString().split("T")[0];
-								const dayName = date.toLocaleDateString("en-US", {
-									weekday: "short"
-								});
-								const isToday =
-									date.toDateString() === new Date().toDateString();
-								const events = dayEvents[dayKey] ?? [];
-								return (
-									<div
-										key={dayKey}
-										className="flex min-w-0 flex-col border-r border-accent-text/80 last:border-r-0"
-									>
-										<div
+						<div className="relative sm:hidden">
+							<button
+								type="button"
+								className="flex items-center gap-2 rounded-md border border-background-secondary/60 bg-background-primary/60 px-3 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:bg-background-secondary"
+								onClick={() => setViewOpen((open) => !open)}
+							>
+								<Eye className="h-4 w-4" />
+								{currentView.charAt(0).toUpperCase() + currentView.slice(1)}
+							</button>
+							{viewOpen && (
+								<div className="absolute right-0 z-30 mt-2 w-32 rounded-lg border border-background-secondary/60 bg-background-main p-1 shadow-lg">
+									{(["day", "week", "month"] as const).map((view) => (
+										<button
+											key={view}
 											className={cn(
-												"border-b-2 sticky top-0 border-accent-text/80 bg-background-main/90 px-3 py-2",
-												isToday && "border-b-accent-main/60"
+												"flex w-full items-center rounded-md px-2 py-1 text-left text-xs capitalize",
+												currentView === view
+													? "bg-background-primary/60 text-text-main font-semibold"
+													: "text-text-secondary hover:bg-background-primary/60"
 											)}
+											onClick={() => {
+												setCurrentView(view);
+												setViewOpen(false);
+											}}
 										>
-											<div className="flex items-center gap-1.5">
-												<span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent-text-dark-3">
-													{dayName}
-												</span>
-												<span
-													className={cn(
-														"text-[10px] font-semibold leading-none",
-														isToday
-															? "flex size-4 items-center justify-center rounded-full bg-accent-main/20 text-accent-text"
-															: "text-accent-text-dark-3"
-													)}
-												>
-													{date.getDate()}
-												</span>
-											</div>
-										</div>
-										<FadeEnd
-											prefix="after"
-											orientation="vertical"
-											sizeClass="h-12"
-											fromColorClass="background-primary"
-											className="h-[calc(100%-2.25rem)] overflow-y-auto p-2"
-										>
-											<div className="space-y-1.5">
-												{events.length > 0 ? (
-													events.map((event) => (
-														<EventCard
-															key={event.jobId}
-															event={event}
-															onSelect={handleSelectJob}
-															selected={selectedJobId === event.jobId}
-														/>
-													))
-												) : (
-													<div className="py-4 text-center text-xs font-medium text-text-secondary/50">
-														No jobs
-													</div>
-												)}
-											</div>
-										</FadeEnd>
-									</div>
-								);
-							})}
+											{view}
+										</button>
+									))}
+								</div>
+							)}
 						</div>
-					)}
+					</div>
 
-					{currentView === "month" && (
-						<div className="h-full overflow-y-auto p-4">
-							<div className="grid grid-cols-7 gap-1">
-								{daysOfWeek.map((day) => (
-									<div
-										key={day}
-										className="p-2 text-center text-xs font-semibold uppercase text-accent-text-dark-3"
-									>
-										{day}
-									</div>
-								))}
-								{getMonthDays(currentDate).map((date) => {
+					<div className="flex-1 mt-12 overflow-x-auto">
+						{currentView === "week" && (
+							<div className="grid h-full w-[calc(100vw-7rem)] grid-cols-7 overflow-x-auto">
+								{getWeekDays(currentDate).map((date) => {
 									const dayKey = date.toISOString().split("T")[0];
-									const isCurrentMonth =
-										date.getMonth() === currentDate.getMonth();
+									const dayName = date.toLocaleDateString("en-US", {
+										weekday: "short"
+									});
 									const isToday =
 										date.toDateString() === new Date().toDateString();
-									const events = dayEvents[dayKey] ?? [];
+										const events: CalendarEvent[] = dayEvents[dayKey] ?? [];
 									return (
 										<div
 											key={dayKey}
-											className={cn(
-												"min-h-24 rounded-lg border border-accent-text/15 p-1.5",
-												!isCurrentMonth &&
-													"bg-background-secondary/20 opacity-60"
-											)}
+											className="flex min-w-0 flex-col border-r border-accent-text/80 last:border-r-0"
 										>
 											<div
 												className={cn(
-													"mb-1 inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold",
-													isToday
-														? "bg-accent-main/20 text-accent-text"
-														: "text-text-secondary"
+													"sticky top-0 border-b-2 border-accent-text/80 bg-background-main/90 px-3 py-2", isToday && "bg-background-secondary/30"
 												)}
 											>
-												{date.getDate()}
+												<div className="flex items-center gap-1.5">
+													<span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent-text-dark-3">
+														<span className="hidden md:inline">{dayName}</span>
+														<span className="md:hidden">{dayName.charAt(0)}</span>
+													</span>
+													<span className="ml-auto text-[10px] font-semibold leading-none">
+														{date.getDate()}
+													</span>
+												</div>
 											</div>
-											<div className="space-y-0.5">
-												{events.slice(0, 3).map((event) => (
-													<button
-														key={event.jobId}
-														type="button"
-														onClick={() => handleSelectJob(event.jobId)}
-														className={cn(
-															"w-full text-left text-[11px] px-1.5 py-0.5 rounded truncate transition-all",
-															"hover:brightness-105 focus:outline-none",
-															toneClasses[event.tone],
-															selectedJobId === event.jobId &&
-																"ring-1 ring-accent-main/60"
-														)}
-														title={event.title}
-													>
-														{event.title}
-													</button>
-												))}
-												{events.length > 3 && (
-													<p className="text-[11px] text-text-tertiary px-1">
-														+{events.length - 3} more
-													</p>
-												)}
-											</div>
+											<FadeEnd
+												prefix="after"
+												orientation="vertical"
+												sizeClass="h-12"
+												fromColorClass="background-primary"
+													className={cn(
+														"h-[calc(100%-2.25rem)] overflow-y-auto p-2",
+														isToday && "bg-background-secondary/30"
+													)}
+											>
+												<div className="space-y-1.5">
+														{events.length > 0 ? (
+															events.map((event) => (
+																<Fragment key={event.jobId}>
+																	<div className="hidden md:block">
+																		<EventCard
+																			key={`${event.jobId}-card`}
+																			event={event}
+																			onSelect={handleSelectJob}
+																			selected={sidePanelOpen && selectedJobId === event.jobId}
+																			compact={false}
+																		/>
+																	</div>
+																	<button
+																		key={`${event.jobId}-bar`}
+																		type="button"
+																		onClick={() => handleSelectJob(event.jobId)}
+																		className={cn(
+																			"h-2 w-full rounded-full border md:hidden",
+																			toneBarClasses[event.tone],
+																			sidePanelOpen && selectedJobId === event.jobId &&
+																				"ring-1 ring-accent-main/60"
+																		)}
+																		aria-label={event.title}
+																		title={event.title}
+																	/>
+																</Fragment>
+														))
+													) : (
+														<div className="py-4 text-center text-xs font-medium text-text-secondary/50">
+															No jobs
+														</div>
+													)}
+												</div>
+											</FadeEnd>
 										</div>
 									);
 								})}
 							</div>
-						</div>
-					)}
+						)}
 
-					{currentView === "day" && (
-						<DayTimeGrid
-							events={dayEvents[currentDate.toISOString().split("T")[0]] ?? []}
-							onSelect={handleSelectJob}
-							selectedJobId={selectedJobId}
-						/>
-					)}
+						{currentView === "month" && (
+							<div className="h-full w-[calc(100vw-7rem)] overflow-y-auto p-4">
+								<div className="grid grid-cols-7 gap-1">
+									{daysOfWeek.map((day) => (
+										<div
+											key={day}
+											className="p-2 text-center text-xs font-semibold uppercase text-accent-text-dark-3"
+										>
+											{day}
+										</div>
+									))}
+									{getMonthDays(currentDate).map((date) => {
+										const dayKey = date.toISOString().split("T")[0];
+										const isCurrentMonth =
+											date.getMonth() === currentDate.getMonth();
+										const isToday =
+											date.toDateString() === new Date().toDateString();
+										const events: CalendarEvent[] = dayEvents[dayKey] ?? [];
+										return (
+											<div
+												key={dayKey}
+												className={cn(
+													"min-h-24 rounded-lg border border-accent-text/15 p-1.5",
+													!isCurrentMonth &&
+														"bg-background-secondary/20 opacity-60"
+												)}
+											>
+												<div
+													className={cn(
+														"mb-1 ml-auto inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold",
+														isToday
+															? "bg-accent-main/20 text-accent-text"
+															: "text-text-secondary"
+													)}
+												>
+													{date.getDate()}
+												</div>
+												<div className="space-y-px md:space-y-0.5">
+													{events.slice(0, 3).map((event) => (
+													<Fragment key={event.jobId}>
+														<button
+															key={`${event.jobId}-label`}
+															type="button"
+															onClick={() => handleSelectJob(event.jobId)}
+															className={cn(
+																"hidden w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] transition-all md:block",
+																"hover:brightness-105 focus:outline-none",
+																toneClasses[event.tone],
+																	sidePanelOpen && selectedJobId === event.jobId &&
+																	"ring-1 ring-accent-main/60"
+															)}
+															title={event.title}
+														>
+															{event.title}
+														</button>
+														<button
+															key={`${event.jobId}-bar`}
+															type="button"
+															onClick={() => handleSelectJob(event.jobId)}
+															className={cn(
+																"h-2 w-full rounded-full border md:hidden",
+																toneBarClasses[event.tone],
+																	sidePanelOpen && selectedJobId === event.jobId &&
+																		"ring-1 ring-accent-main/60"
+															)}
+															aria-label={event.title}
+															title={event.title}
+														/>
+													</Fragment>
+													))}
+													{events.length > 3 && (
+														<p className="px-1 text-[11px] text-text-tertiary">
+															+{events.length - 3} more
+														</p>
+													)}
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							</div>
+						)}
+
+						{currentView === "day" && (
+							<DayTimeGrid
+								events={dayEvents[currentDate.toISOString().split("T")[0]] ?? []}
+								onSelect={handleSelectJob}
+								selectedJobId={selectedJobId}
+									showSelection={sidePanelOpen}
+							/>
+						)}
+					</div>
 				</div>
 			</div>
-
 			<SidePanel isOpen={sidePanelOpen} onOpenChange={setSidePanelOpen}>
 				<JobDetailPanel
 					jobId={selectedJobId}
