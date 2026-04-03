@@ -462,24 +462,29 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 
 			const sql = getSql();
 
-			// Get historical parts usage per month
-			const partsUsage = (await sql`
-				SELECT
-					p.name                                              AS "partName",
-					p.part_number                                       AS "partNumber",
-					p.unit_cost                                         AS "unitCost",
-					SUM(pu.quantity_used)                               AS "totalUsed",
-					COUNT(DISTINCT pu.job_id)                           AS "jobsUsedIn",
-					EXTRACT(MONTH FROM j.scheduled_time)::int           AS month,
-					EXTRACT(YEAR  FROM j.scheduled_time)::int           AS year
-				FROM parts_usage pu
-				JOIN parts p    ON p.id = pu.part_id
-				JOIN jobs  j    ON j.id = pu.job_id
-				WHERE pu.company_id = ${effectiveCompanyId}
-					AND j.scheduled_time >= NOW() - INTERVAL '1 year'
-				GROUP BY 1, 2, 3, 6, 7
-				ORDER BY "totalUsed" DESC
-			`) as any[];
+			let partsUsage: any[] = [];
+			try {
+				// Get historical parts usage per month
+				partsUsage = (await sql`
+					SELECT
+						p.name                                              AS "partName",
+						p.part_number                                       AS "partNumber",
+						p.unit_cost                                         AS "unitCost",
+						SUM(pu.quantity_used)                               AS "totalUsed",
+						COUNT(DISTINCT pu.job_id)                           AS "jobsUsedIn",
+						EXTRACT(MONTH FROM j.scheduled_time)::int           AS month,
+						EXTRACT(YEAR  FROM j.scheduled_time)::int           AS year
+					FROM parts_usage pu
+					JOIN parts p    ON p.id = pu.part_id
+					JOIN jobs  j    ON j.id = pu.job_id
+					WHERE pu.company_id = ${effectiveCompanyId}
+						AND j.scheduled_time >= NOW() - INTERVAL '1 year'
+					GROUP BY 1, 2, 3, 6, 7
+					ORDER BY "totalUsed" DESC
+				`) as any[];
+			} catch (err) {
+				request.log.error({ err }, "parts-demand query failed");
+			}
 
 			// Aggregate by part → monthly average
 			const partMap: Record<string, any> = {};

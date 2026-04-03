@@ -7,6 +7,7 @@
 import Fastify from "fastify";
 import fastifyJwt from "@fastify/jwt";
 import fastifyRawBody from "fastify-raw-body";
+import fastifyFormbody from "@fastify/formbody";
 
 // Core
 import { paymentCollectionRoutes } from "./dispatch/paymentCollectionRoutes";
@@ -81,6 +82,8 @@ async function buildApp() {
 		encoding: false,
 		runFirst: true
 	});
+
+	await fastify.register(fastifyFormbody);
 
 	await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET! });
 

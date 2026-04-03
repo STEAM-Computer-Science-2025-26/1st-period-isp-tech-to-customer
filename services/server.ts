@@ -1,5 +1,6 @@
 // services/server.ts
 import fastifyRawBody from "fastify-raw-body";
+import fastifyFormbody from "@fastify/formbody";
 import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
@@ -144,6 +145,8 @@ const fastify = Fastify({
 		})
 	}
 });
+
+await fastify.register(fastifyFormbody);
 
 // ============================================================
 // Plugins

@@ -167,8 +167,8 @@ describe("Tech Certifications", () => {
 		expect(found).toBeDefined();
 	});
 
-	test("POST /api/cron/run fires cert expiration alert for 7-day cert", async () => {
-		const res = await fetch("http://localhost:3001/api/cron/run", {
+	test("POST /cron/run fires cert expiration alert for 7-day cert", async () => {
+		const res = await fetch("http://localhost:3001/cron/run", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",

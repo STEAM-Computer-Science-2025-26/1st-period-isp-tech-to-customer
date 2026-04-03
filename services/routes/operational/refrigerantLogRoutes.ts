@@ -70,6 +70,18 @@ function todayISO(): string {
 	return new Date().toISOString().split("T")[0];
 }
 
+function normalizeLog(log: any) {
+	if (!log || typeof log !== "object") return log;
+	const quantity = log.quantity_lbs;
+	return {
+		...log,
+		quantity_lbs:
+			quantity == null || quantity === ""
+				? quantity
+				: Number(quantity)
+	};
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Routes
 // ─────────────────────────────────────────────────────────────────────────────
@@ -142,7 +154,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 				RETURNING *
 			`) as any[];
 
-			return reply.code(201).send({ log });
+			return reply.code(201).send({ log: normalizeLog(log) });
 		}
 	);
 
@@ -227,7 +239,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 			const countRow = countRows[0];
 
 			return {
-				logs: rows,
+				logs: rows.map(normalizeLog),
 				total: parseInt(countRow?.total ?? "0", 10),
 				limit,
 				offset
@@ -338,7 +350,11 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 				corrects = orig ?? null;
 			}
 
-			return { log, amendments, corrects };
+			return {
+				log: normalizeLog(log),
+				amendments: amendments.map(normalizeLog),
+				corrects: normalizeLog(corrects)
+			};
 		}
 	);
 
@@ -412,7 +428,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 			`) as any[];
 
 			return reply.code(201).send({
-				amendment,
+				amendment: normalizeLog(amendment),
 				message: "Amendment created. Original log preserved."
 			});
 		}
