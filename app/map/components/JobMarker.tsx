@@ -17,10 +17,26 @@ const PRIORITY_COLORS: Record<MapJob["priority"], string> = {
 	low: "#22c55e"
 };
 
+const STATUS_LABELS: Record<MapJob["status"], string> = {
+	unassigned: "Unassigned",
+	assigned: "Assigned",
+	in_progress: "In Progress",
+	completed: "Completed",
+	cancelled: "Cancelled"
+};
+
+const PRIORITY_LABELS: Record<MapJob["priority"], string> = {
+	low: "Low",
+	medium: "Medium",
+	high: "High",
+	emergency: "Emergency"
+};
+
 export default function JobMarker({ job, isSelected, onClick }: Props) {
 	const color = PRIORITY_COLORS[job.priority];
 	const isPulsing =
 		job.status === "in_progress" || job.priority === "emergency";
+	const label = `${job.customerName} — ${STATUS_LABELS[job.status]}, ${PRIORITY_LABELS[job.priority]} priority`;
 
 	return (
 		<AdvancedMarker
@@ -28,7 +44,11 @@ export default function JobMarker({ job, isSelected, onClick }: Props) {
 			onClick={onClick}
 			zIndex={isSelected ? 100 : job.priority === "emergency" ? 90 : 10}
 		>
-			<div className="relative flex items-center justify-center cursor-pointer select-none">
+			<div
+				className="relative flex items-center justify-center cursor-pointer select-none"
+				title={label}
+				aria-label={label}
+			>
 				{/* Pulse ring for emergencies / in-progress */}
 				{isPulsing && (
 					<span
