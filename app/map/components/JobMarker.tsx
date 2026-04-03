@@ -1,6 +1,7 @@
 "use client";
 
 import { AdvancedMarker } from "@vis.gl/react-google-maps";
+import { Wrench } from "lucide-react";
 import { type MapJob } from "@/lib/schemas/mapSchemas";
 
 type Props = {
@@ -17,18 +18,25 @@ const PRIORITY_COLORS: Record<MapJob["priority"], string> = {
 };
 
 const STATUS_LABELS: Record<MapJob["status"], string> = {
-	unassigned: "U",
-	assigned: "A",
-	in_progress: "►",
-	completed: "✓",
-	cancelled: "✕"
+	unassigned: "Unassigned",
+	assigned: "Assigned",
+	in_progress: "In Progress",
+	completed: "Completed",
+	cancelled: "Cancelled"
+};
+
+const PRIORITY_LABELS: Record<MapJob["priority"], string> = {
+	low: "Low",
+	medium: "Medium",
+	high: "High",
+	emergency: "Emergency"
 };
 
 export default function JobMarker({ job, isSelected, onClick }: Props) {
 	const color = PRIORITY_COLORS[job.priority];
-	const label = STATUS_LABELS[job.status];
 	const isPulsing =
 		job.status === "in_progress" || job.priority === "emergency";
+	const label = `${job.customerName} — ${STATUS_LABELS[job.status]}, ${PRIORITY_LABELS[job.priority]} priority`;
 
 	return (
 		<AdvancedMarker
@@ -36,7 +44,11 @@ export default function JobMarker({ job, isSelected, onClick }: Props) {
 			onClick={onClick}
 			zIndex={isSelected ? 100 : job.priority === "emergency" ? 90 : 10}
 		>
-			<div className="relative flex items-center justify-center cursor-pointer select-none">
+			<div
+				className="relative flex items-center justify-center cursor-pointer select-none"
+				title={label}
+				aria-label={label}
+			>
 				{/* Pulse ring for emergencies / in-progress */}
 				{isPulsing && (
 					<span
@@ -55,7 +67,7 @@ export default function JobMarker({ job, isSelected, onClick }: Props) {
 						transform: isSelected ? "scale(1.15)" : "scale(1)"
 					}}
 				>
-					{label}
+					<Wrench className="size-4" />
 				</div>
 				{/* Pointer triangle */}
 				<div

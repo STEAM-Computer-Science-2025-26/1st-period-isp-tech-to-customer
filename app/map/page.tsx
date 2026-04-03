@@ -36,10 +36,11 @@ import {
 	toggleSet,
 	type PanelFilter
 } from "./components/mapFilterUtils";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Minus, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ""; // TODO: switch to showing evryone on client side the api key
+const SIDE_PANEL_WIDTH = "max(30vw, 20rem)";
 
 // Atlanta — sensible default center for an HVAC dispatch map
 const DEFAULT_CENTER = { lat: 33.124683, lng: -96.692649 };
@@ -77,6 +78,58 @@ function MapController({ target }: { target: ZoomTarget | null }) {
 		map.setZoom(15);
 	}, [map, target]);
 	return null;
+}
+
+function ZoomControls({ sidePanelOpen }: { sidePanelOpen: boolean }) {
+	const map = useMap();
+
+	const handleZoom = useCallback(
+		(delta: number) => {
+			if (!map) return;
+			const current = map.getZoom();
+			if (typeof current !== "number") return;
+			map.setZoom(current + delta);
+		},
+		[map]
+	);
+
+	return (
+		<div
+			className={cn(
+				"fixed right-4 bottom-4 w-12 h-24 rounded-md bg-background-secondary/50 backdrop-blur-md flex flex-col overflow-hidden p-1.25 shadow-md border border-accent-text/30 transition-transform duration-300 ease-in-out"
+			)}
+			style={{
+				transform: sidePanelOpen
+					? `translateX(calc(-1 * ${SIDE_PANEL_WIDTH}))`
+					: undefined
+			}}
+		>
+			<div className={cn("w-full h-11 border-b border-text-secondary/70")}>
+				<button
+					type="button"
+					onClick={() => handleZoom(1)}
+					aria-label="Zoom in"
+					className={cn(
+						"group h-9.5 w-full hover:bg-background-secondary transition-colors rounded-sm flex items-center justify-center"
+					)}
+				>
+					<Plus className="size-6 text-text-secondary group-hover:text-text-primary transition-colors" />
+				</button>
+			</div>
+			<div className={cn("w-full h-11 mt-1")}>
+				<button
+					type="button"
+					onClick={() => handleZoom(-1)}
+					aria-label="Zoom out"
+					className={cn(
+						"group h-9.5 w-full hover:bg-background-secondary transition-colors rounded-sm flex items-center justify-center"
+					)}
+				>
+					<Minus className="size-6 text-text-secondary group-hover:text-text-primary transition-colors" />
+				</button>
+			</div>
+		</div>
+	);
 }
 
 type SuggestionItem =
@@ -428,6 +481,7 @@ function MapPageContent() {
 	const setSidePanelOpen = useUiStore((s) => s.setSidePanelOpen);
 	const sidebarAutoCollapse = useUiStore((s) => s.sidebarAutoCollapse);
 	const sidebarIsStrip = useUiStore((s) => s.sidebarIsStrip);
+	const sidePanelOpen = useUiStore((s) => s.sidePanelOpen);
 	const { lgUp, smDown } = useBreakpoints();
 	const searchParams = useSearchParams();
 	const router = useRouter();
@@ -634,7 +688,6 @@ function MapPageContent() {
 								jobs={panelData?.jobs ?? []}
 								onJobSelect={handleJobClick}
 							/>
-
 							<button
 								onClick={() => setFilterOpen((v) => !v)}
 								title="Toggle map filters"
@@ -665,22 +718,7 @@ function MapPageContent() {
 						) : null}
 					</div>
 				</div>
-				<div
-					className={cn(
-						`fixed right-4 bottom-4 w-12 h-24 rounded-md bg-background-secondary/50 backdrop-blur-md border-accent-text-dark-3 flex flex-col divide-y divide-text-secondary/70 overflow-hidden p-1.25`
-					)}
-				>
-					<button
-						className={cn(
-							`w-full mb-[calc(6/8*1rem)] h-full hover:bg-background-secondary/70`
-						)}
-					></button>
-					<button
-						className={cn(
-							`w-full mt-0.625 h-full hover:bg-background-secondary/70`
-						)}
-					></button>
-				</div>
+				<ZoomControls sidePanelOpen={sidePanelOpen} />
 			</APIProvider>
 
 			<SidePanel>

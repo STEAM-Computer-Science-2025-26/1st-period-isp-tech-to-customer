@@ -1,6 +1,7 @@
 "use client";
 
 import { AdvancedMarker } from "@vis.gl/react-google-maps";
+import { User } from "lucide-react";
 import { type MapTech } from "@/lib/schemas/mapSchemas";
 
 type Props = {
@@ -8,15 +9,6 @@ type Props = {
 	isSelected: boolean;
 	onClick: () => void;
 };
-
-function initials(name: string) {
-	return name
-		.split(" ")
-		.map((w) => w[0] ?? "")
-		.slice(0, 2)
-		.join("")
-		.toUpperCase();
-}
 
 export default function TechMarker({ tech, isSelected, onClick }: Props) {
 	const borderColor = tech.isAvailable ? "#22c55e" : "#6b7280";
@@ -47,7 +39,7 @@ export default function TechMarker({ tech, isSelected, onClick }: Props) {
 						opacity: isStale ? 0.7 : 1
 					}}
 				>
-					{initials(tech.techName)}
+					<User className="size-4" />
 				</div>
 				{/* Availability dot */}
 				<span
