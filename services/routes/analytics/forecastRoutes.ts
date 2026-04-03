@@ -477,7 +477,7 @@ export async function forecastRoutes(fastify: FastifyInstance) {
 				JOIN jobs  j    ON j.id = pu.job_id
 				WHERE pu.company_id = ${effectiveCompanyId}
 					AND j.scheduled_time >= NOW() - INTERVAL '1 year'
-				GROUP BY 1, 2, 3, 5, 6
+				GROUP BY 1, 2, 3, 6, 7
 				ORDER BY "totalUsed" DESC
 			`) as any[];
 

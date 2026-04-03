@@ -213,7 +213,6 @@ export function createJob(fastify: FastifyInstance) {
 			RETURNING ${JOB_SELECT}`,
 			[
 				effectiveCompanyId,
-				body.customerId ?? null,
 				body.customerName,
 				body.address,
 				body.phone,

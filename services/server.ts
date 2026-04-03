@@ -56,6 +56,7 @@ import { devRoutes } from "./routes/platform/devRoutes";
 import { leadsRoutes } from "./routes/platform/leadsRoutes";
 import { auditRoutes } from "./routes/platform/auditRoutes";
 import { certificationRoutes } from "./routes/platform/certificationRoutes";
+import { cronRoutes } from "./routes/platform/cronRoutes";
 
 // Remaining (misc features)
 import locationRoutes from "./routes/locationRoutes";
@@ -202,6 +203,7 @@ await fastify.register(customerRoutes);
 await fastify.register(branchRoutes);
 await fastify.register(onboardingRoutes);
 await fastify.register(certificationRoutes);
+await fastify.register(cronRoutes);
 await fastify.register(durationRoutes);
 await fastify.register(stripeRoutes);
 await fastify.register(qbRoutes);

@@ -83,6 +83,11 @@ export function getEtaByToken(fastify: FastifyInstance) {
 		const { token } = request.params as { token: string };
 		const sql = getSql();
 
+		const tokenParsed = z.string().uuid().safeParse(token);
+		if (!tokenParsed.success) {
+			return reply.code(404).send({ error: "ETA link expired or invalid" });
+		}
+
 		const [record] = (await sql`
         SELECT
             t.job_id         AS "jobId",

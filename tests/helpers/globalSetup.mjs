@@ -4,7 +4,7 @@
 
 import { spawn } from "child_process";
 import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
+import { dirname, resolve, join } from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,16 +27,29 @@ export default async function globalSetup() {
 	console.log("\n[globalSetup] Starting backend server...");
 
 	const root = resolve(__dirname, "../../");
+	const pnpmCommand = "pnpm";
+	const useShell = process.platform === "win32";
+	const env = {
+		...process.env,
+		NODE_ENV: "test",
+		LOG_LEVEL: "warn"
+	};
+
+	if (process.platform === "win32") {
+		const pnpmHome =
+			process.env.PNPM_HOME ||
+			(process.env.APPDATA ? join(process.env.APPDATA, "npm") : "");
+		if (pnpmHome && !env.PATH?.includes(pnpmHome)) {
+			env.PATH = `${env.PATH || ""};${pnpmHome}`;
+		}
+	}
 
 	await new Promise((resolve, reject) => {
-		const server = spawn("pnpm", ["exec", "tsx", "services/server.ts"], {
+		const server = spawn(pnpmCommand, ["exec", "tsx", "services/server.ts"], {
 			cwd: root,
+			shell: useShell,
 			stdio: ["ignore", "pipe", "pipe"],
-			env: {
-				...process.env,
-				NODE_ENV: "test",
-				LOG_LEVEL: "warn"
-			}
+			env
 		});
 
 		const timer = setTimeout(() => {
