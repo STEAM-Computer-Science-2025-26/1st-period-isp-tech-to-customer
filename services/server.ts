@@ -101,8 +101,12 @@ validateEnvironment();
 // Workers
 // ============================================================
 
+let geocodingWorker: ReturnType<typeof getGeocodingWorker> | null = null;
+let customerGeocodingInterval: ReturnType<typeof setInterval> | null = null;
+let retryGeocodingInterval: ReturnType<typeof setInterval> | null = null;
+
 if (process.env.NODE_ENV !== "test") {
-	const geocodingWorker = getGeocodingWorker();
+	geocodingWorker = getGeocodingWorker();
 	try {
 		await geocodingWorker.start();
 	} catch (err) {
@@ -112,11 +116,11 @@ if (process.env.NODE_ENV !== "test") {
 		);
 	}
 
-	setInterval(async () => {
+	customerGeocodingInterval = setInterval(async () => {
 		await runCustomerGeocodingWorker();
 	}, 30_000);
 
-	setInterval(async () => {
+	retryGeocodingInterval = setInterval(async () => {
 		await retryFailedGeocoding();
 	}, 60 * 60_000);
 }
@@ -333,9 +337,9 @@ start();
 
 function shutdown(signal: string) {
 	console.log(`\n${signal} received, shutting down gracefully...`);
-	geocodingWorker.stop();
-	clearInterval(customerGeocodingInterval);
-	clearInterval(retryGeocodingInterval);
+	geocodingWorker?.stop();
+	if (customerGeocodingInterval) clearInterval(customerGeocodingInterval);
+	if (retryGeocodingInterval) clearInterval(retryGeocodingInterval);
 	fastify.close(() => {
 		console.log("Server closed");
 		process.exit(0);

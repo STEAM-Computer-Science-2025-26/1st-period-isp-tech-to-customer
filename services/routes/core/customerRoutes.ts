@@ -529,7 +529,6 @@ export async function customerRoutes(
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user);
 			const sql = getSql();
-			const equipmentType = normalizeEquipmentType(body.equipmentType);
 
 			const { clause, values, nextIdx } = buildSetClause([
 				["first_name", body.firstName],
@@ -957,7 +956,10 @@ export async function customerRoutes(
 					RETURNING id, equipment_type AS "equipmentType", manufacturer, model_number AS "modelNumber", created_at AS "createdAt"
 				`) as EquipmentRow[];
 			} catch (err) {
-				request.log.error({ err }, "equipment insert failed; retrying minimal fields");
+				request.log.error(
+					{ err },
+					"equipment insert failed; retrying minimal fields"
+				);
 				result = (await sql`
 					INSERT INTO equipment (
 						customer_id, company_id, equipment_type
