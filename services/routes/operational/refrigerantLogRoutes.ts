@@ -15,7 +15,7 @@
 //   POST  /refrigerant-logs/:logId/amend — create an amendment to an existing log
 
 import { FastifyInstance } from "fastify";
-import { getSql } from "../../../db";
+import { getSql, query } from "../../../db";
 import { z } from "zod";
 import { authenticate, JWTPayload } from "../../middleware/auth";
 
@@ -75,6 +75,7 @@ function normalizeLog(log: any) {
 	const quantity = log.quantity_lbs;
 	return {
 		...log,
+		id: log.id?.toString ? log.id.toString() : log.id,
 		quantity_lbs:
 			quantity == null || quantity === ""
 				? quantity
@@ -109,6 +110,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 
 			const body = parsed.data;
 			const sql = getSql();
+			const loggedAt = body.loggedAt ?? new Date().toISOString();
 
 			// Verify tech belongs to company
 			const [tech] = (await sql`
@@ -122,7 +124,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 			}
 
 			const serviceDate =
-				body.serviceDate ?? body.loggedAt?.split("T")[0] ?? todayISO();
+				body.serviceDate ?? loggedAt.split("T")[0] ?? todayISO();
 
 			const [log] = (await sql`
 				INSERT INTO refrigerant_logs (
@@ -148,7 +150,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 					${body.notes ?? null},
 					NULL,
 					${serviceDate},
-					${body.loggedAt ?? null},
+					${loggedAt},
 					NOW()
 				)
 				RETURNING *
@@ -182,8 +184,13 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 
 			// Build dynamic WHERE clauses — only add a condition if the filter was provided.
 			// This avoids passing undefined/null as typed params to Neon which causes $10 errors.
-			const conditions: string[] = [`rl.company_id = $1`];
-			const filterParams: unknown[] = [companyId];
+			const conditions: string[] = [];
+			const filterParams: unknown[] = [];
+
+			if (companyId) {
+				conditions.push(`rl.company_id = $${filterParams.length + 1}`);
+				filterParams.push(companyId);
+			}
 
 			const push = (val: unknown) => filterParams.push(val);
 
@@ -206,7 +213,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 				conditions.push(`rl.logged_at <= $${push(q.to)}::timestamptz`);
 			}
 
-			const where = conditions.join(" AND ");
+			const where = conditions.length ? conditions.join(" AND ") : "TRUE";
 
 			// Count uses only filter params (no limit/offset)
 			const countParams = [...filterParams];
@@ -216,7 +223,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 			const limitIdx = filterParams.length + 1;
 			const offsetIdx = filterParams.length + 2;
 
-			const rawRows = await (sql as any).unsafe(
+			const rows = (await query(
 				`SELECT rl.*, e.name AS tech_name, j.id AS job_ref, eq.model_number AS equipment_model
      FROM refrigerant_logs rl
      LEFT JOIN employees e  ON e.id  = rl.tech_id
@@ -226,16 +233,12 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
      ORDER BY rl.logged_at DESC
      LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
 				pageParams
-			);
-			const rows = Array.isArray(rawRows) ? rawRows : (rawRows?.rows ?? []);
+			)) as any[];
 
-			const rawCount = await (sql as any).unsafe(
+			const countRows = (await query(
 				`SELECT COUNT(*) AS total FROM refrigerant_logs rl WHERE ${where}`,
 				countParams
-			);
-			const countRows = Array.isArray(rawCount)
-				? rawCount
-				: (rawCount?.rows ?? []);
+			)) as any[];
 			const countRow = countRows[0];
 
 			return {
@@ -383,6 +386,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 
 			const body = parsed.data;
 			const sql = getSql();
+			const loggedAt = body.loggedAt ?? new Date().toISOString();
 
 			const [original] = (await sql`
 				SELECT id, company_id FROM refrigerant_logs
@@ -394,7 +398,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 				return reply.code(404).send({ error: "Original log not found" });
 
 			const serviceDate =
-				body.serviceDate ?? body.loggedAt?.split("T")[0] ?? todayISO();
+				body.serviceDate ?? loggedAt.split("T")[0] ?? todayISO();
 
 			const [amendment] = (await sql`
 				INSERT INTO refrigerant_logs (
@@ -421,7 +425,7 @@ export async function refrigerantLogRoutes(fastify: FastifyInstance) {
 					${logId},
 					${body.amendmentReason},
 					${serviceDate},
-					${body.loggedAt ?? null},
+					${loggedAt},
 					NOW()
 				)
 				RETURNING *

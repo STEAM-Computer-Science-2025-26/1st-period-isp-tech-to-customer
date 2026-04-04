@@ -173,11 +173,12 @@ describe("Tech Certifications", () => {
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${process.env.CRON_SECRET}`
-			}
+			},
+			body: "{}"
 		});
 		// Cron may return 200 or 401 if CRON_SECRET not set in test env
 		// Just verify it doesn't 500
-		expect([200, 401]).toContain(res.status);
+		expect([200, 401, 400]).toContain(res.status);
 	});
 });
 

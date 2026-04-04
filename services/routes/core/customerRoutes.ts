@@ -207,6 +207,11 @@ function toRows(raw: unknown): any[] {
 	return [];
 }
 
+function normalizeEquipmentType(value?: string) {
+	if (!value) return value;
+	return value === "hvac_unit" ? "package_unit" : value;
+}
+
 // ============================================================
 // Route Registration
 // ============================================================
@@ -524,6 +529,7 @@ export async function customerRoutes(
 			const body = parsed.data;
 			const companyId = resolveCompanyId(user);
 			const sql = getSql();
+			const equipmentType = normalizeEquipmentType(body.equipmentType);
 
 			const { clause, values, nextIdx } = buildSetClause([
 				["first_name", body.firstName],
@@ -954,12 +960,11 @@ export async function customerRoutes(
 				request.log.error({ err }, "equipment insert failed; retrying minimal fields");
 				result = (await sql`
 					INSERT INTO equipment (
-						customer_id, company_id, equipment_type, condition
+						customer_id, company_id, equipment_type
 					) VALUES (
 						${customerId},
 						${existing[0].company_id},
-						${body.equipmentType},
-						${body.condition}
+						${body.equipmentType}
 					)
 					RETURNING id, equipment_type AS "equipmentType", manufacturer, model_number AS "modelNumber", created_at AS "createdAt"
 				`) as EquipmentRow[];
@@ -998,7 +1003,7 @@ export async function customerRoutes(
 				values.push(locationId);
 			}
 
-			const raw = await (sql as any).unsafe(
+			const equipment = (await query(
 				`SELECT
 					e.id,
 					e.location_id       AS "locationId",
@@ -1017,9 +1022,8 @@ export async function customerRoutes(
 				FROM equipment e
 				WHERE ${conditions.join(" AND ")}
 				ORDER BY e.install_date ASC NULLS LAST`,
-				...values
-			);
-			const equipment = toRows(raw);
+				values
+			)) as any[];
 
 			return reply.send({ equipment });
 		}
@@ -1052,7 +1056,7 @@ export async function customerRoutes(
 
 			const { clause, values, nextIdx } = buildSetClause([
 				["location_id", body.locationId],
-				["equipment_type", body.equipmentType],
+				["equipment_type", normalizeEquipmentType(body.equipmentType)],
 				["manufacturer", body.manufacturer],
 				["model_number", body.modelNumber],
 				["serial_number", body.serialNumber],
@@ -1081,11 +1085,10 @@ export async function customerRoutes(
 				whereValues.push(companyId);
 			}
 
-			const resultRaw = await (sql as any).unsafe(
+			const result = (await query(
 				`UPDATE equipment SET ${fullClause} WHERE ${whereParts.join(" AND ")} RETURNING id`,
-				...whereValues
-			);
-			const result = toRows(resultRaw);
+				whereValues
+			)) as any[];
 
 			if (!result[0])
 				return reply.code(404).send({ error: "Equipment not found" });

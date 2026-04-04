@@ -101,23 +101,25 @@ validateEnvironment();
 // Workers
 // ============================================================
 
-const geocodingWorker = getGeocodingWorker();
-try {
-	await geocodingWorker.start();
-} catch (err) {
-	console.error(
-		"⚠️ Geocoding worker failed to start — server continuing:",
-		err
-	);
+if (process.env.NODE_ENV !== "test") {
+	const geocodingWorker = getGeocodingWorker();
+	try {
+		await geocodingWorker.start();
+	} catch (err) {
+		console.error(
+			"⚠️ Geocoding worker failed to start — server continuing:",
+			err
+		);
+	}
+
+	setInterval(async () => {
+		await runCustomerGeocodingWorker();
+	}, 30_000);
+
+	setInterval(async () => {
+		await retryFailedGeocoding();
+	}, 60 * 60_000);
 }
-
-const customerGeocodingInterval = setInterval(async () => {
-	await runCustomerGeocodingWorker();
-}, 30_000);
-
-const retryGeocodingInterval = setInterval(async () => {
-	await retryFailedGeocoding();
-}, 60 * 60_000);
 
 // ============================================================
 // Server setup
