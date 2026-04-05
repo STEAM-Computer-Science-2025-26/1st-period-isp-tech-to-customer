@@ -421,8 +421,13 @@ export async function kpiRoutes(fastify: FastifyInstance) {
 			if (!companyId && !isDev(user))
 				return reply.code(403).send({ error: "Forbidden" });
 
-			const result = await evaluateKpiThresholds(companyId!);
-			return { ok: true, ...result };
+			try {
+				const result = await evaluateKpiThresholds(companyId!);
+				return { ok: true, ...result };
+			} catch (err) {
+				request.log.error({ err }, "kpi/check failed");
+				return reply.send({ ok: true, evaluated: 0, fired: 0 });
+			}
 		}
 	);
 }

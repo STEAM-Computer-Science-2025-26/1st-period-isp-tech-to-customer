@@ -1,5 +1,6 @@
 // services/server.ts
 import fastifyRawBody from "fastify-raw-body";
+import fastifyFormbody from "@fastify/formbody";
 import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
@@ -56,6 +57,7 @@ import { devRoutes } from "./routes/platform/devRoutes";
 import { leadsRoutes } from "./routes/platform/leadsRoutes";
 import { auditRoutes } from "./routes/platform/auditRoutes";
 import { certificationRoutes } from "./routes/platform/certificationRoutes";
+import { cronRoutes } from "./routes/platform/cronRoutes";
 
 // Remaining (misc features)
 import locationRoutes from "./routes/locationRoutes";
@@ -99,23 +101,29 @@ validateEnvironment();
 // Workers
 // ============================================================
 
-const geocodingWorker = getGeocodingWorker();
-try {
-	await geocodingWorker.start();
-} catch (err) {
-	console.error(
-		"⚠️ Geocoding worker failed to start — server continuing:",
-		err
-	);
+let geocodingWorker: ReturnType<typeof getGeocodingWorker> | null = null;
+let customerGeocodingInterval: ReturnType<typeof setInterval> | null = null;
+let retryGeocodingInterval: ReturnType<typeof setInterval> | null = null;
+
+if (process.env.NODE_ENV !== "test") {
+	geocodingWorker = getGeocodingWorker();
+	try {
+		await geocodingWorker.start();
+	} catch (err) {
+		console.error(
+			"⚠️ Geocoding worker failed to start — server continuing:",
+			err
+		);
+	}
+
+	customerGeocodingInterval = setInterval(async () => {
+		await runCustomerGeocodingWorker();
+	}, 30_000);
+
+	retryGeocodingInterval = setInterval(async () => {
+		await retryFailedGeocoding();
+	}, 60 * 60_000);
 }
-
-const customerGeocodingInterval = setInterval(async () => {
-	await runCustomerGeocodingWorker();
-}, 30_000);
-
-const retryGeocodingInterval = setInterval(async () => {
-	await retryFailedGeocoding();
-}, 60 * 60_000);
 
 // ============================================================
 // Server setup
@@ -143,6 +151,8 @@ const fastify = Fastify({
 		})
 	}
 });
+
+await fastify.register(fastifyFormbody);
 
 // ============================================================
 // Plugins
@@ -202,6 +212,7 @@ await fastify.register(customerRoutes);
 await fastify.register(branchRoutes);
 await fastify.register(onboardingRoutes);
 await fastify.register(certificationRoutes);
+await fastify.register(cronRoutes);
 await fastify.register(durationRoutes);
 await fastify.register(stripeRoutes);
 await fastify.register(qbRoutes);
@@ -326,9 +337,9 @@ start();
 
 function shutdown(signal: string) {
 	console.log(`\n${signal} received, shutting down gracefully...`);
-	geocodingWorker.stop();
-	clearInterval(customerGeocodingInterval);
-	clearInterval(retryGeocodingInterval);
+	geocodingWorker?.stop();
+	if (customerGeocodingInterval) clearInterval(customerGeocodingInterval);
+	if (retryGeocodingInterval) clearInterval(retryGeocodingInterval);
 	fastify.close(() => {
 		console.log("Server closed");
 		process.exit(0);

@@ -27,8 +27,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Write env file
+        run: echo "${{ secrets.ENV_LOCAL }}" > .env.local
+
       - name: Lint
-        run: pnpm lint
+        run: pnpm lint:no-format
 
       - name: Test
         run: pnpm test

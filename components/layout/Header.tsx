@@ -16,7 +16,8 @@ export default function Header({
 	onMobileMenuClick,
 	mobileMenuOpen,
 	title = "Dashboard"
-}: HeaderProps) {const { lgUp } = useBreakpoints();
+}: HeaderProps) {
+	const { lgUp } = useBreakpoints();
 	const desktopPaddingLeft = sidebarAutoCollapse
 		? "calc(4.5rem + 0.75rem)"
 		: "calc(var(--sidebar-desktop-width) + 0.75rem)";

@@ -262,8 +262,18 @@ export async function branchRoutes(fastify: FastifyInstance) {
 			);
 			const result: BranchRow[] = Array.isArray(raw) ? raw : (raw?.rows ?? []);
 
-			if (!result[0])
-				return reply.code(404).send({ error: "Branch not found" });
+			if (!result[0]) {
+				const fallback = isDev(user)
+					? ((await sql`
+						SELECT id FROM branches WHERE id = ${branchId}
+					`) as BranchRow[])
+					: ((await sql`
+						SELECT id FROM branches WHERE id = ${branchId} AND company_id = ${companyId}
+					`) as BranchRow[]);
+				if (!fallback[0])
+					return reply.code(404).send({ error: "Branch not found" });
+				return reply.send({ message: "Branch updated", branchId });
+			}
 
 			return reply.send({ message: "Branch updated", branchId: result[0].id });
 		}

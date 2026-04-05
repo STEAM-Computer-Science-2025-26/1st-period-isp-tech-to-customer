@@ -7,6 +7,7 @@
 import Fastify from "fastify";
 import fastifyJwt from "@fastify/jwt";
 import fastifyRawBody from "fastify-raw-body";
+import fastifyFormbody from "@fastify/formbody";
 
 // Core
 import { paymentCollectionRoutes } from "./dispatch/paymentCollectionRoutes";
@@ -58,6 +59,7 @@ import { devRoutes } from "./routes/platform/devRoutes";
 import { leadsRoutes } from "./routes/platform/leadsRoutes";
 import { auditRoutes } from "./routes/platform/auditRoutes";
 import { certificationRoutes } from "./routes/platform/certificationRoutes";
+import { cronRoutes } from "./routes/platform/cronRoutes";
 
 // Remaining
 import locationRoutes from "./routes/locationRoutes";
@@ -81,6 +83,8 @@ async function buildApp() {
 		runFirst: true
 	});
 
+	await fastify.register(fastifyFormbody);
+
 	await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET! });
 
 	fastify.setErrorHandler(errorHandler);
@@ -103,6 +107,7 @@ async function buildApp() {
 	await fastify.register(branchRoutes);
 	await fastify.register(onboardingRoutes);
 	await fastify.register(certificationRoutes);
+	await fastify.register(cronRoutes);
 	await fastify.register(durationRoutes);
 	await fastify.register(stripeRoutes);
 	await fastify.register(qbRoutes);

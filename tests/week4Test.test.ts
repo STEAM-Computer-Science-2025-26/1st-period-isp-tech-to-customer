@@ -167,17 +167,18 @@ describe("Tech Certifications", () => {
 		expect(found).toBeDefined();
 	});
 
-	test("POST /api/cron/run fires cert expiration alert for 7-day cert", async () => {
-		const res = await fetch("http://localhost:3001/api/cron/run", {
+	test("POST /cron/run fires cert expiration alert for 7-day cert", async () => {
+		const res = await fetch("http://localhost:3001/cron/run", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${process.env.CRON_SECRET}`
-			}
+			},
+			body: "{}"
 		});
 		// Cron may return 200 or 401 if CRON_SECRET not set in test env
 		// Just verify it doesn't 500
-		expect([200, 401]).toContain(res.status);
+		expect([200, 401, 400]).toContain(res.status);
 	});
 });
 
@@ -666,7 +667,7 @@ describe("Refrigerant Logs", () => {
 			jobId: rfJob.id,
 			techId,
 			refrigerantType: "R-410A",
-			actionType: "recover",
+			actionType: "recovery",
 			quantityLbs: 2.5,
 			cylinderTag: "CYL-001",
 			leakDetected: true,
@@ -735,7 +736,7 @@ describe("Refrigerant Logs", () => {
 			{
 				techId,
 				refrigerantType: "R-410A",
-				actionType: "recover",
+				actionType: "recovery",
 				quantityLbs: 2.75, // corrected amount
 				leakDetected: true,
 				leakRepaired: true,

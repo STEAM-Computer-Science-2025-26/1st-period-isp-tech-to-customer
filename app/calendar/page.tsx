@@ -294,7 +294,10 @@ const EventCard = ({
 		>
 			<div className="flex min-w-0 items-center gap-2">
 				<span
-					className={cn("size-1.5 shrink-0 rounded-full", toneDotClasses[event.tone])}
+					className={cn(
+						"size-1.5 shrink-0 rounded-full",
+						toneDotClasses[event.tone]
+					)}
 				/>
 				<p className="min-w-0 flex-1 truncate text-sm font-semibold leading-5">
 					{event.title}
@@ -587,10 +590,10 @@ const CalendarPage = () => {
 													setSelectedJobTypes
 												)
 											}
-									/>
-								}
-								className="w-full max-w-md"
-							/>
+										/>
+									}
+									className="w-full max-w-md"
+								/>
 							</div>
 
 							<div className="relative lg:hidden">
@@ -668,7 +671,7 @@ const CalendarPage = () => {
 											? "bg-background-secondary/75 text-text-main shadow-sm"
 											: "text-text-secondary hover:text-text-main"
 									)}
-								onClick={() => setCurrentView(view)}
+									onClick={() => setCurrentView(view)}
 								>
 									{view}
 								</button>
@@ -718,7 +721,7 @@ const CalendarPage = () => {
 									});
 									const isToday =
 										date.toDateString() === new Date().toDateString();
-										const events: CalendarEvent[] = dayEvents[dayKey] ?? [];
+									const events: CalendarEvent[] = dayEvents[dayKey] ?? [];
 									return (
 										<div
 											key={dayKey}
@@ -726,13 +729,16 @@ const CalendarPage = () => {
 										>
 											<div
 												className={cn(
-													"sticky top-0 border-b-2 border-accent-text/80 bg-background-main/90 px-3 py-2", isToday && "bg-background-secondary/30"
+													"sticky top-0 border-b-2 border-accent-text/80 bg-background-main/90 px-3 py-2",
+													isToday && "bg-background-secondary/30"
 												)}
 											>
 												<div className="flex items-center gap-1.5">
 													<span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent-text-dark-3">
 														<span className="hidden md:inline">{dayName}</span>
-														<span className="md:hidden">{dayName.charAt(0)}</span>
+														<span className="md:hidden">
+															{dayName.charAt(0)}
+														</span>
 													</span>
 													<span className="ml-auto text-[10px] font-semibold leading-none">
 														{date.getDate()}
@@ -744,38 +750,42 @@ const CalendarPage = () => {
 												orientation="vertical"
 												sizeClass="h-12"
 												fromColorClass="background-primary"
-													className={cn(
-														"h-[calc(100%-2.25rem)] overflow-y-auto p-2",
-														isToday && "bg-background-secondary/30"
-													)}
+												className={cn(
+													"h-[calc(100%-2.25rem)] overflow-y-auto p-2",
+													isToday && "bg-background-secondary/30"
+												)}
 											>
 												<div className="space-y-1.5">
-														{events.length > 0 ? (
-															events.map((event) => (
-																<Fragment key={event.jobId}>
-																	<div className="hidden md:block">
-																		<EventCard
-																			key={`${event.jobId}-card`}
-																			event={event}
-																			onSelect={handleSelectJob}
-																			selected={sidePanelOpen && selectedJobId === event.jobId}
-																			compact={false}
-																		/>
-																	</div>
-																	<button
-																		key={`${event.jobId}-bar`}
-																		type="button"
-																		onClick={() => handleSelectJob(event.jobId)}
-																		className={cn(
-																			"h-2 w-full rounded-full border md:hidden",
-																			toneBarClasses[event.tone],
-																			sidePanelOpen && selectedJobId === event.jobId &&
-																				"ring-1 ring-accent-main/60"
-																		)}
-																		aria-label={event.title}
-																		title={event.title}
+													{events.length > 0 ? (
+														events.map((event) => (
+															<Fragment key={event.jobId}>
+																<div className="hidden md:block">
+																	<EventCard
+																		key={`${event.jobId}-card`}
+																		event={event}
+																		onSelect={handleSelectJob}
+																		selected={
+																			sidePanelOpen &&
+																			selectedJobId === event.jobId
+																		}
+																		compact={false}
 																	/>
-																</Fragment>
+																</div>
+																<button
+																	key={`${event.jobId}-bar`}
+																	type="button"
+																	onClick={() => handleSelectJob(event.jobId)}
+																	className={cn(
+																		"h-2 w-full rounded-full border md:hidden",
+																		toneBarClasses[event.tone],
+																		sidePanelOpen &&
+																			selectedJobId === event.jobId &&
+																			"ring-1 ring-accent-main/60"
+																	)}
+																	aria-label={event.title}
+																	title={event.title}
+																/>
+															</Fragment>
 														))
 													) : (
 														<div className="py-4 text-center text-xs font-medium text-text-secondary/50">
@@ -829,36 +839,38 @@ const CalendarPage = () => {
 												</div>
 												<div className="space-y-px md:space-y-0.5">
 													{events.slice(0, 3).map((event) => (
-													<Fragment key={event.jobId}>
-														<button
-															key={`${event.jobId}-label`}
-															type="button"
-															onClick={() => handleSelectJob(event.jobId)}
-															className={cn(
-																"hidden w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] transition-all md:block",
-																"hover:brightness-105 focus:outline-none",
-																toneClasses[event.tone],
-																	sidePanelOpen && selectedJobId === event.jobId &&
-																	"ring-1 ring-accent-main/60"
-															)}
-															title={event.title}
-														>
-															{event.title}
-														</button>
-														<button
-															key={`${event.jobId}-bar`}
-															type="button"
-															onClick={() => handleSelectJob(event.jobId)}
-															className={cn(
-																"h-2 w-full rounded-full border md:hidden",
-																toneBarClasses[event.tone],
-																	sidePanelOpen && selectedJobId === event.jobId &&
+														<Fragment key={event.jobId}>
+															<button
+																key={`${event.jobId}-label`}
+																type="button"
+																onClick={() => handleSelectJob(event.jobId)}
+																className={cn(
+																	"hidden w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] transition-all md:block",
+																	"hover:brightness-105 focus:outline-none",
+																	toneClasses[event.tone],
+																	sidePanelOpen &&
+																		selectedJobId === event.jobId &&
 																		"ring-1 ring-accent-main/60"
-															)}
-															aria-label={event.title}
-															title={event.title}
-														/>
-													</Fragment>
+																)}
+																title={event.title}
+															>
+																{event.title}
+															</button>
+															<button
+																key={`${event.jobId}-bar`}
+																type="button"
+																onClick={() => handleSelectJob(event.jobId)}
+																className={cn(
+																	"h-2 w-full rounded-full border md:hidden",
+																	toneBarClasses[event.tone],
+																	sidePanelOpen &&
+																		selectedJobId === event.jobId &&
+																		"ring-1 ring-accent-main/60"
+																)}
+																aria-label={event.title}
+																title={event.title}
+															/>
+														</Fragment>
 													))}
 													{events.length > 3 && (
 														<p className="px-1 text-[11px] text-text-tertiary">
@@ -875,10 +887,12 @@ const CalendarPage = () => {
 
 						{currentView === "day" && (
 							<DayTimeGrid
-								events={dayEvents[currentDate.toISOString().split("T")[0]] ?? []}
+								events={
+									dayEvents[currentDate.toISOString().split("T")[0]] ?? []
+								}
 								onSelect={handleSelectJob}
 								selectedJobId={selectedJobId}
-									showSelection={sidePanelOpen}
+								showSelection={sidePanelOpen}
 							/>
 						)}
 					</div>
