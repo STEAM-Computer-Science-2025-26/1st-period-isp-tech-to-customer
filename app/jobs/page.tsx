@@ -26,7 +26,6 @@ import {
 } from "./components/jobsFilterUtils";
 import { formatNumericDate } from "@/lib/utils";
 import {
-	Wrench,
 	ChevronRight,
 	ArrowUpDown,
 	ArrowUp,
@@ -36,11 +35,11 @@ import { FilterSearchBar } from "@/components/ui/FilterSearchBar";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { CopyCell } from "@/components/ui/CopyCell";
 import {
-	JobDetailPanel,
 	StatusBadge,
 	PriorityBadge,
 	stripZipCode
 } from "@/components/panels/JobDetailPanel";
+import { JobDetailDrawer } from "@/components/jobs/JobDetailDrawer";
 
 const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
@@ -311,6 +310,16 @@ const JobsPageContent = () => {
 		[customers]
 	);
 
+	const selectedJob = useMemo(
+		() => jobs.find((job) => job.id === selectedJobId) ?? null,
+		[jobs, selectedJobId]
+	);
+
+	const selectedCustomerId = useMemo(
+		() => (selectedJob ? resolveCustomerIdForJob(selectedJob) : null),
+		[selectedJob, resolveCustomerIdForJob]
+	);
+
 	const copyToClipboard = async (text: string) => {
 		if (!text) return;
 		try {
@@ -562,13 +571,15 @@ const JobsPageContent = () => {
 				)}
 			</MainContent>
 			<SidePanel isOpen={sidePanelOpen} onOpenChange={setSidePanelOpen}>
-				<JobDetailPanel
+				<JobDetailDrawer
 					jobId={selectedJobId}
+					customerId={selectedCustomerId}
 					onOpenFull={() => {
 						if (!selectedJobId) return;
 						openToJob(selectedJobId, "full");
 						setSidePanelOpen(false);
 					}}
+					onClose={() => setSidePanelOpen(false)}
 				/>
 			</SidePanel>
 		</APIProvider>
