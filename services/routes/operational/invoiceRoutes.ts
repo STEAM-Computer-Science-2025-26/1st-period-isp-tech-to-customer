@@ -38,6 +38,7 @@ const createInvoiceSchema = z.object({
 	jobId: z.string().check(z.uuid()).optional(),
 	estimateId: z.string().check(z.uuid()).optional(),
 	taxRate: z.number().min(0).max(1).default(0),
+	issueDate: z.string().optional(), // ISO date; defaults to today in DB
 	dueDate: z.string().optional(),
 	notes: z.string().optional(),
 	lineItems: z.array(lineItemSchema).min(1)
@@ -200,6 +201,7 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
 					total,
 					amount_paid     AS "amountPaid",
 					balance_due     AS "balanceDue",
+					created_at::date AS "issueDate",
 					due_date        AS "dueDate",
 					notes,
 					created_at      AS "createdAt"
@@ -276,13 +278,20 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
 					i.job_id          AS "jobId",
 					i.estimate_id     AS "estimateId",
 					i.invoice_number  AS "invoiceNumber",
-					i.status,
+					CASE
+						WHEN i.status = 'sent'
+							AND i.due_date IS NOT NULL
+							AND i.due_date < CURRENT_DATE
+						THEN 'overdue'
+						ELSE i.status::text
+					END               AS "status",
 					i.subtotal,
 					i.tax_rate        AS "taxRate",
 					i.tax_amount      AS "taxAmount",
 					i.total,
 					i.amount_paid     AS "amountPaid",
 					i.balance_due     AS "balanceDue",
+					i.created_at::date AS "issueDate",
 					i.due_date        AS "dueDate",
 					i.sent_at         AS "sentAt",
 					i.paid_at         AS "paidAt",
@@ -294,12 +303,81 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
 					(${isDev(user) && !companyId} OR i.company_id = ${companyId})
 					AND (${customerId == null} OR i.customer_id = ${customerId})
 					AND (${jobId == null} OR i.job_id = ${jobId})
-					AND (${status == null} OR i.status = ${status})
+					AND (${status == null} OR
+						CASE
+							WHEN i.status = 'sent'
+								AND i.due_date IS NOT NULL
+								AND i.due_date < CURRENT_DATE
+							THEN 'overdue'
+							ELSE i.status::text
+						END = ${status ?? null})
 				ORDER BY i.created_at DESC
 				LIMIT ${limit} OFFSET ${offset}
 			`;
 
 			return reply.send({ invoices, limit, offset });
+		}
+	);
+
+	// ----------------------------------------------------------
+	// GET /invoices/stats
+	// Aggregate financial stats for the company.
+	// Must be registered before /:invoiceId to avoid param capture.
+	// ----------------------------------------------------------
+	fastify.get(
+		"/invoices/stats",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const companyId = resolveCompanyId(user);
+			const sql = getSql();
+
+			const [stats] = (await sql`
+				SELECT
+					COALESCE(SUM(
+						CASE
+							WHEN i.status IN ('sent', 'partial')
+								OR (i.status = 'sent'
+									AND i.due_date IS NOT NULL
+									AND i.due_date < CURRENT_DATE)
+							THEN i.balance_due
+							ELSE 0
+						END
+					), 0) AS "totalOutstanding",
+
+					COALESCE(SUM(
+						CASE
+							WHEN i.status = 'paid'
+								AND i.paid_at >= date_trunc('month', CURRENT_TIMESTAMP)
+							THEN i.total
+							ELSE 0
+						END
+					), 0) AS "totalPaidThisMonth",
+
+					COUNT(
+						CASE
+							WHEN i.status = 'sent'
+								AND i.due_date IS NOT NULL
+								AND i.due_date < CURRENT_DATE
+							THEN 1
+						END
+					) AS "overdueCount",
+
+					COALESCE(SUM(
+						CASE WHEN i.status = 'paid' THEN i.total ELSE 0 END
+					), 0) AS "totalRevenue"
+
+				FROM invoices i
+				WHERE (${isDev(user) && !companyId} OR i.company_id = ${companyId})
+					AND i.status != 'void'
+			`) as any[];
+
+			return reply.send({
+				totalOutstanding: Number(stats.totalOutstanding),
+				totalPaidThisMonth: Number(stats.totalPaidThisMonth),
+				overdueCount: Number(stats.overdueCount),
+				totalRevenue: Number(stats.totalRevenue)
+			});
 		}
 	);
 
@@ -324,13 +402,20 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
 					i.job_id          AS "jobId",
 					i.estimate_id     AS "estimateId",
 					i.invoice_number  AS "invoiceNumber",
-					i.status,
+					CASE
+						WHEN i.status = 'sent'
+							AND i.due_date IS NOT NULL
+							AND i.due_date < CURRENT_DATE
+						THEN 'overdue'
+						ELSE i.status::text
+					END               AS "status",
 					i.subtotal,
 					i.tax_rate        AS "taxRate",
 					i.tax_amount      AS "taxAmount",
 					i.total,
 					i.amount_paid     AS "amountPaid",
 					i.balance_due     AS "balanceDue",
+					i.created_at::date AS "issueDate",
 					i.due_date        AS "dueDate",
 					i.sent_at         AS "sentAt",
 					i.paid_at         AS "paidAt",
@@ -504,6 +589,54 @@ export async function invoiceRoutes(fastify: FastifyInstance) {
 			`;
 
 			return reply.send({ message: "Payment recorded", invoice });
+		}
+	);
+
+	// ----------------------------------------------------------
+	// POST /invoices/:invoiceId/send
+	// Transition invoice to 'sent'. Records sent_at timestamp.
+	// Must be draft or (dev-only) any non-void status.
+	// ----------------------------------------------------------
+	fastify.post(
+		"/invoices/:invoiceId/send",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
+			const user = getUser(request);
+			const { invoiceId } = request.params as { invoiceId: string };
+			const companyId = resolveCompanyId(user);
+			const sql = getSql();
+
+			const [existing] = (await sql`
+				SELECT id, status FROM invoices
+				WHERE id = ${invoiceId}
+					AND (${isDev(user) && !companyId} OR company_id = ${companyId})
+			`) as { id: string; status: string }[];
+
+			if (!existing)
+				return reply.code(404).send({ error: "Invoice not found" });
+			if (existing.status === "void") {
+				return reply.code(409).send({ error: "Cannot send a voided invoice" });
+			}
+			if (existing.status === "paid") {
+				return reply.code(409).send({ error: "Invoice is already paid" });
+			}
+			if (!isDev(user) && existing.status === "sent") {
+				return reply.code(409).send({ error: "Invoice is already sent" });
+			}
+
+			const [invoice] = await sql`
+				UPDATE invoices
+				SET status = 'sent', sent_at = NOW(), updated_at = NOW()
+				WHERE id = ${invoiceId}
+				RETURNING
+					id,
+					invoice_number AS "invoiceNumber",
+					status,
+					sent_at        AS "sentAt",
+					updated_at     AS "updatedAt"
+			`;
+
+			return reply.send({ message: "Invoice sent", invoice });
 		}
 	);
 
