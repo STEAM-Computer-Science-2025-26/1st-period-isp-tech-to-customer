@@ -497,7 +497,7 @@ export default function LoginForm({
 				}
 
 				setToken(payload.token);
-				window.location.href = "/jobs";
+				window.location.href = "/dashboard";
 			} catch (error) {
 				const message =
 					error instanceof Error ? error.message : "Registration failed.";
@@ -554,7 +554,7 @@ export default function LoginForm({
 				}
 
 				setToken(payload.token);
-				window.location.href = "/jobs";
+				window.location.href = "/dashboard";
 			} catch (error) {
 				const message =
 					error instanceof Error ? error.message : "Login failed.";

@@ -12,7 +12,7 @@ export const defaultSidebarItems: SidebarItemParams[] = [
 		title: "Home",
 		icon: "home",
 		onClick: () => {
-			window.location.href = "/";
+			window.location.href = "/dashboard";
 		}
 	},
 	...(process.env.NEXT_PUBLIC_ENABLE_DEV_TOOLS === "true"

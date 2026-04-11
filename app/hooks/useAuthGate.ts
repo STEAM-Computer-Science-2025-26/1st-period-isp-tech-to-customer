@@ -9,7 +9,7 @@ type UseAuthGateOptions = {
 	redirectTo?: string;
 };
 
-const DEFAULT_PUBLIC_PATHS = ["/login", "/verify"];
+const DEFAULT_PUBLIC_PATHS = ["/", "/login", "/verify"];
 
 export function useAuthGate(options: UseAuthGateOptions = {}): void {
 	const router = useRouter();
