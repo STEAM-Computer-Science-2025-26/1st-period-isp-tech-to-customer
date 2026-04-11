@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/lib/api";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MainContent from "@/components/layout/MainContent";
@@ -9,6 +10,7 @@ import { KpiCard } from "@/components/ui/Card";
 import { JobDTO } from "@/app/types/types";
 import FadeEnd from "@/components/ui/FadeEnd";
 import { useJobs } from "@/lib/hooks/useJobs";
+import { useBreakpoints } from "@/app/hooks/useBreakpoints";
 import {
 	useOpenToCustomer,
 	useOpenToJob,
@@ -16,7 +18,6 @@ import {
 } from "@/lib/hooks/useOpenTo";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
 import JobsFilterDropdown from "./components/JobsFilterDropdown";
 import {
 	countActiveFilters,
@@ -26,6 +27,7 @@ import {
 } from "./components/jobsFilterUtils";
 import { formatNumericDate } from "@/lib/utils";
 import {
+	Wrench,
 	ChevronRight,
 	ArrowUpDown,
 	ArrowUp,
@@ -35,11 +37,11 @@ import { FilterSearchBar } from "@/components/ui/FilterSearchBar";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { CopyCell } from "@/components/ui/CopyCell";
 import {
+	JobDetailPanel,
 	StatusBadge,
 	PriorityBadge,
 	stripZipCode
 } from "@/components/panels/JobDetailPanel";
-import { JobDetailDrawer } from "@/components/jobs/JobDetailDrawer";
 
 const MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
@@ -84,6 +86,7 @@ const JobsPageContent = () => {
 	const [filterOpen, setFilterOpen] = useState(false);
 	const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 	const [sidePanelOpen, setSidePanelOpen] = useState(false);
+	const{ smUp, mdUp, lgUp, smDown } = useBreakpoints();
 	type SortKey =
 		| "customerName"
 		| "address"
@@ -99,6 +102,9 @@ const JobsPageContent = () => {
 		key: SortKey;
 		direction: "asc" | "desc";
 	}>({ key: null, direction: "asc" });
+
+	// Columns for Jobs table:
+
 
 	const handleSort = (key: NonNullable<SortKey>) => {
 		if (sortKey !== key) {
@@ -308,16 +314,6 @@ const JobsPageContent = () => {
 			return addressMatch?.id ?? nameMatches[0]?.id ?? null;
 		},
 		[customers]
-	);
-
-	const selectedJob = useMemo(
-		() => jobs.find((job) => job.id === selectedJobId) ?? null,
-		[jobs, selectedJobId]
-	);
-
-	const selectedCustomerId = useMemo(
-		() => (selectedJob ? resolveCustomerIdForJob(selectedJob) : null),
-		[selectedJob, resolveCustomerIdForJob]
 	);
 
 	const copyToClipboard = async (text: string) => {
@@ -571,15 +567,13 @@ const JobsPageContent = () => {
 				)}
 			</MainContent>
 			<SidePanel isOpen={sidePanelOpen} onOpenChange={setSidePanelOpen}>
-				<JobDetailDrawer
+				<JobDetailPanel
 					jobId={selectedJobId}
-					customerId={selectedCustomerId}
 					onOpenFull={() => {
 						if (!selectedJobId) return;
 						openToJob(selectedJobId, "full");
 						setSidePanelOpen(false);
 					}}
-					onClose={() => setSidePanelOpen(false)}
 				/>
 			</SidePanel>
 		</APIProvider>
