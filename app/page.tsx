@@ -23,14 +23,14 @@ export default function LandingPage() {
 		>
 			<LandingFloatingHeader targetId="landing-caldius-brand" />
 
-			<div className={cn(`absolute top-0 inset-x-0 h-30 bg-linear-to-b from-background-main to-transparent z-20`)}></div>
-			<div className={cn(`absolute left-0 inset-y-0 w-30 bg-linear-to-r from-background-main to-transparent z-20`)}></div>
-			<div className={cn(`absolute right-0 inset-y-0 w-30 bg-linear-to-l from-background-main to-transparent z-20`)}></div>
+			<div className={cn(`pointer-events-none z-10 absolute top-0 inset-x-0 h-30 bg-linear-to-b from-background-main to-transparent`)}></div>
+			<div className={cn(`pointer-events-none z-10 absolute left-0 inset-y-0 w-30 bg-linear-to-r from-background-main to-transparent`)}></div>
+			<div className={cn(`pointer-events-none z-10 absolute right-0 inset-y-0 w-30 bg-linear-to-l from-background-main to-transparent`)}></div>
 			<WindFieldBackground interactionCoefficient={0.88} interactionRadius={190} />
 
 			<div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(56rem_56rem_at_95%_-12%,rgba(83,171,177,0.26),transparent_62%),radial-gradient(42rem_42rem_at_-12%_28%,rgba(98,133,141,0.16),transparent_58%)]" />
 
-			<div className="z-20 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 pb-20 pt-8 md:px-10 lg:px-14">
+			<div className="relative z-20 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 pb-20 pt-8 md:px-10 lg:px-14">
 				<div id="landing-caldius-brand" aria-hidden="true" className="h-px w-full" />
 
 				<section className="mt-10 grid flex-1 items-start gap-16 lg:mt-16 lg:grid-cols-[1.15fr_0.85fr]">
@@ -42,7 +42,7 @@ export default function LandingPage() {
 						</p>
 
 						<h1
-							className={`${headingFont.className} ${styles.heroEnter} ${styles.delay2} max-w-4xl text-5xl leading-[1.05] bg-radial-[closest-side] from-background-main from-80% to-transparent md:text-6xl lg:text-7xl`}
+							className={`${headingFont.className} ${styles.heroEnter} ${styles.delay2} max-w-4xl text-5xl leading-[1.1] bg-radial-[closest-side] from-background-main from-80% to-transparent md:text-6xl md:leading-[1.08] lg:text-7xl lg:leading-[1.05]`}
 						>
 							Schedule, Dispatch, then move on.
 							<br className="hidden md:block" />
@@ -69,7 +69,7 @@ export default function LandingPage() {
 								href="/dashboard"
 								className="rounded-xl bg-background-main border border-accent-text/35 px-5 py-3 text-sm font-semibold text-text-main transition-colors duration-200 hover:bg-background-primary"
 							>
-								See live dashboard
+								See demo dashboard
 							</Link>
 						</div>
 					</div>

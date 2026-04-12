@@ -72,7 +72,7 @@ export default function LandingFloatingHeader({
 
 					<div className="relative ml-auto flex h-8 min-w-[18rem] items-center justify-end">
 						<motion.p
-							className="absolute right-0 text-right text-sm text-text-secondary"
+							className="absolute right-0 hidden text-right text-sm text-text-secondary sm:block"
 							initial={false}
 							animate={{
 								x: isScrolledPastBrand ? -156 : 0
