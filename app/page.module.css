@@ -1,0 +1,47 @@
+@keyframes fadeUp {
+	from {
+		opacity: 0;
+		transform: translateY(18px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.heroEnter {
+	opacity: 0;
+	animation: fadeUp 680ms ease-out forwards;
+}
+
+.delay1 {
+	animation-delay: 120ms;
+}
+
+.delay2 {
+	animation-delay: 200ms;
+}
+
+.delay3 {
+	animation-delay: 300ms;
+}
+
+.delay4 {
+	animation-delay: 420ms;
+}
+
+.delay5 {
+	animation-delay: 520ms;
+}
+
+.delay6 {
+	animation-delay: 620ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.heroEnter {
+		opacity: 1;
+		animation: none;
+	}
+}

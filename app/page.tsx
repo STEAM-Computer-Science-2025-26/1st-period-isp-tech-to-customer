@@ -1,253 +1,85 @@
-"use client";
+import Link from "next/link";
+import { Manrope, Space_Grotesk } from "next/font/google";
+import styles from "./page.module.css";
+import WindFieldBackground from "@/components/marketing/WindFieldBackground";
+import LandingFloatingHeader from "@/components/marketing/LandingFloatingHeader";
+import LandingScreenshotStack from "@/components/marketing/LandingScreenshotStack";
+import { cn } from "@/lib/utils/index";
 
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, TrendingUp } from "lucide-react";
-import {
-	Card,
-	KpiCard,
-	LineGraphCard,
-	ListCard,
-	TableCard
-} from "@/components/ui/Card";
-import MainContent from "@/components/layout/MainContent";
-import { apiFetch } from "@/lib/api";
+const headingFont = Space_Grotesk({
+	subsets: ["latin"],
+	weight: ["500", "700"]
+});
 
-const openJobsColumns = [
-	{ key: "id", header: "ID" },
-	{ key: "customer", header: "Customer" },
-	{ key: "status", header: "Status" },
-	{ key: "priority", header: "Priority" }
-] as const;
+const bodyFont = Manrope({
+	subsets: ["latin"],
+	weight: ["400", "500", "600"]
+});
 
-type DashboardAnalyticsResponse = {
-	days: number;
-	jobsToday: number;
-	jobsYesterday: number;
-	jobsChangePct: number | null;
-	avgResponseMinutes: number | null;
-	avgResponseDeltaMinutes: number | null;
-	jobVolume: { day: string; count: number }[];
-	openJobs: {
-		id: string;
-		customer: string;
-		status: string;
-		priority: string;
-	}[];
-	counts: {
-		customers: number;
-		employees: number;
-		openJobs: number;
-	};
-	statusCounts: {
-		unassigned: number;
-		inProgress: number;
-		scheduledNext24: number;
-	};
-};
-
-function formatMinutes(totalMinutes: number | null): string {
-	if (totalMinutes == null || Number.isNaN(totalMinutes)) return "--";
-	if (totalMinutes < 60) return `${Math.round(totalMinutes)}m`;
-	const hours = Math.floor(totalMinutes / 60);
-	const minutes = Math.round(totalMinutes % 60);
-	return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-}
-
-function formatDeltaMinutes(deltaMinutes: number | null): string {
-	if (deltaMinutes == null || Number.isNaN(deltaMinutes)) return "--";
-	const prefix = deltaMinutes > 0 ? "+" : "";
-	return `${prefix}${Math.round(deltaMinutes)}m`;
-}
-
-function formatPct(value: number | null): string {
-	if (value == null || Number.isNaN(value)) return "--";
-	const prefix = value > 0 ? "+" : "";
-	return `${prefix}${value}%`;
-}
-
-export default function Home() {
-	const [rangeDays, setRangeDays] = useState(30);
-	const { data, isLoading } = useQuery({
-		queryKey: ["dashboard-analytics", rangeDays],
-		queryFn: () =>
-			apiFetch<DashboardAnalyticsResponse>(
-				`/api/analytics/dashboard?days=${rangeDays}`
-			)
-	});
-
-	const linePoints = useMemo(
-		() =>
-			(data?.jobVolume ?? []).map((row, index) => ({
-				x: index,
-				y: row.count
-			})),
-		[data]
-	);
-
-	const jobsTodayValue = data?.jobsToday ?? 0;
-	const jobsTrendValue = formatPct(data?.jobsChangePct ?? null);
-	const jobsTrendTone =
-		data?.jobsChangePct == null
-			? "neutral"
-			: data.jobsChangePct >= 0
-				? "success"
-				: "warning";
-
-	const avgResponseValue = formatMinutes(data?.avgResponseMinutes ?? null);
-	const avgResponseDelta = formatDeltaMinutes(
-		data?.avgResponseDeltaMinutes ?? null
-	);
-	const avgResponseTone =
-		data?.avgResponseDeltaMinutes == null
-			? "neutral"
-			: data.avgResponseDeltaMinutes <= 0
-				? "success"
-				: "warning";
-
-	const quickLinks = [
-		{
-			id: "customers",
-			label: "Customers",
-			description: `${data?.counts.customers ?? 0} total`,
-			href: "/customers",
-			right: <ChevronRight className="h-4 w-4" />
-		},
-		{
-			id: "jobs",
-			label: "Open Jobs",
-			description: `${data?.counts.openJobs ?? 0} in queue`,
-			href: "/jobs",
-			right: <ChevronRight className="h-4 w-4" />
-		},
-		{
-			id: "employees",
-			label: "Technicians",
-			description: `${data?.counts.employees ?? 0} active`,
-			href: "/employees",
-			right: <ChevronRight className="h-4 w-4" />
-		}
-	];
-
-	const nextSteps = [
-		{
-			label: "Assign unassigned jobs",
-			description: `${data?.statusCounts.unassigned ?? 0} waiting`,
-			href: "/dispatch",
-			right: <span className="text-xs">queue</span>
-		},
-		{
-			label: "Monitor in-progress",
-			description: `${data?.statusCounts.inProgress ?? 0} active`,
-			href: "/jobs",
-			right: <span className="text-xs">live</span>
-		},
-		{
-			label: "Prep next 24h",
-			description: `${data?.statusCounts.scheduledNext24 ?? 0} scheduled`,
-			href: "/calendar",
-			right: <span className="text-xs">calendar</span>
-		}
-	];
-
+export default function LandingPage() {
 	return (
-		<>
-			<MainContent>
-				<div className="grid w-full max-w-full gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 mx-auto">
-					<Card
-						type="kpi"
-						title="Total Jobs Today"
-						value={isLoading ? "--" : jobsTodayValue}
-						trend={{ value: jobsTrendValue, tone: jobsTrendTone }}
-						meta="vs yesterday"
-						icon={<TrendingUp className="h-5 w-5 text-text-secondary" />}
-						actions={
-							<button className="text-xs text-text-secondary hover:text-text-main transition-colors">
-								View
-							</button>
-						}
-						footer={isLoading ? "Loading..." : `Last ${rangeDays} days`}
-					/>
+		<main
+			className={`${bodyFont.className} relative isolate min-h-screen overflow-hidden bg-background-main text-text-main`}
+		>
+			<LandingFloatingHeader targetId="landing-caldius-brand" />
 
-					<KpiCard
-						title="Avg. Response Time"
-						subtitle={`Last ${rangeDays} days`}
-						value={isLoading ? "--" : avgResponseValue}
-						trend={{ value: avgResponseDelta, tone: avgResponseTone }}
-						meta="avg to first assignment"
-					/>
+			<div className={cn(`absolute top-0 inset-x-0 h-30 bg-linear-to-b from-background-main to-transparent z-20`)}></div>
+			<div className={cn(`absolute left-0 inset-y-0 w-30 bg-linear-to-r from-background-main to-transparent z-20`)}></div>
+			<div className={cn(`absolute right-0 inset-y-0 w-30 bg-linear-to-l from-background-main to-transparent z-20`)}></div>
+			<WindFieldBackground interactionCoefficient={0.88} interactionRadius={190} />
 
-					<LineGraphCard
-						title="Weekly Volume"
-						subtitle="Requests by day"
-						toolbar={
-							<div className="flex items-center gap-2">
-								<button
-									className={`text-xs px-2 py-1 rounded-md transition-colors ${
-										rangeDays === 7
-											? "bg-background-secondary"
-											: "bg-background-secondary/60 hover:bg-background-secondary"
-									}`}
-									onClick={() => setRangeDays(7)}
-								>
-									7d
-								</button>
-								<button
-									className={`text-xs px-2 py-1 rounded-md transition-colors ${
-										rangeDays === 30
-											? "bg-background-secondary"
-											: "bg-background-secondary/60 hover:bg-background-secondary"
-									}`}
-									onClick={() => setRangeDays(30)}
-								>
-									30d
-								</button>
-							</div>
-						}
-						chartAnimateOnLoad
-						chartAnimateDurationMs={900}
-						data={{
-							points: linePoints,
-							lineType: "connect",
-							width: 300,
-							height: 150,
-							yAxisLabel: "Jobs",
-							xAxisLabel: "Days"
-						}}
-					/>
+			<div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(56rem_56rem_at_95%_-12%,rgba(83,171,177,0.26),transparent_62%),radial-gradient(42rem_42rem_at_-12%_28%,rgba(98,133,141,0.16),transparent_58%)]" />
 
-					<TableCard
-						title="Open Jobs Table"
-						subtitle="Top 5 by priority"
-						toolbar={
-							<div className="text-xs text-text-secondary">
-								{isLoading ? "Loading..." : "Filter: Open"}
-							</div>
-						}
-						columns={[...openJobsColumns]}
-						rows={[...(data?.openJobs ?? [])]}
-						getRowKey={(row) => row.id}
-						emptyState={isLoading ? "Loading jobs..." : "No open jobs"}
-					/>
+			<div className="z-20 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 pb-20 pt-8 md:px-10 lg:px-14">
+				<div id="landing-caldius-brand" aria-hidden="true" className="h-px w-full" />
 
-					<Card
-						type="list"
-						title="Quick Links"
-						subtitle="Common pages"
-						items={quickLinks}
-					/>
+				<section className="mt-10 grid flex-1 items-start gap-16 lg:mt-16 lg:grid-cols-[1.15fr_0.85fr]">
+					<div className="space-y-10">
+						<p
+							className={`${styles.heroEnter} ${styles.delay1} inline-flex rounded-full border border-accent-text/30 px-4 py-1 text-xs uppercase tracking-[0.14em] text-accent-text-dark bg-background-main`}
+						>
+							Low friction by design
+						</p>
 
-					<ListCard
-						title="Next Steps"
-						subtitle="Do these in order"
-						ordered
-						items={nextSteps}
-						footer={
-							isLoading ? "Loading priorities..." : "Based on live job queue"
-						}
-					/>
-				</div>
-			</MainContent>
-		</>
+						<h1
+							className={`${headingFont.className} ${styles.heroEnter} ${styles.delay2} max-w-4xl text-5xl leading-[1.05] bg-radial-[closest-side] from-background-main from-80% to-transparent md:text-6xl lg:text-7xl`}
+						>
+							Schedule, Dispatch, then move on.
+							<br className="hidden md:block" />
+							No extra clicks.
+						</h1>
+
+						<p
+							className={`${styles.heroEnter} ${styles.delay3} max-w-2xl text-base leading-relaxed text-text-secondary md:text-lg bg-radial-[closest-side] from-background-main from-50% to-transparent`}
+						>
+							Caldius keeps scheduling, customers, and field status in one
+							flow so your team can finish work faster with less admin drag.
+						</p>
+
+						<div
+							className={`${styles.heroEnter} ${styles.delay4} flex flex-wrap items-center gap-3`}
+						>
+							<Link
+								href="/login"
+								className="rounded-xl bg-accent-main px-5 py-3 text-sm font-semibold text-white shadow-sm transition-[transform,opacity] duration-200 hover:opacity-95 hover:-translate-y-px"
+							>
+								Start in seconds
+							</Link>
+							<Link
+								href="/dashboard"
+								className="rounded-xl bg-background-main border border-accent-text/35 px-5 py-3 text-sm font-semibold text-text-main transition-colors duration-200 hover:bg-background-primary"
+							>
+								See live dashboard
+							</Link>
+						</div>
+					</div>
+
+						<div className={cn(` h-full`)}>
+							<LandingScreenshotStack headingFontClassName={headingFont.className} />
+						</div>
+				</section>
+			</div>
+
+		</main>
 	);
 }
