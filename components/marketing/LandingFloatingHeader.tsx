@@ -61,9 +61,6 @@ export default function LandingFloatingHeader({
 					width: isScrolledPastBrand
 						? "min(calc(100vw - 2rem), 1120px)"
 						: "min(calc(100vw - 2rem), 1168px)",
-					boxShadow: isScrolledPastBrand
-						? "0 10px 30px rgba(0,0,0,0.12)"
-						: "0 0 0 rgba(0,0,0,0)",
 					backdropFilter: isScrolledPastBrand ? "blur(10px)" : "blur(0px)"
 				}}
 				transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
@@ -78,8 +75,7 @@ export default function LandingFloatingHeader({
 							className="absolute right-0 text-right text-sm text-text-secondary"
 							initial={false}
 							animate={{
-								opacity: isScrolledPastBrand ? 0 : 1,
-								x: isScrolledPastBrand ? -12 : 0
+								x: isScrolledPastBrand ? -156 : 0
 							}}
 							transition={{ duration: 0.35, ease: "easeOut" }}
 						>
