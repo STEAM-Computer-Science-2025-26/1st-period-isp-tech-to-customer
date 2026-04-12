@@ -291,8 +291,6 @@ export default function LandingScreenshotStack({
 			</div>
 
 			<div className="mt-8 flex items-center justify-between gap-4 px-2 ml-20">
-			
-
 				<div className="flex items-center gap-2">
 					{showcaseCards.map((card) => (
 						<button

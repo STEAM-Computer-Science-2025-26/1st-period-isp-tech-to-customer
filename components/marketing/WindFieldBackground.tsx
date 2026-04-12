@@ -67,6 +67,7 @@ export default function WindFieldBackground({
 		active: false
 	});
 	const smoothedMouseRef = useRef({ x: -9999, y: -9999 });
+	const cachedGradientRef = useRef<CanvasGradient | null>(null);
 
 	useEffect(() => {
 		const canvas = canvasRef.current;
@@ -131,6 +132,7 @@ export default function WindFieldBackground({
 			canvas.style.height = `${height}px`;
 
 			context.setTransform(dpr, 0, 0, dpr, 0, 0);
+			cachedGradientRef.current = null;
 			particlesRef.current = [];
 			syncParticleCount(width, height);
 		};
@@ -228,25 +230,46 @@ export default function WindFieldBackground({
 				context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
 			}
 
-			const thermalGradient = context.createLinearGradient(
-				-RESPAWN_MARGIN,
-				0,
-				width + RESPAWN_MARGIN,
-				0
-			);
-			thermalGradient.addColorStop(0, HOT_STREAM_COLOR);
-			thermalGradient.addColorStop(0.3, "rgba(146, 140, 121, 0.7)");
-			thermalGradient.addColorStop(0.5, COOL_STREAM_COLOR);
-			thermalGradient.addColorStop(1, COOL_STREAM_COLOR);
+			if (cachedGradientRef.current === null) {
+				const thermalGradient = context.createLinearGradient(
+					-RESPAWN_MARGIN,
+					0,
+					width + RESPAWN_MARGIN,
+					0
+				);
+				thermalGradient.addColorStop(0, HOT_STREAM_COLOR);
+				thermalGradient.addColorStop(0.3, "rgba(146, 140, 121, 0.7)");
+				thermalGradient.addColorStop(0.5, COOL_STREAM_COLOR);
+				thermalGradient.addColorStop(1, COOL_STREAM_COLOR);
+				cachedGradientRef.current = thermalGradient;
+			}
 
-			context.fillStyle = thermalGradient;
+			context.fillStyle = cachedGradientRef.current;
 			context.fill();
 
 			rafIdRef.current = window.requestAnimationFrame(drawFrame);
 		};
 
-		rafIdRef.current = window.requestAnimationFrame(drawFrame);
+		const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
+		const onMotionChange = (event: MediaQueryListEvent) => {
+			if (event.matches) {
+				if (rafIdRef.current !== null) {
+					window.cancelAnimationFrame(rafIdRef.current);
+					rafIdRef.current = null;
+				}
+			} else {
+				if (rafIdRef.current === null) {
+					rafIdRef.current = window.requestAnimationFrame(drawFrame);
+				}
+			}
+		};
+
+		if (!motionQuery.matches) {
+			rafIdRef.current = window.requestAnimationFrame(drawFrame);
+		}
+
+		motionQuery.addEventListener("change", onMotionChange);
 		window.addEventListener("resize", resizeCanvas);
 		window.addEventListener("pointerenter", onPointerEnter);
 		window.addEventListener("pointermove", onPointerMove, { passive: true });
@@ -257,6 +280,7 @@ export default function WindFieldBackground({
 			if (rafIdRef.current !== null) {
 				window.cancelAnimationFrame(rafIdRef.current);
 			}
+			motionQuery.removeEventListener("change", onMotionChange);
 			window.removeEventListener("resize", resizeCanvas);
 			window.removeEventListener("pointerenter", onPointerEnter);
 			window.removeEventListener("pointermove", onPointerMove);
