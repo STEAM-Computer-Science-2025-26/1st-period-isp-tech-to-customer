@@ -5,6 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
+# Workspace setup (run when opening project)
+pnpm run init:workspace  # git pull + install deps + setup Husky hooks
+
 # Development (runs both frontend :3000 and backend :3001 concurrently)
 pnpm dev
 
@@ -31,6 +34,20 @@ pnpm migrate:up
 pnpm migrate:down
 pnpm migrate:create
 ```
+
+## Daily developer workflow
+
+1. Run `pnpm run init:workspace` after opening the repo.
+2. Start local services with `pnpm dev` (or run frontend/backend separately).
+3. Push changes with `git push`.
+
+### Push behavior (Husky)
+
+- Hook is `pre-push` (not `pre-commit`).
+- Runs `pnpm run format` before push.
+- If formatting changes files, it auto-commits with `Husky: formatted code` and exits.
+- Run `git push` again to include that new commit.
+- Runs `pnpm run build` before allowing push completion.
 
 ## Architecture
 

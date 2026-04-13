@@ -87,7 +87,7 @@ const JobsPageContent = () => {
 	const [filterOpen, setFilterOpen] = useState(false);
 	const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 	const [sidePanelOpen, setSidePanelOpen] = useState(false);
-	const{ smUp, mdUp, lgUp, smDown } = useBreakpoints();
+	const { smUp, mdUp, lgUp, smDown } = useBreakpoints();
 	type SortKey =
 		| "customerName"
 		| "address"
@@ -105,7 +105,6 @@ const JobsPageContent = () => {
 	}>({ key: null, direction: "asc" });
 
 	// Columns for Jobs table:
-
 
 	const handleSort = (key: NonNullable<SortKey>) => {
 		if (sortKey !== key) {

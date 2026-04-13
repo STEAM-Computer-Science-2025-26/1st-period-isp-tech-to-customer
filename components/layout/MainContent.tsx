@@ -108,7 +108,7 @@ export default function MainContent({
 			</main>
 			{showFab && (
 				<Fab
-					size={lgUp ? "lg" : "md"} 
+					size={lgUp ? "lg" : "md"}
 					icon="plus"
 					className={cn("bottom-4 right-4")}
 					title="Add New Customer"
