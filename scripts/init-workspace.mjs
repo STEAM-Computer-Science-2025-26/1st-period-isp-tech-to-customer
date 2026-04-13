@@ -21,12 +21,13 @@ try {
 		console.log("\n[setup] pnpm is already installed");
 	}
 
+	run("git pull", "pulling latest changes");
 	run("pnpm install", "installing dependencies");
 	run("pnpm run prepare", "starting Husky");
-	run("git pull", "pulling latest changes");
 
 	console.log("\n[setup] Workspace is ready");
-} catch {
+} catch (error) {
 	console.error("\n[setup] Setup failed");
+	console.error(error);
 	process.exit(1);
 }
