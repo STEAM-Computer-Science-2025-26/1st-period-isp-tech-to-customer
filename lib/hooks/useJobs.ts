@@ -1,16 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { useApiQuery } from "@/lib/hooks/useApiQuery";
 import { JobsResponseSchema } from "@/lib/schemas/jobSchemas";
 
 export const jobsQueryKey = ["jobs"] as const;
 
 export function useJobs() {
-	return useQuery({
-		queryKey: jobsQueryKey,
-		queryFn: async () => {
-			const raw = await apiFetch<unknown>("/jobs");
-			return JobsResponseSchema.parse(raw).jobs;
-		},
-		staleTime: 30_000
-	});
+	return useApiQuery(
+		jobsQueryKey,
+		"/jobs",
+		JobsResponseSchema.transform((r) => r.jobs),
+		30_000
+	);
 }

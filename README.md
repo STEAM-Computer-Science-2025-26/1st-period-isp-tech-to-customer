@@ -1,205 +1,192 @@
-# Tech to Customer – ISP Project
+# Tech to Customer
 
-Tech to Customer is a HVAC management system that connects customers with HVAC suppliers and handles job assignment to employees. An all-in-one solution for managers, administration, and employees with statistics, charts, and multi-branch support. Basically, its a web service we're selling to air conditioning companies to help them manage jobs, their employees, statistics, and many other things.
+Tech to Customer is an HVAC operations platform for dispatchers, admins, and office teams. It combines a Next.js frontend with a Fastify backend in one repository and supports customer management, job lifecycle tracking, technician dispatch, analytics, and operational workflows.
 
-## Overview
+## What is in this repo
 
-This project provides:
+- Admin dashboard with KPI cards and job activity trends
+- Customer, job, employee, dispatch, map, calendar, resources, and todo pages
+- Dispatch recommendation algorithm with one-by-one and batch assignment flows
+- Fastify API with core, analytics, dispatch, integration, and operational route modules
+- Neon/Postgres database layer with migration support
 
-- Customer-to-technician job assignment
-- Admin dashboard with analytics
-- Employee management
-- Real-time job tracking and status updates
-- Role-based access control (Company Owner, Admin, Employee)
-- Custom routing and ETA according to gas prices, mileage, and other factors
+## Stack
 
-## Tech Stack
+- Next.js (App Router) + React + TypeScript
+- Fastify v5 (backend API)
+- TanStack React Query
+- Zustand (UI state)
+- Tailwind CSS v4 with tokenized theme variables
+- Neon serverless PostgreSQL
 
-This is a [Next.js 16](https://nextjs.org) project that combines React for the frontend and Node.js for the backend in one codebase to allow everyone in our team to work together.
+## Getting started
 
-**Dependencies:**
-
-- **Next.js** - Full-stack React framework
-- **TypeScript** - Type-safe JavaScript
-- **Tailwind CSS** - Utility-first styling
-- **Neon Serverless** - PostgreSQL database
-- **React** - UI library
-
-## Project Structure
-
-```
-/
-├── app/                         # Next.js App Router (all pages)
-│   ├── (auth)/                  # Auth routes (grouped, not in URL)
-│   │   └── login/page.tsx       # /login page
-│   ├── dashboard/               # Dashboard pages
-│   ├── api/                     # HTTP API routes (thin layer)
-│   │   ├── auth/login/route.ts
-│   │   ├── jobs/route.ts
-│   │   └── employees/route.ts
-│   ├── layout.tsx               # Root layout
-│   ├── page.tsx                 # Home page
-│   └── globals.css              # Global styles
-│
-├── components/                  # Shared UI components
-│   ├── ui/                      # Small reusable components (buttons, inputs)
-│   └── layout/                  # Layout components (nav, footer, sidebar)
-│
-├── types/                       # Shared TypeScript types (DTOs, API contracts)
-│   ├── userTypes.ts
-│   ├── jobTypes.ts
-│   └── employeeTypes.ts
-│
-├── services/                    # Server-side helpers / business logic
-│   └── publicErrors.ts          # User-friendly error messages
-│
-├── db/                          # Database logic
-│   ├── connection.ts            # Neon DB connection + helpers
-│   ├── schema.sql               # Database schema
-│   └── test-connection.ts       # DB connection test script
-│
-├── .env.example                 # Example environment variables
-├── next.config.ts               # Next.js configuration
-├── tsconfig.json                # TypeScript configuration
-└── tailwind.config.ts           # Tailwind CSS configuration
-```
-
-## Database Structure
-
-```
-companies
- ├── company_owners
- ├── admins
- ├── branches
- │    └── employees
- └── jobs
-      ├── job_notes
-      └── reviews
-
-users
- ├── company_owners
- ├── admins
- └── employees
-```
-
-## Getting Started
-
-### Prerequisites
-
-- **Node.js** (v18 or later)
-- **pnpm** (Package Manager). Install it first: https://pnpm.io/installation
-- **PostgreSQL database** (we use [Neon](https://neon.tech))
-
-### Installation
-
-1. **Clone the repository:**
-
-   ```bash
-   git clone https://github.com/Lunar-arch/tech-to-customer-isp.git
-   cd tech-to-customer-isp
-   ```
-
-2. **Install dependencies:**
-
-   ```bash
-   pnpm install
-   ```
-
-3. **Set up environment variables:**
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Then edit `.env` and add your database connection string:
-
-   ```
-   DATABASE_URL=your_neon_database_url_here
-   ```
-
-4. **Set up the database:**
-
-   Run the schema in your Neon SQL Editor:
-
-   ```bash
-   # Copy the contents of server/db/schema.sql and run it in Neon
-   ```
-
-5. **Test the database connection:**
-   ```bash
-   pnpm exec tsx server/db/test-connection.ts
-   ```
-
-### Development
-
-Run the development server:
+### First-time setup
 
 ```bash
+# 1) Install dependencies
+pnpm install
+
+# 2) Initialize workspace tooling (Husky, latest deps after pull)
+pnpm run init:workspace
+```
+
+Then create your local environment file:
+
+```bash
+cp .env.example .env.local
+```
+
+Fill in required values before running the app (`DATABASE_URL`, `JWT_SECRET`, and any integration keys you need).
+
+### Every time you open the project
+
+```bash
+# Sync + install + ensure hooks are active
+pnpm run init:workspace
+
+# Start frontend + backend
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the app.
+`init:workspace` runs `git pull`, installs dependencies, and re-initializes Husky so your local dev environment stays consistent.
 
-The app will auto-reload when you edit files.
-
-### Build for Production (for actual official publishing)
+## Development commands
 
 ```bash
+# Start frontend + backend
+pnpm dev
+
+# Start each server separately
+pnpm dev:frontend
+pnpm dev:backend
+
+# Build
 pnpm build
-pnpm start
-```
+pnpm build:frontend
+pnpm build:backend
 
-### Linting
+# Test
+pnpm test
 
-```bash
+# Lint and format
 pnpm lint
+pnpm lint:auto-format
+pnpm format
+
+# Migrations
+pnpm migrate:status
+pnpm migrate:up
+pnpm migrate:down
+pnpm migrate:create
 ```
 
-This checks for errors, shows a custom message if no errors are found, and also runs a Prettier check to make sure your code is formatted
+## Git workflow (pre-push hook)
 
-## User Roles
+This project uses a Husky pre-push hook. On `git push`, it:
 
-- **Company Owner** - Full system access, manages admins and branches
-- **Administration** - Branch management, employee oversight, analytics
-- **Employee** - Job assignment, status updates, customer interaction
+1. Verifies there are no uncommitted local changes before running.
+2. Runs `pnpm run format`.
+3. If formatting changed files, creates a commit with the message `Husky: formatted code` and stops that push.
+4. Runs `pnpm run build` when no formatting commit is needed.
 
-## Key Features
+If a formatting commit is created, run `git push` again to push that new commit.
 
-- Role-based auth
-- Real-time job assignment
-- Employee availability tracking
-- Distance/price-based tech matching
-- Job status workflow (unassigned → assigned → in_progress → completed)
-- Multi-branch support (If companies have more than one location)
-- TypeScript type safety across frontend/backend
+## Environment
 
-## API Routes
+Copy `.env.example` to `.env.local` and set the required values:
 
-All API routes are in `app/api/`:
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `NEXT_PUBLIC_FASTIFY_URL` (default local backend is `http://localhost:3001`)
+- Any integration keys you need (Stripe, QuickBooks, Google Maps, etc.)
 
-- `POST /api/auth/login` - User authentication
-- `GET /api/jobs` - List jobs (with filters)
-- `POST /api/jobs` - Create new job
-- `PATCH /api/jobs/[id]/assign` - Assign tech to job
-- `PATCH /api/jobs/[id]/status` - Update job status
-- `GET /api/employees` - List employees
-- `GET /api/employees/available` - Get available techs
-- `PATCH /api/employees/[id]/availability` - Toggle availability
+## Architecture overview
+
+### Request flow
+
+1. Browser loads Next.js app on port 3000.
+2. Frontend calls API through `apiFetch`.
+3. Fastify backend on port 3001 handles auth, business logic, and DB queries.
+
+### Frontend structure
+
+- `app/`: route pages and layouts
+- `components/`: shared UI and layout pieces
+- `lib/hooks/`: query/mutation hooks
+- `lib/api.ts`: centralized API client
+- `lib/stores/uiStore.ts`: persisted UI state (sidebar + side panel)
+- `app/globals.css`: theme tokens and utility styling
+
+### Backend structure
+
+- `services/server.ts`: bootstraps Fastify and registers all routes
+- `services/routes/core`: jobs, users, employees, customers, branches
+- `services/routes/analytics`: dashboard, revenue, KPI and reporting APIs
+- `services/routes/dispatch`: recommendation + assignment routes
+- `services/routes/integrations`: Stripe, QuickBooks, CRM, SMS
+- `services/routes/operational`: invoice, estimate, inventory, replacement, etc.
+
+### Database
+
+- DB helpers in `db/index.ts`
+- SQL migrations in `db/migrations`
+- Raw SQL with parameterized access and camelCase conversion helpers
+
+## Current admin UX highlights
+
+### Jobs page
+
+- Analytics-backed KPI strip (jobs today, unassigned, in progress, completion metrics)
+- Search and filter controls (status and priority)
+- Readable date/time formatting for scheduled and created timestamps
+- Side panel detail preview for rapid triage
+- Deep link to full job detail page
+
+### Customers page
+
+- KPI strip for total/active/type/no-show counts
+- Search and filter controls (type + status)
+- Readable date formatting with relative member age context
+- Side panel detail preview (contact, jobs, equipment, locations, comms summary)
+- Deep link to full customer profile page
+
+### Dispatch page
+
+- Unassigned queue with search and priority filter
+- Select mode for multi-job selection
+- Batch recommendation generation (`/dispatch/batch`)
+- Batch action banner: "Technicians selected" with `View` and `Assign All`
+- `Assign All` persists assignments via backend batch-assign route
+- One-by-one dispatch panel with auto-assign and manual override support
+
+### Dispatch review route
+
+- Route: `/dispatch/review`
+- Loads batch plan from session storage created by the dispatch page
+- Lets admin change technician per job from recommendation options
+- Commits final selections through backend batch assign endpoint
+
+## Useful API endpoints
+
+- `GET /jobs?status=unassigned`
+- `GET /jobs/:jobId`
+- `GET /jobs/:jobId/recommendations`
+- `POST /jobs/:jobId/dispatch`
+- `POST /jobs/:jobId/assign`
+- `POST /dispatch/batch`
+- `POST /dispatch/batch/assign`
+- `GET /customers`
+- `GET /customers/:customerId`
+- `GET /analytics/dashboard`
+- `GET /analytics/job-kpis`
+
+## Testing and quality
+
+- Jest tests in `tests/`
+- Run lint before PRs (`pnpm lint`)
+- Use build commands to verify frontend and backend compilation
 
 ## Contributing
 
-1. Create a feature branch
-2. Make your changes
-3. Run `pnpm lint` to check for errors
-4. Submit a pull request
-
-## Learn More
-
-- [Next.js Documentation](https://nextjs.org/docs)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-- [Tailwind CSS Docs](https://tailwindcss.com/docs)
-- [Neon Serverless Postgres](https://neon.tech/docs)
-
-## License
-
-Computer Science II ISP Project by Nathan Barcroft, Tanay Shah, and Brendan Hancock.
+See `CONTRIBUTING.md` for contributor workflow and codebase conventions.

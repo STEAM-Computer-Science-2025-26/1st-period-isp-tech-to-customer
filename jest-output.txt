@@ -1,0 +1,15 @@
+
+> tech-to-customer@0.1.0 test C:\Users\Nathan\Git\1st-period-isp-tech-to-customer
+> jest --runInBand
+
+
+[globalSetup] Starting backend server...
+(node:5316) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[globalSetup] Server ready (PID 15680)
+
+  console.log
+    [dotenv@17.3.1] injecting env (14) from .env.local -- tip: ⚙️  write to custom object with { processEnv: myObject }
+
+      at _log (node_modules/.pnpm/dotenv@17.3.1/node_modules/dotenv/lib/main.js:139:11)
+

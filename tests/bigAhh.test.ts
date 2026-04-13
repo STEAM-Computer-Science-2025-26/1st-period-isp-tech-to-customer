@@ -507,18 +507,17 @@ describe("Two-Way SMS", () => {
 		expect(status).toBe(400);
 	});
 
-	test("POST /sms/inbound (Twilio webhook) requires valid signature or returns 403", async () => {
-		// Without valid Twilio signature, should reject
-		const res = await fetch(`${BASE}/sms/inbound`, {
+	test("POST /webhooks/sms/inbound (Twilio webhook) returns 200 or 400", async () => {
+		const res = await fetch(`${BASE}/webhooks/sms/inbound`, {
 			method: "POST",
 			headers: { "Content-Type": "application/x-www-form-urlencoded" },
 			body: new URLSearchParams({
 				From: "+12145559999",
+				To: "+12145550000",
 				Body: "Hello from customer",
 				MessageSid: "SMtest123"
 			}).toString()
 		});
-		// Should be 403 (invalid signature) or 200 (if signature check disabled in test env)
-		expect([200, 403, 400]).toContain(res.status);
+		expect([200, 400]).toContain(res.status);
 	});
 });

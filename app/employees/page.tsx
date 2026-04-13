@@ -3,7 +3,7 @@
 import MainContent from "@/components/layout/MainContent";
 import { useState } from "react";
 import { cn } from "@/lib/utils/index";
-import { getToken } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
 import { KpiCard } from "@/components/ui/Card";
 import FadeEnd from "@/components/ui/FadeEnd";
 import { useBreakpoints } from "../hooks/useBreakpoints";
@@ -21,9 +21,6 @@ import {
 } from "lucide-react";
 import { useEmployees, employeesQueryKey } from "@/lib/hooks/useEmployees";
 import { useQueryClient } from "@tanstack/react-query";
-
-const FASTIFY_BASE_URL =
-	process.env.NEXT_PUBLIC_FASTIFY_URL ?? "http://localhost:3001";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -193,43 +190,27 @@ function AddEmployeeModal({
 		setLoading(true);
 		setError(null);
 
-		try {
-			const token = getToken();
-			const headers: HeadersInit = {
-				"Content-Type": "application/json",
-				...(token ? { Authorization: `Bearer ${token}` } : {})
-			};
+		const json = { "Content-Type": "application/json" };
 
+		try {
 			// Step 1: create a user account for this employee (if no userId provided)
 			let effectiveUserId = userId.trim();
 			if (!effectiveUserId) {
-				// Auto-generate an email from the name if not provided
 				const emailForUser =
 					form.email.trim() ||
 					`${form.name.toLowerCase().replace(/\s+/g, ".")}.${Date.now()}@employee.local`;
 
-				const userRes = await fetch(`${FASTIFY_BASE_URL}/register`, {
+				const userData = await apiFetch<{
+					user?: { userId?: string };
+					userId?: string;
+				}>("/register", {
 					method: "POST",
-					headers,
+					headers: json,
 					body: JSON.stringify({
 						email: emailForUser,
 						password: `Emp${Date.now()}!`
 					})
 				});
-
-				if (!userRes.ok) {
-					const d = (await userRes.json()) as { error?: string };
-					// If register fails (e.g. email taken), try to get userId from DB via a different approach
-					// For now just surface the error
-					throw new Error(
-						d.error ?? `Failed to create user (${userRes.status})`
-					);
-				}
-
-				const userData = (await userRes.json()) as {
-					user?: { userId?: string };
-					userId?: string;
-				};
 				effectiveUserId =
 					userData.user?.userId ?? (userData as any).userId ?? "";
 
@@ -251,29 +232,20 @@ function AddEmployeeModal({
 			if (form.internalNotes.trim())
 				body.internalNotes = form.internalNotes.trim();
 
-			const empRes = await fetch(`${FASTIFY_BASE_URL}/employees`, {
+			const empData = await apiFetch<{ employee: Employee }>("/employees", {
 				method: "POST",
-				headers,
+				headers: json,
 				body: JSON.stringify(body)
 			});
-
-			if (!empRes.ok) {
-				const d = (await empRes.json()) as { error?: string };
-				throw new Error(
-					d.error ?? `Failed to create employee (${empRes.status})`
-				);
-			}
-
-			const empData = (await empRes.json()) as { employee: Employee };
 
 			// Step 3: if lat/lng provided, patch them in
 			if (form.latitude.trim() && form.longitude.trim()) {
 				const lat = parseFloat(form.latitude);
 				const lng = parseFloat(form.longitude);
 				if (!isNaN(lat) && !isNaN(lng)) {
-					await fetch(`${FASTIFY_BASE_URL}/employees/${empData.employee.id}`, {
+					await apiFetch(`/employees/${empData.employee.id}`, {
 						method: "PATCH",
-						headers,
+						headers: json,
 						body: JSON.stringify({ latitude: lat, longitude: lng })
 					});
 				}
@@ -723,17 +695,14 @@ function EmployeeDetailPanel({
 	const toggleAvailability = async () => {
 		setToggling(true);
 		try {
-			const token = getToken();
-			const res = await fetch(`${FASTIFY_BASE_URL}/employees/${employee.id}`, {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-					...(token ? { Authorization: `Bearer ${token}` } : {})
-				},
-				body: JSON.stringify({ isAvailable: !employee.isAvailable })
-			});
-			if (!res.ok) throw new Error("Failed to update");
-			const data = (await res.json()) as { employee: Employee };
+			const data = await apiFetch<{ employee: Employee }>(
+				`/employees/${employee.id}`,
+				{
+					method: "PATCH",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ isAvailable: !employee.isAvailable })
+				}
+			);
 			onUpdated(data.employee);
 		} catch {
 			// silently ignore for now

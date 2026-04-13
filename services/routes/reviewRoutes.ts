@@ -6,7 +6,7 @@ import { FastifyInstance } from "fastify";
 import { getSql } from "../../db";
 import { z } from "zod";
 import { authenticate, JWTPayload } from "../middleware/auth";
-import { writeAuditLog } from "./auditRoutes";
+import { writeAuditLog } from "./platform/auditRoutes";
 
 // ============================================================
 // Schemas

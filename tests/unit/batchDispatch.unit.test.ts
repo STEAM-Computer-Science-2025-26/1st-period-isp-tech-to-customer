@@ -1,9 +1,9 @@
 import { batchDispatch } from "../../services/dispatch/batchDispatch";
-import { randomUUID } from "crypto";
-const { sql } = require("../../lib/utils/index"); // adjust path if needed
+import { getSql } from "../../db";
 
 describe("Batch Dispatch – unit tests", () => {
 	let companyId: string;
+	const sql = getSql();
 
 	beforeAll(async () => {
 		// Create a test company and RETURN its id
