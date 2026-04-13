@@ -77,9 +77,7 @@ function normalizeLog(log: any) {
 		...log,
 		id: log.id?.toString ? log.id.toString() : log.id,
 		quantity_lbs:
-			quantity == null || quantity === ""
-				? quantity
-				: Number(quantity)
+			quantity == null || quantity === "" ? quantity : Number(quantity)
 	};
 }
 

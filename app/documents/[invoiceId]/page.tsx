@@ -118,7 +118,9 @@ function toStatusLabel(status: InvoiceTimelineStatus): string {
 	return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-function toEditableStatus(status: InvoiceTimelineStatus): EditableInvoiceStatus {
+function toEditableStatus(
+	status: InvoiceTimelineStatus
+): EditableInvoiceStatus {
 	return status === "overdue" ? "sent" : status;
 }
 
@@ -191,7 +193,9 @@ export default function InvoiceDocumentPage() {
 		queryKey: ["documents-invoice", invoiceId],
 		enabled: !!invoiceId,
 		queryFn: () =>
-			apiFetch<InvoiceDetailResponse>(`/invoices/${encodeURIComponent(invoiceId)}`)
+			apiFetch<InvoiceDetailResponse>(
+				`/invoices/${encodeURIComponent(invoiceId)}`
+			)
 	});
 
 	const invoice = invoiceQuery.data?.invoice ?? null;
@@ -200,21 +204,25 @@ export default function InvoiceDocumentPage() {
 	const jobQuery = useQuery({
 		queryKey: ["invoice-job-details", invoice?.jobId],
 		enabled: !!invoice?.jobId,
-		queryFn: () => apiFetch<JobResponse>(`/jobs/${encodeURIComponent(invoice!.jobId!)}`)
+		queryFn: () =>
+			apiFetch<JobResponse>(`/jobs/${encodeURIComponent(invoice!.jobId!)}`)
 	});
 
 	const currentJobAddress = jobQuery.data?.job?.address
 		? stripZipCode(jobQuery.data.job.address)
 		: "";
 
-	const invoiceAddressSnapshot =
-		(lineItems[0]?.description ?? lineItems[0]?.name ?? "").trim();
+	const invoiceAddressSnapshot = (
+		lineItems[0]?.description ??
+		lineItems[0]?.name ??
+		""
+	).trim();
 
 	const showInvoiceSyncPrompt = Boolean(
 		invoice?.jobId &&
-			currentJobAddress &&
-			invoiceAddressSnapshot &&
-			currentJobAddress !== invoiceAddressSnapshot
+		currentJobAddress &&
+		invoiceAddressSnapshot &&
+		currentJobAddress !== invoiceAddressSnapshot
 	);
 
 	const canEditLineItems = invoice?.status === "draft";
@@ -286,9 +294,7 @@ export default function InvoiceDocumentPage() {
 					itemType: line.itemType,
 					name: line.name,
 					description:
-						index === 0
-							? currentJobAddress
-							: (line.description ?? ""),
+						index === 0 ? currentJobAddress : (line.description ?? ""),
 					quantity: String(toNumber(line.quantity)),
 					unitPrice: String(toNumber(line.unitPrice)),
 					taxable: Boolean(line.taxable),
@@ -370,13 +376,18 @@ export default function InvoiceDocumentPage() {
 			if (!current || current.lineItems.length <= 1) return current;
 			return {
 				...current,
-				lineItems: current.lineItems.filter((_, lineIndex) => lineIndex !== index)
+				lineItems: current.lineItems.filter(
+					(_, lineIndex) => lineIndex !== index
+				)
 			};
 		});
 	};
 
 	return (
-		<MainContent headerTitle="Invoices" className="max-w-4xl mx-auto py-6 px-3 sm:px-5">
+		<MainContent
+			headerTitle="Invoices"
+			className="max-w-4xl mx-auto py-6 px-3 sm:px-5"
+		>
 			{invoiceQuery.isLoading ? (
 				<div className="rounded-xl border border-background-secondary p-6 flex items-center gap-2 text-sm text-text-tertiary">
 					<Loader2 className="w-4 h-4 animate-spin" />
@@ -424,7 +435,9 @@ export default function InvoiceDocumentPage() {
 								</button>
 							</div>
 							{syncError ? (
-								<p className="mt-2 text-xs text-destructive-text">{syncError}</p>
+								<p className="mt-2 text-xs text-destructive-text">
+									{syncError}
+								</p>
 							) : null}
 							{syncSuccess ? (
 								<p className="mt-2 text-xs text-success-text">{syncSuccess}</p>
@@ -434,67 +447,68 @@ export default function InvoiceDocumentPage() {
 
 					<div className="p-5">
 						<div className="flex flex-col items-start justify-between gap-3">
-								<div className={cn(`flex flex-row gap-2 items-center w-full`)}>
+							<div className={cn(`flex flex-row gap-2 items-center w-full`)}>
 								<h1 className="text-2xl font-semibold text-text-main mt-1 truncate">
 									{invoice.invoiceNumber}
 								</h1>
 								<span
-											className={cn(
-												"inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
-												STATUS_STYLES[invoice.status]
-											)}
+									className={cn(
+										"inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
+										STATUS_STYLES[invoice.status]
+									)}
+								>
+									{toStatusLabel(invoice.status)}
+								</span>
+								{isEditing ? (
+									<>
+										<button
+											type="button"
+											onClick={() => {
+												setSaveError(null);
+												setSaveSuccess(null);
+												void saveInvoiceMutation.mutateAsync();
+											}}
+											disabled={saveInvoiceMutation.isPending || !draft}
+											className="ml-auto hover:text-text-primary text-text-tertiary/70 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
 										>
-											{toStatusLabel(invoice.status)}
-										</span>
-										{isEditing ? (
-											<>
-												<button
-													type="button"
-													onClick={() => {
-														setSaveError(null);
-														setSaveSuccess(null);
-														void saveInvoiceMutation.mutateAsync();
-													}}
-													disabled={saveInvoiceMutation.isPending || !draft}
-													className="ml-auto hover:text-text-primary text-text-tertiary/70 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-												>
-													<Check className="w-full aspect-square" />
-												</button>
-												<button
-													type="button"
-													onClick={resetDraft}
-													disabled={saveInvoiceMutation.isPending}
-													className="hover:text-destructive-text/70 text-text-tertiary/70 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-												>
-													<X className="w-full aspect-square" />
-												</button>
-											</>
-										) : (
-											<button
-												type="button"
-												onClick={() => setIsEditing(true)}
-												className="ml-auto hover:text-text-primary h-5 w-5 text-text-tertiary/70 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-												>
-													<Pencil className="w-full aspect-square" />
-											</button>
-										)}
-						</div>
-
-								{saveError ? (
-									<p className="mt-3 text-xs text-destructive-text">{saveError}</p>
-								) : null}
-								{saveSuccess ? (
-									<p className="mt-3 text-xs text-success-text">{saveSuccess}</p>
-								) : null}
-										</div>
-								{invoice.customerName ? (
-									<p className="mt-1 text-sm text-text-secondary">
-										{invoice.customerName}
-									</p>
-								) : null}
+											<Check className="w-full aspect-square" />
+										</button>
+										<button
+											type="button"
+											onClick={resetDraft}
+											disabled={saveInvoiceMutation.isPending}
+											className="hover:text-destructive-text/70 text-text-tertiary/70 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+										>
+											<X className="w-full aspect-square" />
+										</button>
+									</>
+								) : (
+									<button
+										type="button"
+										onClick={() => setIsEditing(true)}
+										className="ml-auto hover:text-text-primary h-5 w-5 text-text-tertiary/70 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+									>
+										<Pencil className="w-full aspect-square" />
+									</button>
+								)}
 							</div>
-									<div className=" w-full px-5">
 
+							{saveError ? (
+								<p className="mt-3 text-xs text-destructive-text">
+									{saveError}
+								</p>
+							) : null}
+							{saveSuccess ? (
+								<p className="mt-3 text-xs text-success-text">{saveSuccess}</p>
+							) : null}
+						</div>
+						{invoice.customerName ? (
+							<p className="mt-1 text-sm text-text-secondary">
+								{invoice.customerName}
+							</p>
+						) : null}
+					</div>
+					<div className=" w-full px-5">
 						<div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
 							<KpiCard
 								title="Total"
@@ -597,7 +611,9 @@ export default function InvoiceDocumentPage() {
 
 					<div className="px-7">
 						<div className="flex items-center justify-between gap-2 -mx-2 mb-1">
-							<h2 className="text-sm font-semibold text-text-main">Line Items</h2>
+							<h2 className="text-sm font-semibold text-text-main">
+								Line Items
+							</h2>
 							{isEditing && canEditLineItems ? (
 								<button
 									type="button"
@@ -630,7 +646,9 @@ export default function InvoiceDocumentPage() {
 													value={line.name}
 													disabled={!canEditLineItems}
 													onChange={(event) =>
-														updateDraftLineItem(index, { name: event.target.value })
+														updateDraftLineItem(index, {
+															name: event.target.value
+														})
 													}
 													className="rounded-md border border-background-secondary bg-background-main px-2.5 py-1.5 text-sm text-text-main disabled:opacity-60"
 												/>
@@ -642,7 +660,9 @@ export default function InvoiceDocumentPage() {
 													<CustomSelect
 														value={line.itemType}
 														options={LINE_ITEM_TYPE_OPTIONS}
-														onChange={(value) => updateDraftLineItemType(index, value)}
+														onChange={(value) =>
+															updateDraftLineItemType(index, value)
+														}
 														buttonClassName="w-full justify-between px-2.5 py-1.5 text-sm"
 														menuClassName="w-full"
 													/>
@@ -734,11 +754,14 @@ export default function InvoiceDocumentPage() {
 								))}
 							</div>
 						) : lineItems.length === 0 ? (
-							<p className="mt-2 text-sm text-text-tertiary">No line items found.</p>
+							<p className="mt-2 text-sm text-text-tertiary">
+								No line items found.
+							</p>
 						) : (
 							<ul className="mt-3 space-y-2">
 								{lineItems.map((line) => {
-									const total = toNumber(line.quantity) * toNumber(line.unitPrice);
+									const total =
+										toNumber(line.quantity) * toNumber(line.unitPrice);
 									return (
 										<li
 											key={line.id}
@@ -762,10 +785,10 @@ export default function InvoiceDocumentPage() {
 					<div className="px-7">
 						{!isEditing && (
 							<>
-						<h2 className="text-sm font-semibold text-text-main">Notes</h2>
-							<p className="mt-2 whitespace-pre-wrap text-sm text-text-secondary border border-text-secondary/30 rounded-lg px-3 py-2.5">
-								{invoice.notes?.trim() || "No notes provided."}
-							</p>
+								<h2 className="text-sm font-semibold text-text-main">Notes</h2>
+								<p className="mt-2 whitespace-pre-wrap text-sm text-text-secondary border border-text-secondary/30 rounded-lg px-3 py-2.5">
+									{invoice.notes?.trim() || "No notes provided."}
+								</p>
 							</>
 						)}
 					</div>
@@ -778,7 +801,9 @@ export default function InvoiceDocumentPage() {
 function InfoRow({ label, value }: { label: string; value: string }) {
 	return (
 		<div className="rounded-lg bg-background-main/30 px-3 sm:flex flex-row items-row sm:items-center sm:gap-2">
-			<p className="text-xs pt-0.75 sm:h-full uppercase tracking-wide text-text-tertiary">{label}</p>
+			<p className="text-xs pt-0.75 sm:h-full uppercase tracking-wide text-text-tertiary">
+				{label}
+			</p>
 			<p className="sm:h-full text-sm font-medium text-text-main">{value}</p>
 		</div>
 	);

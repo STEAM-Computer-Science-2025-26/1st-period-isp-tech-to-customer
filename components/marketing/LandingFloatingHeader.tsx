@@ -38,9 +38,7 @@ export default function LandingFloatingHeader({
 
 	return (
 		<motion.div
-			className={cn(
-				"fixed inset-x-0 top-4 z-50 flex justify-center px-4"
-			)}
+			className={cn("fixed inset-x-0 top-4 z-50 flex justify-center px-4")}
 			initial={false}
 			animate={{
 				y: isScrolledPastBrand ? 0 : -6,
@@ -72,7 +70,7 @@ export default function LandingFloatingHeader({
 
 					<div className="relative ml-auto flex h-8 min-w-[18rem] items-center justify-end">
 						<motion.p
-							className="absolute right-0 text-right text-sm text-text-secondary"
+							className="absolute right-0 hidden text-right text-sm text-text-secondary sm:block"
 							initial={false}
 							animate={{
 								x: isScrolledPastBrand ? -156 : 0

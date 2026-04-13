@@ -42,7 +42,8 @@ async function findPidByPort(port) {
 				if (err) return resolve(null);
 				const lines = stdout.split(/\r?\n/);
 				for (const line of lines) {
-					if (!line.includes(`:${port}`) || !line.includes("LISTENING")) continue;
+					if (!line.includes(`:${port}`) || !line.includes("LISTENING"))
+						continue;
 					const parts = line.trim().split(/\s+/);
 					const pid = Number.parseInt(parts[parts.length - 1], 10);
 					if (Number.isFinite(pid)) return resolve(pid);

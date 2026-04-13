@@ -74,7 +74,9 @@ export function JobDetailDrawer({
 			<div className="border-b border-background-secondary px-4 py-4">
 				<div className="flex items-start justify-between gap-2">
 					<div className="min-w-0">
-						<p className="text-xs text-text-tertiary uppercase tracking-wide">Job</p>
+						<p className="text-xs text-text-tertiary uppercase tracking-wide">
+							Job
+						</p>
 						<h3 className="mt-1 text-sm font-semibold text-text-main truncate">
 							{job.customerName}
 						</h3>
@@ -140,7 +142,10 @@ export function JobDetailDrawer({
 							label="Scheduled"
 							value={formatReadableDateTime(job.scheduledTime)}
 						/>
-						<InfoRow label="Created" value={formatReadableDateTime(job.createdAt)} />
+						<InfoRow
+							label="Created"
+							value={formatReadableDateTime(job.createdAt)}
+						/>
 						<div className="rounded-xl border border-background-secondary bg-background-main/30 p-4">
 							<p className="text-xs uppercase tracking-wide text-text-tertiary">
 								Notes
@@ -155,7 +160,6 @@ export function JobDetailDrawer({
 				{activeTab === "invoice" ? (
 					<InvoiceTab job={job} customerId={customerId} />
 				) : null}
-
 			</div>
 
 			{isFetching ? (
@@ -170,7 +174,9 @@ export function JobDetailDrawer({
 function InfoRow({ label, value }: { label: string; value: string }) {
 	return (
 		<div className="rounded-xl border border-background-secondary bg-background-main/30 p-4">
-			<p className="text-xs uppercase tracking-wide text-text-tertiary">{label}</p>
+			<p className="text-xs uppercase tracking-wide text-text-tertiary">
+				{label}
+			</p>
 			<p className="mt-1.5 text-sm capitalize text-text-main">{value}</p>
 		</div>
 	);

@@ -100,11 +100,7 @@ export function InvoiceTimeline({
 	const progressIndex = getProgressIndex(steps);
 
 	return (
-		<div
-			className={cn("px-2",
-				className
-			)}
-		>
+		<div className={cn("px-2", className)}>
 			<div className="flex items-center">
 				{steps.map((step, index) => (
 					<div
