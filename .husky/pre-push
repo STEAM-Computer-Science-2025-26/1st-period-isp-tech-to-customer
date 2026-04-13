@@ -1,2 +1,20 @@
-pnpm run format:check
+if ! git diff --quiet || ! git diff --cached --quiet; then
+	echo "husky - detected uncommitted changes before pre-push."
+	echo "husky - commit or stash them before pushing so auto-format commit stays clean."
+	exit 1
+fi
+
+pnpm run format
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+	git add -A
+
+	if ! git diff --cached --quiet; then
+		git commit -m "Husky: formatted code" --no-verify
+		echo "husky - created commit: Husky: formatted code"
+		echo "husky - run git push again to include the new formatting commit."
+		exit 1
+	fi
+fi
+
 pnpm run build
