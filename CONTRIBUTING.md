@@ -15,25 +15,26 @@ If you’re new to TypeScript/Next.js:
 1. Install pnpm (required): https://pnpm.io/installation
 2. Install dependencies:
 
-  ```bash
-  pnpm install
-  ```
+```bash
+pnpm install
+```
 
 3. Configure environment variables:
-  - Copy `.env.example` to `.env.local`
-  - Fill in required values (notably `DATABASE_URL` for Neon/Postgres)
+
+- Copy `.env.example` to `.env.local`
+- Fill in required values (notably `DATABASE_URL` for Neon/Postgres)
 
 4. Initialize workspace tooling:
 
-  ```bash
-  pnpm run init:workspace
-  ```
+```bash
+pnpm run init:workspace
+```
 
 5. Run the app:
 
-  ```bash
-  pnpm dev
-  ```
+```bash
+pnpm dev
+```
 
 ### Every time you open this project
 
