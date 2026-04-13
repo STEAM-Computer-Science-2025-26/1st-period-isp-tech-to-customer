@@ -10,29 +10,64 @@ If you’re new to TypeScript/Next.js:
 
 ## Quick Start (Local Dev)
 
-1. Install pnpm (required): https://pnpm.io/installation
+### First-time setup
 
+1. Install pnpm (required): https://pnpm.io/installation
 2. Install dependencies:
 
-   ```bash
-   pnpm install
-   ```
+  ```bash
+  pnpm install
+  ```
 
 3. Configure environment variables:
-   - Copy `.env.example` to `.env.local`
-   - Fill in required values (notably `DATABASE_URL` for Neon/Postgres)
+  - Copy `.env.example` to `.env.local`
+  - Fill in required values (notably `DATABASE_URL` for Neon/Postgres)
 
-4. Run the dev server:
+4. Initialize workspace tooling:
 
-   ```bash
-   pnpm dev
-   ```
+  ```bash
+  pnpm run init:workspace
+  ```
 
-5. Lint the project:
+5. Run the app:
 
-   ```bash
-   pnpm lint
-   ```
+  ```bash
+  pnpm dev
+  ```
+
+### Every time you open this project
+
+Run this before starting development:
+
+```bash
+pnpm run init:workspace
+```
+
+This keeps your workspace up to date by running `git pull`, `pnpm install`, and `pnpm run prepare` (Husky hook setup).
+
+Then start development:
+
+```bash
+pnpm dev
+```
+
+Optional quality checks before opening a PR:
+
+```bash
+pnpm lint
+pnpm test
+```
+
+### Push behavior (Husky pre-push)
+
+This repository uses a pre-push hook (not pre-commit):
+
+1. It runs `pnpm run format` automatically.
+2. If formatting changes files, it auto-creates a commit: `Husky: formatted code`.
+3. That push stops once so the new commit can be included.
+4. Run `git push` again.
+
+The hook also runs `pnpm run build` before allowing a push to complete.
 
 ### Database (Neon/Postgres)
 

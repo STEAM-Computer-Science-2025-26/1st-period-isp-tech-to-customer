@@ -19,6 +19,38 @@ Tech to Customer is an HVAC operations platform for dispatchers, admins, and off
 - Tailwind CSS v4 with tokenized theme variables
 - Neon serverless PostgreSQL
 
+## Getting started
+
+### First-time setup
+
+```bash
+# 1) Install dependencies
+pnpm install
+
+# 2) Initialize workspace tooling (Husky, latest deps after pull)
+pnpm run init:workspace
+```
+
+Then create your local environment file:
+
+```bash
+cp .env.example .env.local
+```
+
+Fill in required values before running the app (`DATABASE_URL`, `JWT_SECRET`, and any integration keys you need).
+
+### Every time you open the project
+
+```bash
+# Sync + install + ensure hooks are active
+pnpm run init:workspace
+
+# Start frontend + backend
+pnpm dev
+```
+
+`init:workspace` runs `git pull`, installs dependencies, and re-initializes Husky so your local dev environment stays consistent.
+
 ## Development commands
 
 ```bash
@@ -48,6 +80,17 @@ pnpm migrate:up
 pnpm migrate:down
 pnpm migrate:create
 ```
+
+## Git workflow (pre-push hook)
+
+This project uses a Husky pre-push hook. On `git push`, it:
+
+1. Verifies there are no uncommitted local changes before running.
+2. Runs `pnpm run format`.
+3. If formatting changed files, creates a commit with the message `Husky: formatted code` and stops that push.
+4. Runs `pnpm run build` when no formatting commit is needed.
+
+If a formatting commit is created, run `git push` again to push that new commit.
 
 ## Environment
 
