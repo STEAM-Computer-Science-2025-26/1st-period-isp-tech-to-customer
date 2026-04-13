@@ -1,2 +1,3 @@
-pnpm run build:format
+#!/bin/sh
+pnpm run format:check
 pnpm run build
