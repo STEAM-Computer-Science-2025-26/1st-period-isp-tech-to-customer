@@ -231,7 +231,7 @@ export default function LandingScreenshotStack({
 
 	return (
 		<div
-			className="relative mt-6 w-full aspect-9/16 sm:aspect-auto sm:h-120 lg:absolute lg:right-0 lg:mt-0 lg:h-[calc(100%-11rem)] lg:w-[calc(50%-3rem)]"
+			className="relative mt-6 w-full aspect-2/3 sm:aspect-auto sm:h-120 lg:absolute lg:right-0 lg:mt-0 lg:h-[calc(100%-11rem)] lg:w-[calc(50%-3rem)]"
 			onMouseEnter={() => setPaused(true)}
 			onMouseLeave={() => setPaused(false)}
 			onFocusCapture={() => setPaused(true)}
