@@ -25,12 +25,7 @@ import {
 	toggleSet
 } from "./components/jobsFilterUtils";
 import { formatNumericDate } from "@/lib/utils";
-import {
-	ChevronRight,
-	ArrowUpDown,
-	ArrowUp,
-	ArrowDown
-} from "lucide-react";
+import { ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { FilterSearchBar } from "@/components/ui/FilterSearchBar";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { CopyCell } from "@/components/ui/CopyCell";

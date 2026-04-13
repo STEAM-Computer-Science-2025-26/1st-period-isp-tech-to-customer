@@ -6,9 +6,7 @@ import { runAllCronJobs } from "../../cron/cronRunner";
 
 function getBearerToken(authorization?: string | string[]): string {
 	if (!authorization) return "";
-	const value = Array.isArray(authorization)
-		? authorization[0]
-		: authorization;
+	const value = Array.isArray(authorization) ? authorization[0] : authorization;
 	if (!value) return "";
 	return value.startsWith("Bearer ") ? value.slice("Bearer ".length) : value;
 }

@@ -9,13 +9,7 @@ import { cn, formatReadableDate } from "@/lib/utils";
 import type { Job } from "@/lib/schemas/jobSchemas";
 import { InvoiceTimeline } from "./InvoiceTimeline";
 
-type InvoiceStatus =
-	| "draft"
-	| "sent"
-	| "partial"
-	| "paid"
-	| "overdue"
-	| "void";
+type InvoiceStatus = "draft" | "sent" | "partial" | "paid" | "overdue" | "void";
 
 type InvoiceListItem = {
 	id: string;
@@ -125,11 +119,15 @@ export function InvoiceTab({
 		queryKey: ["job-invoice-detail", invoiceId],
 		enabled: !!invoiceId,
 		queryFn: () =>
-			apiFetch<InvoiceDetailResponse>(`/invoices/${encodeURIComponent(invoiceId!)}`)
+			apiFetch<InvoiceDetailResponse>(
+				`/invoices/${encodeURIComponent(invoiceId!)}`
+			)
 	});
 
 	const refreshInvoiceData = async () => {
-		await queryClient.invalidateQueries({ queryKey: ["job-invoice-list", job.id] });
+		await queryClient.invalidateQueries({
+			queryKey: ["job-invoice-list", job.id]
+		});
 		if (invoiceId) {
 			await queryClient.invalidateQueries({
 				queryKey: ["job-invoice-detail", invoiceId]
@@ -248,7 +246,11 @@ export function InvoiceTab({
 		if (!due) return null;
 
 		const now = new Date();
-		const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+		const todayStart = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			now.getDate()
+		);
 		const dueStart = new Date(due.getFullYear(), due.getMonth(), due.getDate());
 		const diffMs = todayStart.getTime() - dueStart.getTime();
 		if (diffMs <= 0) return null;
@@ -260,7 +262,10 @@ export function InvoiceTab({
 		invoice?.status === "overdue" ||
 		invoice?.status === "partial";
 
-	if (invoiceListQuery.isLoading || (invoiceId && invoiceDetailQuery.isLoading)) {
+	if (
+		invoiceListQuery.isLoading ||
+		(invoiceId && invoiceDetailQuery.isLoading)
+	) {
 		return (
 			<div className="h-full flex items-center justify-center gap-2 text-sm text-text-tertiary">
 				<Loader2 className="w-4 h-4 animate-spin" />
@@ -278,8 +283,8 @@ export function InvoiceTab({
 			<div className="rounded-xl border border-destructive-foreground/30 bg-destructive-background/10 p-4">
 				<p className="text-sm text-destructive-text">{message}</p>
 				<p className="mt-1 text-xs text-destructive-text/90">
-					Invoice data failed to load from the backend. If this persists, restart
-					the backend and run database migrations.
+					Invoice data failed to load from the backend. If this persists,
+					restart the backend and run database migrations.
 				</p>
 				<button
 					type="button"
@@ -302,7 +307,9 @@ export function InvoiceTab({
 	if (!invoiceId || !invoice) {
 		return (
 			<div className="rounded-xl border border-dashed border-background-secondary bg-background-main/30 p-6 text-center">
-				<p className="text-sm font-medium text-text-main">No invoice created yet</p>
+				<p className="text-sm font-medium text-text-main">
+					No invoice created yet
+				</p>
 				<p className="mt-1 text-xs text-text-tertiary">
 					Create an invoice to track billing for this job.
 				</p>
@@ -342,7 +349,9 @@ export function InvoiceTab({
 
 			<div className="flex items-start justify-between gap-3 rounded-xl border border-background-secondary bg-background-main/40 p-4">
 				<div>
-					<p className="text-xs uppercase tracking-wide text-text-tertiary">Invoice</p>
+					<p className="text-xs uppercase tracking-wide text-text-tertiary">
+						Invoice
+					</p>
 					<h4 className="mt-1 text-lg font-semibold text-text-main">
 						{invoice.invoiceNumber}
 					</h4>
@@ -403,11 +412,14 @@ export function InvoiceTab({
 					Line Items
 				</p>
 				{lineItems.length === 0 ? (
-					<p className="mt-2 text-sm text-text-tertiary">No line items found.</p>
+					<p className="mt-2 text-sm text-text-tertiary">
+						No line items found.
+					</p>
 				) : (
 					<ul className="mt-3 space-y-2">
 						{lineItems.map((line) => {
-							const lineTotal = toNumber(line.quantity) * toNumber(line.unitPrice);
+							const lineTotal =
+								toNumber(line.quantity) * toNumber(line.unitPrice);
 							return (
 								<li
 									key={line.id}
@@ -427,7 +439,9 @@ export function InvoiceTab({
 			</div>
 
 			<div className="rounded-xl border border-background-secondary bg-background-main/30 p-4">
-				<p className="text-xs uppercase tracking-wide text-text-tertiary">Notes</p>
+				<p className="text-xs uppercase tracking-wide text-text-tertiary">
+					Notes
+				</p>
 				<p className="mt-2 whitespace-pre-wrap text-sm text-text-main">
 					{invoice.notes?.trim() || "No notes provided."}
 				</p>
@@ -485,7 +499,6 @@ export function InvoiceTab({
 						</button>
 					</>
 				) : null}
-
 			</div>
 
 			{actionError ? (

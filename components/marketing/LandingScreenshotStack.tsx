@@ -92,7 +92,9 @@ export default function LandingScreenshotStack({
 }: LandingScreenshotStackProps) {
 	const [cardOrder, setCardOrder] = useState<string[]>(stackIds);
 	const [exitingCardId, setExitingCardId] = useState<string | null>(null);
-	const [reinsertingCardId, setReinsertingCardId] = useState<string | null>(null);
+	const [reinsertingCardId, setReinsertingCardId] = useState<string | null>(
+		null
+	);
 	const [isCycling, setIsCycling] = useState(false);
 	const [paused, setPaused] = useState(false);
 	const [reduceMotion, setReduceMotion] = useState(false);
@@ -106,7 +108,8 @@ export default function LandingScreenshotStack({
 	const frameRef = useRef<number | null>(null);
 
 	const cardsById = useMemo(
-		() => Object.fromEntries(showcaseCards.map((card) => [card.id, card] as const)),
+		() =>
+			Object.fromEntries(showcaseCards.map((card) => [card.id, card] as const)),
 		[]
 	);
 
@@ -167,24 +170,30 @@ export default function LandingScreenshotStack({
 		setIsCycling(true);
 		setExitingCardId(frontCardId);
 
-		exitTimeoutRef.current = window.setTimeout(() => {
-			setExitingCardId(null);
+		exitTimeoutRef.current = window.setTimeout(
+			() => {
+				setExitingCardId(null);
 
-			setCardOrder((current) => [...current.slice(1), current[0]]);
-			setReinsertingCardId(frontCardId);
+				setCardOrder((current) => [...current.slice(1), current[0]]);
+				setReinsertingCardId(frontCardId);
 
-			frameRef.current = window.requestAnimationFrame(() => {
-				setReinsertingCardId(null);
-				frameRef.current = null;
-			});
+				frameRef.current = window.requestAnimationFrame(() => {
+					setReinsertingCardId(null);
+					frameRef.current = null;
+				});
 
-			settleTimeoutRef.current = window.setTimeout(() => {
-				setIsCycling(false);
-				settleTimeoutRef.current = null;
-			}, reduceMotion ? 0 : REINSERT_DURATION_MS);
+				settleTimeoutRef.current = window.setTimeout(
+					() => {
+						setIsCycling(false);
+						settleTimeoutRef.current = null;
+					},
+					reduceMotion ? 0 : REINSERT_DURATION_MS
+				);
 
-			exitTimeoutRef.current = null;
-		}, reduceMotion ? 0 : EXIT_DURATION_MS);
+				exitTimeoutRef.current = null;
+			},
+			reduceMotion ? 0 : EXIT_DURATION_MS
+		);
 	}, [cardOrder, isCycling, reduceMotion]);
 
 	useEffect(() => {
@@ -253,22 +262,22 @@ export default function LandingScreenshotStack({
 
 					const cardStyle = isExiting
 						? {
-							transform: "translate3d(168%, -4px, 0) scale(0.96)",
-							opacity: 0,
-							zIndex: 90,
-							width: "124%"
-						}
-						: isReinserting
-							? {
-								transform: "translate3d(118%, 54px, 0) scale(0.86)",
-								opacity: 0.32,
-								zIndex: 15,
+								transform: "translate3d(168%, -4px, 0) scale(0.96)",
+								opacity: 0,
+								zIndex: 90,
 								width: "124%"
 							}
+						: isReinserting
+							? {
+									transform: "translate3d(118%, 54px, 0) scale(0.86)",
+									opacity: 0.32,
+									zIndex: 15,
+									width: "124%"
+								}
 							: {
-								...baseStyle,
-								width: "124%"
-							};
+									...baseStyle,
+									width: "124%"
+								};
 
 					return (
 						<article
@@ -299,7 +308,12 @@ export default function LandingScreenshotStack({
 											<p className="text-[11px] uppercase tracking-[0.16em] text-white/75">
 												Preview placeholder
 											</p>
-											<p className={cn(headingFontClassName, "mt-4 max-w-xs text-3xl leading-tight")}>
+											<p
+												className={cn(
+													headingFontClassName,
+													"mt-4 max-w-xs text-3xl leading-tight"
+												)}
+											>
 												App screenshot
 											</p>
 										</div>
@@ -379,8 +393,8 @@ export default function LandingScreenshotStack({
 										style={
 											shouldAnimateProgress
 												? {
-													transition: `width ${CARD_ADVANCE_MS}ms linear`
-												}
+														transition: `width ${CARD_ADVANCE_MS}ms linear`
+													}
 												: undefined
 										}
 									/>
