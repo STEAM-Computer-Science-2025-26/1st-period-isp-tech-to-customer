@@ -43,7 +43,7 @@ const PARTICLE_RADIUS = 2.9;
 // Offscreen distance used before respawning particles at the left edge.
 const RESPAWN_MARGIN = 36;
 // Left-side "hot" color (dusty orange) before particles cool.
-const HOT_STREAM_COLOR = "rgba(172, 122, 86, 0.74)";
+const HOT_STREAM_COLOR = "rgba(219, 20, 20, 1)";
 // Right-side cooled color (accent teal).
 const COOL_STREAM_COLOR = "rgba(83, 171, 177, 0.62)";
 
@@ -238,8 +238,7 @@ export default function WindFieldBackground({
 					0
 				);
 				thermalGradient.addColorStop(0, HOT_STREAM_COLOR);
-				thermalGradient.addColorStop(0.3, "rgba(146, 140, 121, 0.7)");
-				thermalGradient.addColorStop(0.5, COOL_STREAM_COLOR);
+				thermalGradient.addColorStop(0.3, COOL_STREAM_COLOR);
 				thermalGradient.addColorStop(1, COOL_STREAM_COLOR);
 				cachedGradientRef.current = thermalGradient;
 			}

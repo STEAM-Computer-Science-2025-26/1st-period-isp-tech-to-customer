@@ -44,7 +44,7 @@ export default function LandingPage() {
 						<h1
 							className={`${headingFont.className} ${styles.heroEnter} ${styles.delay2} max-w-4xl text-5xl leading-[1.1] bg-radial-[closest-side] from-background-main from-80% to-transparent md:text-6xl md:leading-[1.08] lg:text-7xl lg:leading-[1.05]`}
 						>
-							Schedule, Dispatch, then move on.
+							Schedule, Dispatch, then move on. {' '}
 							<br className="hidden md:block" />
 							No extra clicks.
 						</h1>
