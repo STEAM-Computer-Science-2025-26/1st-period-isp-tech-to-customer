@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import styles from "./page.module.css";
@@ -5,6 +6,10 @@ import WindFieldBackground from "@/components/marketing/WindFieldBackground";
 import LandingFloatingHeader from "@/components/marketing/LandingFloatingHeader";
 import LandingScreenshotStack from "@/components/marketing/LandingScreenshotStack";
 import { cn } from "@/lib/utils/index";
+import { Suspense, useState } from "react";
+import { Canvas } from "@react-three/fiber";
+import { Stage } from "@react-three/drei";
+import { Model } from "@/components/Small-air-conditioner-unit";
 
 const headingFont = Space_Grotesk({
 	subsets: ["latin"],
@@ -17,11 +22,22 @@ const bodyFont = Manrope({
 });
 
 export default function LandingPage() {
+	const [isAirFlowActive, setIsAirFlowActive] = useState(false);
+
 	return (
 		<main
 			className={`${bodyFont.className} relative isolate min-h-screen overflow-hidden bg-background-main text-text-main`}
 		>
-			<LandingFloatingHeader targetId="landing-caldius-brand" />
+			<LandingFloatingHeader
+				targetId="landing-caldius-brand"
+				onStateChange={setIsAirFlowActive}
+			/>
+
+			<div
+				data-particle-spawn-zone
+				aria-hidden="true"
+				className="pointer-events-none absolute left-0 top-0 h-[30vh] w-[22vw]"
+			/>
 
 			<div
 				className={cn(
@@ -41,6 +57,10 @@ export default function LandingPage() {
 			<WindFieldBackground
 				interactionCoefficient={0.88}
 				interactionRadius={190}
+				flowActive={isAirFlowActive}
+				spawnZoneSelector="[data-particle-spawn-zone]"
+				intakeSelector="[data-particle-intake]"
+				outletSelector="[data-particle-outlet]"
 			/>
 
 			<div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(56rem_56rem_at_95%_-12%,rgba(83,171,177,0.26),transparent_62%),radial-gradient(42rem_42rem_at_-12%_28%,rgba(98,133,141,0.16),transparent_58%)]" />
@@ -100,6 +120,37 @@ export default function LandingPage() {
 					</div>
 				</section>
 			</div>
+			<div className={cn(`w-full relative h-88`)}>
+				<div
+					data-particle-intake
+					className={cn(
+						`w-88 dev top-28 h-36 absolute right-1/2 translate-x-1/2`
+					)}
+				/>{" "}
+				{/* this red box represents the area of the 3d airconditioning model. i want particles to go towrards the top of this box. */}
+				<div
+					data-particle-outlet
+					className={cn(
+						`w-68 bg-blue-300/20 top-56 h-6 absolute right-1/2 translate-x-1/2`
+					)}
+				/>{" "}
+				{/* this box represents where the output of the air conditioning vent is. i want particles to be emitted from this box. */}
+				<Canvas
+					className={cn(`h-full`)}
+					shadows
+					camera={{ position: [5, 5, 5], fov: 45 }}
+				>
+					<Suspense fallback={null}>
+						<Stage environment="city" intensity={0.5}>
+							<Model
+								rotation={[-Math.PI / 5, Math.PI / 4, 0]}
+								rotation-order="YXZ"
+							/>
+						</Stage>
+					</Suspense>
+				</Canvas>
+			</div>
+			<div className={cn(`h-screen`)}></div>
 		</main>
 	);
 }
