@@ -251,7 +251,10 @@ function buildGuideArc(start: Vec2, end: Vec2, peakY: number): CubicPath {
 	return path;
 }
 
-function buildIntakeGuides(spawnZone: ZoneRect, intakeZone: ZoneRect): IntakeGuides {
+function buildIntakeGuides(
+	spawnZone: ZoneRect,
+	intakeZone: ZoneRect
+): IntakeGuides {
 	const startY = spawnZone.bottom;
 	const startLeft: Vec2 = { x: spawnZone.left, y: startY };
 	const startRight: Vec2 = { x: spawnZone.right, y: startY };
@@ -259,12 +262,19 @@ function buildIntakeGuides(spawnZone: ZoneRect, intakeZone: ZoneRect): IntakeGui
 
 	const intakeInset = clamp(intakeZone.width * 0.28, 18, 56);
 	const endLeft: Vec2 = { x: intakeZone.left + intakeInset, y: intakeZone.top };
-	const endRight: Vec2 = { x: intakeZone.right - intakeInset, y: intakeZone.top };
+	const endRight: Vec2 = {
+		x: intakeZone.right - intakeInset,
+		y: intakeZone.top
+	};
 	const endCenter: Vec2 = { x: intakeZone.centerX, y: intakeZone.top };
 
 	const peakY =
 		intakeZone.top -
-		clamp(Math.abs(startY - intakeZone.top) * 0.36, INTAKE_OVER_TOP_MIN_PX, 190);
+		clamp(
+			Math.abs(startY - intakeZone.top) * 0.36,
+			INTAKE_OVER_TOP_MIN_PX,
+			190
+		);
 
 	return {
 		left: buildGuideArc(startLeft, endLeft, peakY),
@@ -308,7 +318,8 @@ function buildIntakeTransitionPath(
 	_guides?: IntakeGuides,
 	_guidePreference: GuidePreference = "auto"
 ): CubicPath {
-	const shouldArcOverTop = start.y > intakeZone.top - INTAKE_FORCE_OVER_TOP_BUFFER_PX;
+	const shouldArcOverTop =
+		start.y > intakeZone.top - INTAKE_FORCE_OVER_TOP_BUFFER_PX;
 	if (!shouldArcOverTop) {
 		return buildGuidedPath(start, end);
 	}
@@ -317,7 +328,8 @@ function buildIntakeTransitionPath(
 	const direction = Math.sign(dx) || 1;
 	const horizontalLead = clamp(Math.abs(dx) * 0.42, 34, 210);
 	const overTopY =
-		intakeZone.top - randomBetween(INTAKE_OVER_TOP_MIN_PX, INTAKE_OVER_TOP_MAX_PX);
+		intakeZone.top -
+		randomBetween(INTAKE_OVER_TOP_MIN_PX, INTAKE_OVER_TOP_MAX_PX);
 	const p1Y = Math.min(
 		start.y - randomBetween(4, 16),
 		intakeZone.top - randomBetween(18, 34)
@@ -348,7 +360,9 @@ function isOffscreen(
 	height: number,
 	margin: number
 ): boolean {
-	return x > width + margin || x < -margin || y < -margin || y > height + margin;
+	return (
+		x > width + margin || x < -margin || y < -margin || y > height + margin
+	);
 }
 
 function isInsideExpandedRect(
@@ -430,11 +444,14 @@ export default function WindFieldBackground({
 			};
 		};
 
-		const respawnParticle = (particle: Particle, height: number, width: number) => {
+		const respawnParticle = (
+			particle: Particle,
+			height: number,
+			width: number
+		) => {
 			const baseAngle = (Math.random() - 0.5) * SPAWN_ANGLE_SPREAD_RAD;
 			particle.kind = "hero";
-			particle.x =
-				-RESPAWN_MARGIN - Math.random() * Math.max(26, width * 0.58);
+			particle.x = -RESPAWN_MARGIN - Math.random() * Math.max(26, width * 0.58);
 			particle.y = Math.random() * height;
 			particle.baseAngle = baseAngle;
 			particle.angle = baseAngle;
@@ -505,7 +522,11 @@ export default function WindFieldBackground({
 				0,
 				Math.max(0, width - fallbackWidth)
 			);
-			const top = clamp(intakeZone.bottom + 8, 0, Math.max(0, height - fallbackHeight));
+			const top = clamp(
+				intakeZone.bottom + 8,
+				0,
+				Math.max(0, height - fallbackHeight)
+			);
 			return {
 				left,
 				right: left + fallbackWidth,
@@ -574,12 +595,7 @@ export default function WindFieldBackground({
 				x: startX,
 				y: randomBetween(spawnZone.top, spawnZone.bottom)
 			};
-			const end = toIntakeTarget(
-				intakeZone,
-				guides,
-				guidePreference,
-				start.x
-			);
+			const end = toIntakeTarget(intakeZone, guides, guidePreference, start.x);
 			const path = buildIntakeTransitionPath(
 				start,
 				end,
@@ -618,11 +634,7 @@ export default function WindFieldBackground({
 			});
 		};
 
-		const syncParticleCount = (
-			width: number,
-			height: number,
-			dtMs: number
-		) => {
+		const syncParticleCount = (width: number, height: number, dtMs: number) => {
 			if (flowActiveRef.current) return;
 
 			const targetCount = clamp(
@@ -695,7 +707,9 @@ export default function WindFieldBackground({
 			const falloff = Math.pow(1 - dist / radius, INTERACTION_FALLOFF_POWER);
 			const blend = falloff * FLOW_AROUND_BLEND * coefficient;
 
-			return desiredAngle + normalizeAngle(aroundAngle) * blend * CURSOR_SWIRL_SCALE;
+			return (
+				desiredAngle + normalizeAngle(aroundAngle) * blend * CURSOR_SWIRL_SCALE
+			);
 		};
 
 		const resizeCanvas = () => {
@@ -806,7 +820,11 @@ export default function WindFieldBackground({
 
 			if (heroFadeStartTsRef.current !== null) {
 				const fadeElapsed = timestamp - heroFadeStartTsRef.current;
-				const fadeProgress = clamp(fadeElapsed / HERO_PARTICLE_FADE_OUT_MS, 0, 1);
+				const fadeProgress = clamp(
+					fadeElapsed / HERO_PARTICLE_FADE_OUT_MS,
+					0,
+					1
+				);
 				heroFadeOpacityRef.current = 1 - fadeProgress;
 
 				if (fadeProgress >= 1) {
@@ -916,7 +934,10 @@ export default function WindFieldBackground({
 			}
 			const hotTopOffscreenMargin = hotTopCullMarginRef.current;
 			const hotSideOffscreenMargin = Math.max(RESPAWN_MARGIN * 2, width * 0.38);
-			const hotBottomOffscreenMargin = Math.max(RESPAWN_MARGIN * 2, height * 0.62);
+			const hotBottomOffscreenMargin = Math.max(
+				RESPAWN_MARGIN * 2,
+				height * 0.62
+			);
 			let hasHeroParticles = false;
 			let hasHotParticles = false;
 			let hasCoolParticles = false;
@@ -929,13 +950,17 @@ export default function WindFieldBackground({
 					let desiredAngle = particle.baseAngle;
 					desiredAngle = applyCursorField(desiredAngle, particle.x, particle.y);
 					particle.angle +=
-						normalizeAngle(desiredAngle - particle.angle) * HERO_TURN_RESPONSE * dt;
+						normalizeAngle(desiredAngle - particle.angle) *
+						HERO_TURN_RESPONSE *
+						dt;
 
 					const step = particle.speed * dtMs;
 					particle.x += Math.cos(particle.angle) * step;
 					particle.y += Math.sin(particle.angle) * step;
 
-					if (isOffscreen(particle.x, particle.y, width, height, RESPAWN_MARGIN)) {
+					if (
+						isOffscreen(particle.x, particle.y, width, height, RESPAWN_MARGIN)
+					) {
 						if (flowActiveNow) {
 							particles.splice(index, 1);
 							continue;
@@ -998,7 +1023,10 @@ export default function WindFieldBackground({
 					const tangent = cubicTangent(path, Math.min(1, nextProgress + 0.02));
 					const tangentAngle = Math.atan2(tangent.y, tangent.x);
 					const entryX = particle.intakeTargetX ?? intakeZone.centerX;
-					const tangentMagnitude = Math.max(0.0001, Math.hypot(tangent.x, tangent.y));
+					const tangentMagnitude = Math.max(
+						0.0001,
+						Math.hypot(tangent.x, tangent.y)
+					);
 					const normalX = -tangent.y / tangentMagnitude;
 					const normalY = tangent.x / tangentMagnitude;
 					const jitterPhase = particle.jitterPhase ?? 0;
@@ -1018,7 +1046,8 @@ export default function WindFieldBackground({
 							1
 						);
 						followX += (entryX - followX) * (0.12 + alignBlend * 0.3);
-						followY += (intakeZone.top + 3 - followY) * (0.16 + alignBlend * 0.4);
+						followY +=
+							(intakeZone.top + 3 - followY) * (0.16 + alignBlend * 0.4);
 					}
 
 					const deltaX = followX - particle.x;
@@ -1052,7 +1081,8 @@ export default function WindFieldBackground({
 					const topCaptureMinY =
 						intakeZone.top - INTAKE_CAPTURE_PADDING + INTAKE_CAPTURE_INSET_PX;
 					const topCaptureMaxY =
-						intakeZone.top + Math.max(INTAKE_TOP_CAPTURE_DEPTH, intakeZone.height * 0.55);
+						intakeZone.top +
+						Math.max(INTAKE_TOP_CAPTURE_DEPTH, intakeZone.height * 0.55);
 					if (
 						particle.x >= topCaptureMinX &&
 						particle.x <= topCaptureMaxX &&
@@ -1083,13 +1113,17 @@ export default function WindFieldBackground({
 				let desiredAngle = particle.baseAngle;
 				desiredAngle = applyCursorField(desiredAngle, particle.x, particle.y);
 				particle.angle +=
-					normalizeAngle(desiredAngle - particle.angle) * COOL_TURN_RESPONSE * dt;
+					normalizeAngle(desiredAngle - particle.angle) *
+					COOL_TURN_RESPONSE *
+					dt;
 
 				const step = particle.speed * dtMs;
 				particle.x += Math.cos(particle.angle) * step;
 				particle.y += Math.sin(particle.angle) * step;
 
-				if (isOffscreen(particle.x, particle.y, width, height, RESPAWN_MARGIN)) {
+				if (
+					isOffscreen(particle.x, particle.y, width, height, RESPAWN_MARGIN)
+				) {
 					particles.splice(index, 1);
 					continue;
 				}

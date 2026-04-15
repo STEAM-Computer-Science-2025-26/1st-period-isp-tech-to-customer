@@ -6,10 +6,10 @@ import WindFieldBackground from "@/components/marketing/WindFieldBackground";
 import LandingFloatingHeader from "@/components/marketing/LandingFloatingHeader";
 import LandingScreenshotStack from "@/components/marketing/LandingScreenshotStack";
 import { cn } from "@/lib/utils/index";
-import { Suspense, useState } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { Stage } from '@react-three/drei'
-import { Model } from '@/components/Small-air-conditioner-unit'
+import { Suspense, useState } from "react";
+import { Canvas } from "@react-three/fiber";
+import { Stage } from "@react-three/drei";
+import { Model } from "@/components/Small-air-conditioner-unit";
 
 const headingFont = Space_Grotesk({
 	subsets: ["latin"],
@@ -121,12 +121,30 @@ export default function LandingPage() {
 				</section>
 			</div>
 			<div className={cn(`w-full relative h-88`)}>
-			<div data-particle-intake className={cn(`w-88 dev top-28 h-36 absolute right-1/2 translate-x-1/2`)} /> {/* this red box represents the area of the 3d airconditioning model. i want particles to go towrards the top of this box. */}
-			<div data-particle-outlet className={cn(`w-68 bg-blue-300/20 top-56 h-6 absolute right-1/2 translate-x-1/2`)} /> {/* this box represents where the output of the air conditioning vent is. i want particles to be emitted from this box. */}
-				<Canvas className={cn(`h-full`)} shadows camera={{ position: [5, 5, 5], fov: 45 }}>
+				<div
+					data-particle-intake
+					className={cn(
+						`w-88 dev top-28 h-36 absolute right-1/2 translate-x-1/2`
+					)}
+				/>{" "}
+				{/* this red box represents the area of the 3d airconditioning model. i want particles to go towrards the top of this box. */}
+				<div
+					data-particle-outlet
+					className={cn(
+						`w-68 bg-blue-300/20 top-56 h-6 absolute right-1/2 translate-x-1/2`
+					)}
+				/>{" "}
+				{/* this box represents where the output of the air conditioning vent is. i want particles to be emitted from this box. */}
+				<Canvas
+					className={cn(`h-full`)}
+					shadows
+					camera={{ position: [5, 5, 5], fov: 45 }}
+				>
 					<Suspense fallback={null}>
 						<Stage environment="city" intensity={0.5}>
-							<Model rotation={[-Math.PI / 5, Math.PI / 4, 0]} rotation-order="YXZ"
+							<Model
+								rotation={[-Math.PI / 5, Math.PI / 4, 0]}
+								rotation-order="YXZ"
 							/>
 						</Stage>
 					</Suspense>
