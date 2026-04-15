@@ -50,7 +50,7 @@
 		"intuit-oauth": "^4.2.3",
 		"jsonwebtoken": "^9.0.3",
 		"leva": "^0.10.1",
-		"lucide-react": "^0.563.0",
+		"lucide-react": "^1.8.0",
 		"next": "16.2.3",
 		"node-quickbooks": "^2.0.50",
 		"pg": "^8.20.0",
@@ -67,7 +67,7 @@
 		"undici": "^8.1.0",
 		"ws": "^8.20.0",
 		"zod": "^4.3.6",
-		"zustand": "^4.5.5"
+		"zustand": "^5.0.12"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.59.1",
