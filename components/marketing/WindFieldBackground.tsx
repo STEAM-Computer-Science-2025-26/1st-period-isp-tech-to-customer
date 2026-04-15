@@ -417,12 +417,20 @@ export default function WindFieldBackground({
 
 	useEffect(() => {
 		// Adaptive density based on device hints to protect low-end devices
-		const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 4 : 4;
-		const deviceMem = typeof navigator !== "undefined" ? (navigator as any).deviceMemory || 4 : 4;
+		const cores =
+			typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 4 : 4;
+		const deviceMem =
+			typeof navigator !== "undefined"
+				? (navigator as any).deviceMemory || 4
+				: 4;
 		let densityScale = 1;
 		if (cores <= 4) densityScale = 0.65;
 		if (deviceMem < 2) densityScale = Math.min(densityScale, 0.5);
-		if (/Mobi|Android/i.test(typeof navigator !== "undefined" ? navigator.userAgent : "")) {
+		if (
+			/Mobi|Android/i.test(
+				typeof navigator !== "undefined" ? navigator.userAgent : ""
+			)
+		) {
 			densityScale = Math.min(densityScale, 0.6);
 		}
 		const effectiveDensity = BASE_DENSITY * densityScale;
@@ -645,14 +653,14 @@ export default function WindFieldBackground({
 			});
 		};
 
-			const syncParticleCount = (width: number, height: number, dtMs: number) => {
+		const syncParticleCount = (width: number, height: number, dtMs: number) => {
 			if (flowActiveRef.current) return;
 
-				const targetCount = clamp(
-					Math.floor(width * height * effectiveDensity),
-					MIN_PARTICLES,
-					MAX_PARTICLES
-				);
+			const targetCount = clamp(
+				Math.floor(width * height * effectiveDensity),
+				MIN_PARTICLES,
+				MAX_PARTICLES
+			);
 			const particles = particlesRef.current;
 			let heroCount = 0;
 			for (let index = 0; index < particles.length; index += 1) {
