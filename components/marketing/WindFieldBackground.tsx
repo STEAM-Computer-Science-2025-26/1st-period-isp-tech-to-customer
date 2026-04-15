@@ -416,6 +416,17 @@ export default function WindFieldBackground({
 	}, [flowActive]);
 
 	useEffect(() => {
+		// Adaptive density based on device hints to protect low-end devices
+		const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 4 : 4;
+		const deviceMem = typeof navigator !== "undefined" ? (navigator as any).deviceMemory || 4 : 4;
+		let densityScale = 1;
+		if (cores <= 4) densityScale = 0.65;
+		if (deviceMem < 2) densityScale = Math.min(densityScale, 0.5);
+		if (/Mobi|Android/i.test(typeof navigator !== "undefined" ? navigator.userAgent : "")) {
+			densityScale = Math.min(densityScale, 0.6);
+		}
+		const effectiveDensity = BASE_DENSITY * densityScale;
+
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 
@@ -634,14 +645,14 @@ export default function WindFieldBackground({
 			});
 		};
 
-		const syncParticleCount = (width: number, height: number, dtMs: number) => {
+			const syncParticleCount = (width: number, height: number, dtMs: number) => {
 			if (flowActiveRef.current) return;
 
-			const targetCount = clamp(
-				Math.floor(width * height * BASE_DENSITY),
-				MIN_PARTICLES,
-				MAX_PARTICLES
-			);
+				const targetCount = clamp(
+					Math.floor(width * height * effectiveDensity),
+					MIN_PARTICLES,
+					MAX_PARTICLES
+				);
 			const particles = particlesRef.current;
 			let heroCount = 0;
 			for (let index = 0; index < particles.length; index += 1) {
@@ -870,7 +881,7 @@ export default function WindFieldBackground({
 
 			if (flowActiveNow) {
 				const targetCount = clamp(
-					Math.floor(width * height * BASE_DENSITY),
+					Math.floor(width * height * effectiveDensity),
 					MIN_PARTICLES,
 					MAX_PARTICLES
 				);
@@ -1193,6 +1204,19 @@ export default function WindFieldBackground({
 		}
 
 		motionQuery.addEventListener("change", onMotionChange);
+		const onVisibilityChange = () => {
+			if (document.hidden) {
+				if (rafIdRef.current !== null) {
+					window.cancelAnimationFrame(rafIdRef.current);
+					rafIdRef.current = null;
+				}
+			} else {
+				if (!motionQuery.matches && rafIdRef.current === null) {
+					rafIdRef.current = window.requestAnimationFrame(drawFrame);
+				}
+			}
+		};
+		document.addEventListener("visibilitychange", onVisibilityChange);
 		window.addEventListener("resize", resizeCanvas);
 		window.addEventListener("pointerenter", onPointerEnter);
 		window.addEventListener("pointermove", onPointerMove, { passive: true });
@@ -1204,6 +1228,7 @@ export default function WindFieldBackground({
 				window.cancelAnimationFrame(rafIdRef.current);
 			}
 			motionQuery.removeEventListener("change", onMotionChange);
+			document.removeEventListener("visibilitychange", onVisibilityChange);
 			window.removeEventListener("resize", resizeCanvas);
 			window.removeEventListener("pointerenter", onPointerEnter);
 			window.removeEventListener("pointermove", onPointerMove);
