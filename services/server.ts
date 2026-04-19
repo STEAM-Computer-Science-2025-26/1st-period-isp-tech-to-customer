@@ -248,6 +248,7 @@ metricsEndpoint(fastify);
 
 await fastify.register(dispatchAuditRoutes);
 await fastify.register(etaRoutes);
+await fastify.register(preStaffingAlertRoutes);
 
 // ============================================================
 // Routes — Integrations
@@ -313,16 +314,34 @@ const start = async () => {
 		console.log(`   Log level:   ${process.env.LOG_LEVEL || "info"}`);
 
 		console.log("\n📍 Route modules registered:");
-		console.log("   Core:         jobs, users, company, employees, customers, branches");
-		console.log("   Operational:  pricebook, estimates, invoices, parts, warehouse,");
-		console.log("                 truck inventory, purchase orders, payroll, AP, expenses,");
-		console.log("                 job time tracking, duration, refrigerant, replacements");
-		console.log("   Analytics:    analytics, KPI, leaderboard, forecast, reporting, metrics");
-		console.log("   Dispatch:     dispatch, audit, ETA, pre-staffing, location");
+		console.log(
+			"   Core:         jobs, users, company, employees, customers, branches"
+		);
+		console.log(
+			"   Operational:  pricebook, estimates, invoices, parts, warehouse,"
+		);
+		console.log(
+			"                 truck inventory, purchase orders, payroll, AP, expenses,"
+		);
+		console.log(
+			"                 job time tracking, duration, refrigerant, replacements"
+		);
+		console.log(
+			"   Analytics:    analytics, KPI, leaderboard, forecast, reporting, metrics"
+		);
+		console.log(
+			"   Dispatch:     dispatch, audit, ETA, pre-staffing, location"
+		);
 		console.log("   Integrations: Stripe, QuickBooks, CRM, SMS");
-		console.log("   Platform:     onboarding, certs, audit, verify, leads, dev, automation");
-		console.log("   Misc:         competitor pricing, regions, tips, terminal, reviews,");
-		console.log("                 financing, booking widget, email marketing, call tracking,");
+		console.log(
+			"   Platform:     onboarding, certs, audit, verify, leads, dev, automation"
+		);
+		console.log(
+			"   Misc:         competitor pricing, regions, tips, terminal, reviews,"
+		);
+		console.log(
+			"                 financing, booking widget, email marketing, call tracking,"
+		);
 		console.log("                 communication log, customer portal");
 
 		console.log("\n📍 Workers running:");

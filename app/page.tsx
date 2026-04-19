@@ -123,9 +123,7 @@ export default function LandingPage() {
 			<div className={cn(`w-full relative h-88`)}>
 				<div
 					data-particle-intake
-					className={cn(
-						`w-88 dev top-28 h-36 absolute right-1/2 translate-x-1/2`
-					)}
+					className={cn(`w-88 top-28 h-36 absolute right-1/2 translate-x-1/2`)}
 				/>{" "}
 				{/* this red box represents the area of the 3d airconditioning model. i want particles to go towrards the top of this box. */}
 				<div
@@ -137,11 +135,21 @@ export default function LandingPage() {
 				{/* this box represents where the output of the air conditioning vent is. i want particles to be emitted from this box. */}
 				<Canvas
 					className={cn(`h-full`)}
-					shadows
+					frameloop="demand"
+					dpr={[
+						1,
+						Math.min(
+							1.5,
+							typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1
+						)
+					]}
+					gl={{ antialias: false, powerPreference: "high-performance" }}
 					camera={{ position: [5, 5, 5], fov: 45 }}
 				>
 					<Suspense fallback={null}>
-						<Stage environment="city" intensity={0.5}>
+						<Stage environment={null} intensity={0.5} shadows={false}>
+							<directionalLight intensity={1} position={[5, 10, 5]} />
+							<ambientLight intensity={1} />
 							<Model
 								rotation={[-Math.PI / 5, Math.PI / 4, 0]}
 								rotation-order="YXZ"
