@@ -2,7 +2,6 @@
 	"name": "tech-to-customer",
 	"version": "0.1.0",
 	"private": true,
-	"type": "module",
 	"scripts": {
 		"dev": "concurrently -k \"pnpm run dev:frontend\" \"pnpm run dev:backend\"",
 		"dev:frontend": "next dev",

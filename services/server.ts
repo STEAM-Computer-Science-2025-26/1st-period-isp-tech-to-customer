@@ -248,8 +248,6 @@ metricsEndpoint(fastify);
 
 await fastify.register(dispatchAuditRoutes);
 await fastify.register(etaRoutes);
-await fastify.register(preStaffingAlertRoutes);
-await fastify.register(dispatchAuditRoutes);
 
 // ============================================================
 // Routes — Integrations
