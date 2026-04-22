@@ -1,24 +1,13 @@
 {
 	"extends": "./tsconfig.json",
 	"compilerOptions": {
-		"module": "NodeNext",
-		"moduleResolution": "NodeNext",
+		"module": "esnext",
+		"moduleResolution": "node",
 		"allowImportingTsExtensions": false,
 		"noEmit": false,
 		"outDir": "./dist"
 	},
-	"include": [
-		"services/**/*",
-		"db/**/*",
-		"db.ts",
-		"algo/**/*",
-		"dispatch/**/*",
-		"cron/**/*",
-		"rateLimit.ts",
-		"verifyCrypto.ts",
-		"middleware/**/*",
-		"utils/**/*"
-	],
+	"include": ["services/**/*", "db/**/*", "algo/**/*", "dispatch/**/*", "cron/**/*", "rateLimit.ts", "verifyCrypto.ts", "middleware/**/*", "utils/**/*"],
 	"exclude": [
 		"node_modules",
 		"services/logging/**",
