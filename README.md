@@ -4,6 +4,8 @@ Tech to Customer is an HVAC operations platform for dispatchers, admins, and off
 
 ## What is in this repo
 
+hi
+
 - Admin dashboard with KPI cards and job activity trends
 - Customer, job, employee, dispatch, map, calendar, resources, and todo pages
 - Dispatch recommendation algorithm with one-by-one and batch assignment flows

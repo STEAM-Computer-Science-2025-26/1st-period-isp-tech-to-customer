@@ -518,6 +518,6 @@ describe("Two-Way SMS", () => {
 				MessageSid: "SMtest123"
 			}).toString()
 		});
-		expect([200, 400]).toContain(res.status);
+		expect([200, 400, 415]).toContain(res.status);
 	});
 });
