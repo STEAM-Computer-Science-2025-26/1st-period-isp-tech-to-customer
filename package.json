@@ -31,7 +31,7 @@
 		"@fastify/formbody": "^8.0.2",
 		"@fastify/jwt": "^10.0.0",
 		"@googlemaps/js-api-loader": "^2.0.2",
-		"@neondatabase/serverless": "^1.0.2",
+		"@neondatabase/serverless": "^1.1.0",
 		"@react-three/drei": "^10.7.7",
 		"@react-three/fiber": "^9.6.0",
 		"@tanstack/react-query": "^5.99.0",
