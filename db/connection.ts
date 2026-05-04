@@ -6,9 +6,6 @@
 // For the main Fastify server, use db/index.ts (Pool + WebSocket transport).
 
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import dotenv from "dotenv";
-import fs from "node:fs";
-import path from "node:path";
 import { Agent, setGlobalDispatcher } from "undici";
 
 let cachedSql: NeonQueryFunction<false, false> | null = null;
@@ -27,24 +24,8 @@ function maybeAllowSelfSignedCerts(): void {
 	}
 }
 
-function tryLoadDatabaseUrlFromDotenv(): void {
-	if (process.env.DATABASE_URL) return;
-
-	const candidates = [
-		path.resolve(process.cwd(), ".env.local"),
-		path.resolve(process.cwd(), ".env"),
-		path.resolve(process.cwd(), "app", ".env.local"),
-		path.resolve(process.cwd(), "app", ".env")
-	];
-
-	for (const envPath of candidates) {
-		if (!fs.existsSync(envPath)) continue;
-		dotenv.config({ path: envPath });
-		if (process.env.DATABASE_URL) return;
-	}
-}
-
 export function getSql() {
+	maybeAllowSelfSignedCerts();
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
 		throw new Error("DATABASE_URL is not set. Cannot create SQL client.");
