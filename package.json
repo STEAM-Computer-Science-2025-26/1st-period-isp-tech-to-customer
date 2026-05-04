@@ -50,7 +50,7 @@
 		"jsonwebtoken": "^9.0.3",
 		"leva": "^0.10.1",
 		"lucide-react": "^0.563.0",
-		"next": "16.2.3",
+		"next": "16.2.4",
 		"node-quickbooks": "^2.0.50",
 		"pg": "^8.20.0",
 		"pino": "^10.3.1",
