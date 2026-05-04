@@ -63,7 +63,7 @@ export async function persistBatchAssignments(
 			return;
 		}
 
-		// REAL BATCH UPDATE - ONE QUERY FOR ALL JOBS
+		// BATCH UPDATE JOBS — one query for all jobs
 		// ============================================================
 		const jobUpdateValues = validAssignments
 			.map((_, i) => `($${i * 2 + 1}::uuid, $${i * 2 + 2}::uuid)`)
@@ -86,8 +86,28 @@ export async function persistBatchAssignments(
 			jobUpdateParams
 		);
 
-		// REAL BATCH INSERT - ONE QUERY FOR ALL ASSIGNMENTS
+		// BATCH INSERT job_assignments — one query for all assignments
 		// ============================================================
+		const assignmentValues = validAssignments
+			.map(
+				(_, i) =>
+					`($${i * 3 + 1}::uuid, $${i * 3 + 2}::uuid, $${i * 3 + 3}::uuid)`
+			)
+			.join(", ");
+
+		const assignmentParams = validAssignments.flatMap((a) => [
+			a.jobId,
+			a.techId,
+			companyId
+		]);
+
+		await client.query(
+			`
+      INSERT INTO job_assignments (job_id, tech_id, company_id, is_manual_override, created_at)
+      VALUES ${assignmentValues}
+    `,
+			assignmentParams
+		);
 
 		await client.query("COMMIT");
 
@@ -109,8 +129,8 @@ export async function persistBatchAssignments(
  * - 100 assignments = 200 queries
  *
  * NEW (batch):
- * - 10 assignments = 2 queries (1 UPDATE + 1 INSERT)
- * - 100 assignments = 2 queries (1 UPDATE + 1 INSERT)
+ * - 10 assignments = 3 queries (1 UPDATE + 1 INSERT + locks)
+ * - 100 assignments = 3 queries (1 UPDATE + 1 INSERT + locks)
  *
  * At 100 assignments: 100x faster
  */
