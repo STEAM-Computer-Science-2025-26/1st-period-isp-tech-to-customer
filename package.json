@@ -87,7 +87,7 @@
 		"jest": "^30.3.0",
 		"jest-environment-node": "^30.3.0",
 		"node-pg-migrate": "^8.0.4",
-		"tailwindcss": "^4.2.2",
+		"tailwindcss": "^4.2.4",
 		"ts-jest": "^29.4.9",
 		"ts-node": "^10.9.2",
 		"tsconfig-paths": "^4.2.0",
