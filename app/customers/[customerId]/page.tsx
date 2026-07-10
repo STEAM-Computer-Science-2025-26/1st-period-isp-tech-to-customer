@@ -1117,6 +1117,8 @@ export default function CustomerDetailPage() {
 	const [activeTab, setActiveTab] = useState<Tab>("overview");
 	const sidebarAutoCollapse = useUiStore((s) => s.sidebarAutoCollapse);
 	const sidebarIsStrip = useUiStore((s) => s.sidebarIsStrip);
+	const setSidebarAutoCollapse = useUiStore((s) => s.setSidebarAutoCollapse);
+	const setSidebarIsStrip = useUiStore((s) => s.setSidebarIsStrip);
 	const mobileSidebarOpen = useUiStore((s) => s.mobileSidebarOpen);
 	const setMobileSidebarOpen = useUiStore((s) => s.setMobileSidebarOpen);
 
