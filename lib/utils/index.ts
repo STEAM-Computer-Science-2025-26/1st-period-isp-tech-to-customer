@@ -15,3 +15,5 @@ export {
 } from "./dateTime";
 
 export { formatPhoneNumber } from "./phone";
+
+export { fmt } from "./formatCurrency";

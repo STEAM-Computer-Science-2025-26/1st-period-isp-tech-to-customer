@@ -48,7 +48,14 @@ export function getCompanyId(): string | null {
 	const token = getToken();
 	if (!token) return null;
 	try {
-		const payload = JSON.parse(atob(token.split(".")[1]));
+		const rawPayload = token.split(".")[1];
+		if (!rawPayload) return null;
+		const base64 = rawPayload.replace(/-/g, "+").replace(/_/g, "/");
+		const padded = base64.padEnd(
+			base64.length + ((4 - (base64.length % 4)) % 4),
+			"="
+		);
+		const payload = JSON.parse(atob(padded));
 		return payload.companyId ?? null;
 	} catch {
 		return null;

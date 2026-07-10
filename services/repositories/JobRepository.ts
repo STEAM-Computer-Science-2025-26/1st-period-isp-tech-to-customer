@@ -2,8 +2,6 @@
 // UPDATED - Uses Neon instead of pg Pool
 
 import { getSql } from "../../db";
-import { Pool } from "pg";
-const pool = new Pool();
 
 export type JobRecord = {
 	id: string;
@@ -42,7 +40,8 @@ export class JobRepository {
 				longitude, 
 				status, 
 				geocoding_status AS "geocodingStatus",
-				required_skills AS "requiredSkills"
+				required_skills AS "requiredSkills",
+				assigned_tech_id AS "assignedTechId"
 			FROM jobs
 			WHERE id = ${jobId}
 		`;

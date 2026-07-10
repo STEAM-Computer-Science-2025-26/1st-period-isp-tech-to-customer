@@ -18,6 +18,7 @@ import {
 } from "@/lib/hooks/useOpenTo";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useQuery } from "@tanstack/react-query";
+import { useUiStore } from "@/lib/stores/uiStore";
 import JobsFilterDropdown from "./components/JobsFilterDropdown";
 import {
 	countActiveFilters,
@@ -79,7 +80,8 @@ const JobsPageContent = () => {
 	const [filters, setFilters] = useState(createEmptyJobsFilter());
 	const [filterOpen, setFilterOpen] = useState(false);
 	const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-	const [sidePanelOpen, setSidePanelOpen] = useState(false);
+	const sidePanelOpen = useUiStore((s) => s.sidePanelOpen);
+	const setSidePanelOpen = useUiStore((s) => s.setSidePanelOpen);
 	const { smDown, mdDown } = useBreakpoints();
 	type SortKey =
 		| "customerName"

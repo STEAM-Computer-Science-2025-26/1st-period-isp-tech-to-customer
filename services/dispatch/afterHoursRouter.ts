@@ -10,7 +10,7 @@ export interface AfterHoursResult {
 	ruleName?: string;
 	routingStrategy?: string;
 	onCallEmployeeIds?: string[];
-	surchargeFlatFlat?: number;
+	surchargeFlat?: number;
 	surchargePercent?: number;
 	autoAccept?: boolean;
 	notifyManager?: boolean;
@@ -92,7 +92,7 @@ export async function evaluateAfterHours(
 		ruleName: rule.name,
 		routingStrategy: rule.routing_strategy,
 		onCallEmployeeIds: rule.on_call_employee_ids ?? [],
-		surchargeFlatFlat: Number(rule.surcharge_flat ?? 0),
+		surchargeFlat: Number(rule.surcharge_flat ?? 0),
 		surchargePercent: Number(rule.surcharge_percent ?? 0),
 		autoAccept: rule.auto_accept,
 		notifyManager: rule.notify_manager,

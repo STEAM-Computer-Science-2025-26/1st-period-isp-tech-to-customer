@@ -286,7 +286,7 @@ export interface AfterHoursRule {
 	holidayAllDay: boolean;
 	routingStrategy: RoutingStrategy;
 	onCallEmployeeIds: string[];
-	surchargeFlatFlat?: number | null;
+	surchargeFlat?: number | null;
 	surchargePercent?: number | null;
 	autoAccept: boolean;
 	notifyManager: boolean;
@@ -303,7 +303,7 @@ export interface CreateAfterHoursRuleInput {
 	holidayAllDay?: boolean;
 	routingStrategy: RoutingStrategy;
 	onCallEmployeeIds?: string[];
-	surchargeFlatFlat?: number;
+	surchargeFlat?: number;
 	surchargePercent?: number;
 	autoAccept?: boolean;
 	notifyManager?: boolean;

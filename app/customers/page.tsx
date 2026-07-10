@@ -15,6 +15,7 @@ import {
 	useOpenToJob,
 	useOpenToLocation
 } from "@/lib/hooks/useOpenTo";
+import { useUiStore } from "@/lib/stores/uiStore";
 import {
 	formatReadableDate,
 	formatReadableDateTime,
@@ -339,7 +340,8 @@ function CustomersPageContent() {
 	const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
 		null
 	);
-	const [sidePanelOpen, setSidePanelOpen] = useState(false);
+	const sidePanelOpen = useUiStore((s) => s.sidePanelOpen);
+	const setSidePanelOpen = useUiStore((s) => s.setSidePanelOpen);
 
 	type SortKey =
 		| "name"

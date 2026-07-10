@@ -40,7 +40,7 @@ export class TechnicianRepository {
 				max_concurrent_jobs AS "maxConcurrentJobs",
 				latitude, 
 				longitude,
-				50 AS "maxTravelDistanceMiles",
+				max_travel_distance_miles AS "maxTravelDistanceMiles",
 				skills,
 				skill_level AS "skillLevel"
 			FROM employees

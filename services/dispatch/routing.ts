@@ -36,10 +36,11 @@ export async function getDriveTime(
 		console.error("OSRM routing error:", error);
 
 		// Fallback to Haversine
-		const straightLineKm = calculateDistance(
+		const straightLineMiles = calculateDistance(
 			{ latitude: fromLat, longitude: fromLng },
 			{ latitude: toLat, longitude: toLng }
 		);
+		const straightLineKm = straightLineMiles / 0.621371;
 
 		return {
 			durationSeconds: Math.round((straightLineKm / 50) * 3600),
@@ -89,13 +90,14 @@ export async function getBatchDriveTimes(
 		return durations.map((durationSeconds: number | null, index: number) => {
 			if (durationSeconds === null) {
 				// No route found, use Haversine fallback
-				const straightLineKm = calculateDistance(
+				const straightLineMiles = calculateDistance(
 					{ latitude: origin.lat, longitude: origin.lng },
 					{
 						latitude: destinations[index].lat,
 						longitude: destinations[index].lng
 					}
 				);
+				const straightLineKm = straightLineMiles / 0.621371;
 
 				return {
 					durationSeconds: Math.round((straightLineKm / 50) * 3600),

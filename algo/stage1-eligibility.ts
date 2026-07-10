@@ -90,9 +90,10 @@ export function checkEligibility(
 	}
 
 	const missingSkills = job.requiredSkills.filter((requiredSkill) => {
-		const techLevel = tech.skillLevel[requiredSkill] ?? 0;
+		const techLevel = (tech.skillLevel ?? {})[requiredSkill] ?? 0;
 		return (
-			!tech.skills.includes(requiredSkill) || techLevel < job.minimumSkillLevel
+			!(tech.skills ?? []).includes(requiredSkill) ||
+			techLevel < job.minimumSkillLevel
 		);
 	});
 

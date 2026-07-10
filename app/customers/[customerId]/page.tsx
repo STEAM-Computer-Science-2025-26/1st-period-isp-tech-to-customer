@@ -1114,9 +1114,6 @@ export default function CustomerDetailPage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState<Tab>("overview");
-	const [sidebarAutoCollapse, setSidebarAutoCollapse] = useState(false);
-	const [sidebarIsStrip, setSidebarIsStrip] = useState(false);
-	const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
 	const handleCustomerUpdate = (updates: Partial<Customer>) => {
 		setCustomer((prev) => (prev ? { ...prev, ...updates } : prev));

@@ -108,7 +108,7 @@ describe("evaluateAfterHours – midnight-wrapping window (17:00–08:00)", () =
 	test("returns parsed surcharge and manager info", async () => {
 		const at = new Date("2025-03-05T20:00:00");
 		const result = await evaluateAfterHours("co-1", null, at);
-		expect(result.surchargeFlatFlat).toBe(75);
+		expect(result.surchargeFlat).toBe(75);
 		expect(result.notifyManager).toBe(true);
 		expect(result.managerPhone).toBe("+12145550100");
 	});

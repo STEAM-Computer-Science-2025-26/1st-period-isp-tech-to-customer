@@ -26,6 +26,7 @@ export function useUpdateJobStatus(jobId: string) {
 			}),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: jobQueryKey(jobId) });
+			void queryClient.invalidateQueries({ queryKey: ["jobs"] });
 		}
 	});
 }
@@ -40,6 +41,7 @@ export function useUpdateJob(jobId: string) {
 			}),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: jobQueryKey(jobId) });
+			void queryClient.invalidateQueries({ queryKey: ["jobs"] });
 		}
 	});
 }

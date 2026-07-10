@@ -77,7 +77,7 @@ export type CreateJobInput = {
 	jobType: JobType;
 	priority: JobPriority;
 	scheduledTime?: ISODateString; // ISO 8601
-	initialNotes?: ISODateString;
+	initialNotes?: string;
 };
 
 export type CreateJobSuccess = {

@@ -36,5 +36,10 @@ export async function apiFetch<T>(
 		throw new ApiError(res.status, `Request failed (${res.status}) — ${path}`);
 	}
 
+	// 204 No Content — nothing to parse
+	if (res.status === 204) {
+		return undefined as T;
+	}
+
 	return res.json() as Promise<T>;
 }

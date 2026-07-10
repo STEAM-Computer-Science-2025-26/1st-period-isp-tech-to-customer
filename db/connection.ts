@@ -25,6 +25,7 @@ function maybeAllowSelfSignedCerts(): void {
 }
 
 export function getSql() {
+	if (cachedSql) return cachedSql;
 	maybeAllowSelfSignedCerts();
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {

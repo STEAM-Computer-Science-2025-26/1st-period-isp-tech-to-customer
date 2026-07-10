@@ -159,7 +159,7 @@ export function scoreTechnician(
 	distanceMiles: number;
 	isEmergency: boolean;
 } {
-	const isEmergency = job.priority === "emergency";
+	const isEmergency = (job.priority ?? "").toLowerCase() === "emergency";
 
 	const techCoords = {
 		latitude: tech.latitude ?? 0,

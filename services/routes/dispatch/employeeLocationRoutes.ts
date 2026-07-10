@@ -1,6 +1,16 @@
-import { FastifyInstance } from "fastify";
+import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { query } from "../../../db";
 import { z } from "zod";
+
+async function authenticate(request: FastifyRequest, reply: FastifyReply) {
+	try {
+		await request.jwtVerify();
+	} catch {
+		return reply
+			.code(401)
+			.send({ error: "Unauthorized - Invalid or missing token" });
+	}
+}
 
 const updateLocationSchema = z.object({
 	latitude: z.number().min(-90).max(90),
@@ -15,7 +25,10 @@ type AuthUser = {
 };
 
 export function updateEmployeeLocation(fastify: FastifyInstance) {
-	fastify.put("/employees/:employeeId/location", async (request, reply) => {
+	fastify.put(
+		"/employees/:employeeId/location",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
 		const { employeeId } = request.params as { employeeId: string };
 		const authUser = request.user as AuthUser;
 		const isDev = authUser?.role === "dev";
@@ -80,11 +93,15 @@ export function updateEmployeeLocation(fastify: FastifyInstance) {
 			success: true,
 			location: result[0]
 		};
-	});
+		}
+	);
 }
 
 export function getEmployeeLocation(fastify: FastifyInstance) {
-	fastify.get("/employees/:employeeId/location", async (request, reply) => {
+	fastify.get(
+		"/employees/:employeeId/location",
+		{ preHandler: [authenticate] },
+		async (request, reply) => {
 		const { employeeId } = request.params as { employeeId: string };
 		const authUser = request.user as AuthUser;
 		const isDev = authUser?.role === "dev";
@@ -108,11 +125,15 @@ export function getEmployeeLocation(fastify: FastifyInstance) {
 		}
 
 		return result[0];
-	});
+		}
+	);
 }
 
 export function getAllTechs(fastify: FastifyInstance) {
-	fastify.get("/techs", async (request, _reply) => {
+	fastify.get(
+		"/techs",
+		{ preHandler: [authenticate] },
+		async (request, _reply) => {
 		const authUser = request.user as AuthUser;
 		const isDev = authUser?.role === "dev";
 
@@ -157,7 +178,8 @@ export function getAllTechs(fastify: FastifyInstance) {
 			techs,
 			timestamp: new Date().toISOString()
 		};
-	});
+		}
+	);
 }
 export function employeeLocationRoutes(fastify: FastifyInstance) {
 	updateEmployeeLocation(fastify);

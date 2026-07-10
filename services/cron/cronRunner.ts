@@ -575,22 +575,40 @@ export async function runAllCronJobs() {
 
 	console.log("[cron] Starting cron run...");
 
-	results.recurringJobs = await processRecurringSchedules();
+	results.recurringJobs = await processRecurringSchedules().catch((err) => {
+		console.error("[cron] recurring jobs failed:", err);
+		return { error: String(err) };
+	});
 	console.log("[cron] Recurring jobs:", results.recurringJobs);
 
-	results.membershipRenewals = await processMembershipRenewals();
+	results.membershipRenewals = await processMembershipRenewals().catch((err) => {
+		console.error("[cron] membership renewals failed:", err);
+		return { error: String(err) };
+	});
 	console.log("[cron] Membership renewals:", results.membershipRenewals);
 
-	results.billingTriggers = await processBillingTriggers();
+	results.billingTriggers = await processBillingTriggers().catch((err) => {
+		console.error("[cron] billing triggers failed:", err);
+		return { error: String(err) };
+	});
 	console.log("[cron] Billing triggers:", results.billingTriggers);
 
-	results.reviewRequests = await scheduleReviewRequests();
+	results.reviewRequests = await scheduleReviewRequests().catch((err) => {
+		console.error("[cron] review request scheduling failed:", err);
+		return { error: String(err) };
+	});
 	console.log("[cron] Review request scheduling:", results.reviewRequests);
 
-	results.reviewDispatch = await dispatchPendingReviewRequests();
+	results.reviewDispatch = await dispatchPendingReviewRequests().catch((err) => {
+		console.error("[cron] review dispatch failed:", err);
+		return { error: String(err) };
+	});
 	console.log("[cron] Review dispatch:", results.reviewDispatch);
 
-	results.certAlerts = await processCertExpirationAlerts();
+	results.certAlerts = await processCertExpirationAlerts().catch((err) => {
+		console.error("[cron] cert alerts failed:", err);
+		return { error: String(err) };
+	});
 	console.log("[cron] Cert alerts:", results.certAlerts);
 
 	// ─────────────────────────────

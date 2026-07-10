@@ -3,6 +3,9 @@ import { scoreAllTechnicians } from "./scoring";
 import { createRecommendation } from "./ranker";
 import { TechnicianInput } from "../services/types/technicianInput";
 
+const DEBUG = process.env.NODE_ENV !== "production" && process.env.DISPATCH_DEBUG === "true";
+const log = (...args: unknown[]) => { if (DEBUG) console.log(...args); };
+
 type JobInput = {
 	id: string;
 	companyId: string;
@@ -25,33 +28,33 @@ returns a DispatchRecommendation. if no techs are eligible,
 requiresManualDispatch will be true and assignedTech will be null.
 */
 export function dispatch(job: JobInput, technicians: TechnicianInput[]) {
-	console.log(
+	log(
 		`\n Checking ${technicians.length} technicians for job ${job.id}...`
 	);
 
 	const { eligible, ineligible } = filterEligibleTechnicians(technicians, job);
 
 	if (ineligible.length > 0) {
-		console.log(
+		log(
 			`Ineligible technicians for job ${job.id}: ${ineligible.map((t) => t.technician.id).join(", ")}`
 		);
 		ineligible.forEach(({ technician, result }) => {
-			console.log(` - ${technician.name}: ${result.failedRules[0]}`);
+			log(` - ${technician.name}: ${result.failedRules[0]}`);
 		});
 	}
 
-	console.log(
+	log(
 		`\n Found ${eligible.length} eligible technicians for job ${job.id}.`
 	);
 
 	const scores = scoreAllTechnicians(eligible, job);
 	const isEmergency = job.priority.toLowerCase() === "emergency";
 
-	console.log(`\n Ranking all eligible technicians for job ${job.id}...`);
+	log(`\n Ranking all eligible technicians for job ${job.id}...`);
 
 	const recommendation = createRecommendation(job.id, scores, isEmergency);
 
-	console.log(
+	log(
 		`\n Top Tech: ${recommendation.assignedTech?.techName ?? "none — manual dispatch required"} ` +
 			`(${recommendation.assignedTech?.totalScore ?? "—"}/100 pts)\n`
 	);
@@ -75,9 +78,9 @@ export function batchDispatch(
 	);
 
 	const recommendations = jobs.map((job, index) => {
-		console.log(`\n${"=".repeat(70)}`);
-		console.log(`Processing Job ${index + 1}/${jobs.length} (ID: ${job.id})`);
-		console.log(`${"=".repeat(70)}\n`);
+		log(`\n${"=".repeat(70)}`);
+		log(`Processing Job ${index + 1}/${jobs.length} (ID: ${job.id})`);
+		log(`${"=".repeat(70)}\n`);
 
 		// Build a snapshot with updated workload counts
 		const updatedTechs = technicians.map((t) => ({

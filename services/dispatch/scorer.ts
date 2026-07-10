@@ -119,9 +119,11 @@ export async function scoreAndRankCandidates(
 			performanceScore +
 			workloadScore;
 
+		const clampedScore = Math.min(100, Math.max(0, totalScore));
+
 		return {
 			tech,
-			score: Number.isFinite(totalScore) ? totalScore : 0,
+			score: Number.isFinite(clampedScore) ? clampedScore : 0,
 			driveTimeMinutes: safeMinutes,
 			breakdown: {
 				distanceScore,

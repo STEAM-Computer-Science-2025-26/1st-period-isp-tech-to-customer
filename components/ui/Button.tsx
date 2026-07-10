@@ -96,6 +96,7 @@ export default function Button({
 
 	return (
 		<button
+			type="button"
 			className={clsx(
 				`bg-${bg} hover:bg-${bgHover} border border-${border} hover:border-${borderHover} px-3 py-2`,
 				roundedClass,

@@ -15,15 +15,17 @@ import type {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function jobMatchesPolicy(
-	job: { description?: string; jobType?: string; priority?: string },
+	job: { description?: string; job_type?: string; jobType?: string; priority?: string },
 	conditions: EscalationTriggerConditions
 ): boolean {
 	if (!conditions || Object.keys(conditions).length === 0) return true;
 
+	const jobType = job.jobType ?? job.job_type ?? "";
+
 	// Keyword match in description or job_type
 	if (conditions.keywords?.length) {
 		const haystack =
-			`${job.description ?? ""} ${job.jobType ?? ""}`.toLowerCase();
+			`${job.description ?? ""} ${jobType}`.toLowerCase();
 		const matches = conditions.keywords.some((kw) =>
 			haystack.includes(kw.toLowerCase())
 		);
@@ -37,7 +39,7 @@ function jobMatchesPolicy(
 
 	// Job type match
 	if (conditions.jobTypes?.length) {
-		if (!conditions.jobTypes.includes(job.jobType ?? "")) return false;
+		if (!conditions.jobTypes.includes(jobType)) return false;
 	}
 
 	return true;

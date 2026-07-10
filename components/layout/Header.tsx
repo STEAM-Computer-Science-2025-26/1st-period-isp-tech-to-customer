@@ -35,10 +35,9 @@ export default function Header({
 				<h1 className="text-lg font-semibold text-text-main">{title}</h1>
 				{lgUp ? (
 					<nav className="flex flex-row items-center gap-6 text-text-secondary [&>a]:cursor-pointer">
-						{/* Navigation items can be added here */}
-						<a>About Us</a>
-						<a>Contact</a>
-						<a>Help</a>
+						<a href="/customers">Customers</a>
+						<a href="/jobs">Jobs</a>
+						<a href="/dispatch">Dispatch</a>
 					</nav>
 				) : (
 					<button

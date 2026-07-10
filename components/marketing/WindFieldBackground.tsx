@@ -121,7 +121,7 @@ const INTAKE_FORCE_OVER_TOP_BUFFER_PX = 16;
 const INTAKE_OVER_TOP_MIN_PX = 34;
 const INTAKE_OVER_TOP_MAX_PX = 86;
 // Draw helper curves so the intake envelope is visible while tuning.
-const SHOW_GUIDE_CURVES = false;
+const SHOW_GUIDE_CURVES = process.env.NODE_ENV !== "production" && false;
 // Minimum useful path length to keep guidance stable.
 const MIN_PATH_LENGTH = 120;
 // Left-side "hot" color (dusty orange) before particles cool.

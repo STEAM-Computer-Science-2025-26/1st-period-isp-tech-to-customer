@@ -162,7 +162,10 @@ export default function DashboardPage() {
 						meta="vs yesterday"
 						icon={<TrendingUp className="h-5 w-5 text-text-secondary" />}
 						actions={
-							<button className="text-xs text-text-secondary hover:text-text-main transition-colors">
+							<button
+								className="text-xs text-text-secondary hover:text-text-main transition-colors"
+								type="button"
+							>
 								View
 							</button>
 						}

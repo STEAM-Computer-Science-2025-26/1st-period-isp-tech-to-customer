@@ -6,6 +6,7 @@
 
 import Fastify from "fastify";
 import fastifyJwt from "@fastify/jwt";
+import fastifyCors from "@fastify/cors";
 import fastifyRawBody from "fastify-raw-body";
 import fastifyFormbody from "@fastify/formbody";
 
@@ -24,6 +25,7 @@ import { leaderboardRoutes } from "./routes/analytics/leaderboardRoutes";
 import { forecastRoutes } from "./routes/analytics/forecastRoutes";
 import { analyticsRoutes } from "./routes/analytics/analyticsRoutes";
 import { reportingRoutes } from "./routes/analytics/reportingRoutes";
+import { metricsEndpoint } from "./routes/analytics/metricsRoutes";
 
 // Dispatch
 import { dispatchRoutes } from "./routes/dispatch/dispatchRoutes";
@@ -50,6 +52,9 @@ import { purchaseOrderRoutes } from "./routes/operational/purchaseOrderRoutes";
 import { warehouseRoutes } from "./routes/operational/warehouseRoutes";
 import { replacementRoutes } from "./routes/operational/replacementRoutes";
 import { refrigerantLogRoutes } from "./routes/operational/refrigerantLogRoutes";
+import { payrollRoutes } from "./routes/operational/payrollRoutes";
+import { accountsPayableRoutes } from "./routes/operational/accountsPayableRoutes";
+import { expenseRoutes } from "./routes/operational/expenseRoutes";
 
 // Platform
 import { healthRoutes } from "./routes/platform/healthRoutes";
@@ -60,6 +65,7 @@ import { leadsRoutes } from "./routes/platform/leadsRoutes";
 import { auditRoutes } from "./routes/platform/auditRoutes";
 import { certificationRoutes } from "./routes/platform/certificationRoutes";
 import { cronRoutes } from "./routes/platform/cronRoutes";
+import { automationRoutes } from "./routes/platform/automationRoutes";
 
 // Remaining
 import locationRoutes from "./routes/locationRoutes";
@@ -67,11 +73,25 @@ import { competitorPricingRoutes } from "./routes/competitorPricingRoutes";
 import { multiRegionRoutes } from "./routes/multiRegionRoutes";
 import { tipRoutes } from "./routes/tipRoutes";
 import { terminalRoutes } from "./routes/terminalRoutes";
+import { reviewRoutes } from "./routes/reviewRoutes";
+import { financingRoutes } from "./routes/financingRoutes";
+import { bookingWidgetRoutes } from "./routes/bookingWidgetRoutes";
+import { emailMarketingRoutes } from "./routes/emailMarketingRoutes";
+import { callTrackingRoutes } from "./routes/callTrackingRoutes";
+import { communicationLogRoutes } from "./routes/communicationLogRoutes";
+import { customerPortalRoutes } from "./routes/customerPortalRoutes";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 
 // Singleton — reused across warm serverless invocations
 let _app: ReturnType<typeof Fastify> | null = null;
 let _initPromise: Promise<ReturnType<typeof Fastify>> | null = null;
+
+const allowedOrigins: string[] = (
+	process.env.ALLOWED_ORIGINS ?? "http://localhost:3000"
+)
+	.split(",")
+	.map((o) => o.trim())
+	.filter(Boolean);
 
 async function buildApp() {
 	const fastify = Fastify({ logger: false });
@@ -84,6 +104,15 @@ async function buildApp() {
 	});
 
 	await fastify.register(fastifyFormbody);
+
+	await fastify.register(fastifyCors, {
+		origin: (origin, cb) => {
+			if (!origin) return cb(null, true);
+			if (allowedOrigins.includes(origin)) return cb(null, true);
+			cb(new Error(`CORS: origin '${origin}' is not allowed`), false);
+		},
+		credentials: true
+	});
 
 	await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET! });
 
@@ -108,6 +137,7 @@ async function buildApp() {
 	await fastify.register(onboardingRoutes);
 	await fastify.register(certificationRoutes);
 	await fastify.register(cronRoutes);
+	await fastify.register(automationRoutes);
 	await fastify.register(durationRoutes);
 	await fastify.register(stripeRoutes);
 	await fastify.register(qbRoutes);
@@ -133,9 +163,20 @@ async function buildApp() {
 	await fastify.register(reportingRoutes);
 	await fastify.register(tipRoutes);
 	await fastify.register(terminalRoutes);
+	await fastify.register(payrollRoutes);
+	await fastify.register(accountsPayableRoutes);
+	await fastify.register(expenseRoutes);
+	await fastify.register(reviewRoutes);
+	await fastify.register(financingRoutes);
+	await fastify.register(bookingWidgetRoutes);
+	await fastify.register(emailMarketingRoutes);
+	await fastify.register(callTrackingRoutes);
+	await fastify.register(communicationLogRoutes);
+	await fastify.register(customerPortalRoutes);
 	await fastify.register(verifyRoutes);
 	await fastify.register(leadsRoutes, { prefix: "/public" });
 	await fastify.register(devRoutes);
+	metricsEndpoint(fastify);
 
 	fastify.get("/", async () => ({
 		status: "running",
