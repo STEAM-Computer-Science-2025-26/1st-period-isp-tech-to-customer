@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils/index";
 import { formatPhoneNumber, formatReadableDate } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
+import { useUiStore } from "@/lib/stores/uiStore";
 import { useParams, useRouter } from "next/navigation";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import CustomSelect from "@/components/ui/CustomSelect";
@@ -1114,6 +1115,10 @@ export default function CustomerDetailPage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState<Tab>("overview");
+	const sidebarAutoCollapse = useUiStore((s) => s.sidebarAutoCollapse);
+	const sidebarIsStrip = useUiStore((s) => s.sidebarIsStrip);
+	const mobileSidebarOpen = useUiStore((s) => s.mobileSidebarOpen);
+	const setMobileSidebarOpen = useUiStore((s) => s.setMobileSidebarOpen);
 
 	const handleCustomerUpdate = (updates: Partial<Customer>) => {
 		setCustomer((prev) => (prev ? { ...prev, ...updates } : prev));
@@ -1176,7 +1181,7 @@ export default function CustomerDetailPage() {
 			<Header
 				sidebarAutoCollapse={sidebarAutoCollapse}
 				sidebarIsStrip={sidebarIsStrip}
-				onMobileMenuClick={() => setMobileSidebarOpen((o) => !o)}
+				onMobileMenuClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
 				mobileMenuOpen={mobileSidebarOpen}
 			/>
 			<MainContent
