@@ -3,8 +3,12 @@ import { scoreAllTechnicians } from "./scoring";
 import { createRecommendation } from "./ranker";
 import { TechnicianInput } from "../services/types/technicianInput";
 
-const DEBUG = process.env.NODE_ENV !== "production" && process.env.DISPATCH_DEBUG === "true";
-const log = (...args: unknown[]) => { if (DEBUG) console.log(...args); };
+const DEBUG =
+	process.env.NODE_ENV !== "production" &&
+	process.env.DISPATCH_DEBUG === "true";
+const log = (...args: unknown[]) => {
+	if (DEBUG) console.log(...args);
+};
 
 type JobInput = {
 	id: string;
@@ -28,9 +32,7 @@ returns a DispatchRecommendation. if no techs are eligible,
 requiresManualDispatch will be true and assignedTech will be null.
 */
 export function dispatch(job: JobInput, technicians: TechnicianInput[]) {
-	log(
-		`\n Checking ${technicians.length} technicians for job ${job.id}...`
-	);
+	log(`\n Checking ${technicians.length} technicians for job ${job.id}...`);
 
 	const { eligible, ineligible } = filterEligibleTechnicians(technicians, job);
 
@@ -43,9 +45,7 @@ export function dispatch(job: JobInput, technicians: TechnicianInput[]) {
 		});
 	}
 
-	log(
-		`\n Found ${eligible.length} eligible technicians for job ${job.id}.`
-	);
+	log(`\n Found ${eligible.length} eligible technicians for job ${job.id}.`);
 
 	const scores = scoreAllTechnicians(eligible, job);
 	const isEmergency = job.priority.toLowerCase() === "emergency";

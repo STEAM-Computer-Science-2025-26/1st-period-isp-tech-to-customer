@@ -581,10 +581,12 @@ export async function runAllCronJobs() {
 	});
 	console.log("[cron] Recurring jobs:", results.recurringJobs);
 
-	results.membershipRenewals = await processMembershipRenewals().catch((err) => {
-		console.error("[cron] membership renewals failed:", err);
-		return { error: String(err) };
-	});
+	results.membershipRenewals = await processMembershipRenewals().catch(
+		(err) => {
+			console.error("[cron] membership renewals failed:", err);
+			return { error: String(err) };
+		}
+	);
 	console.log("[cron] Membership renewals:", results.membershipRenewals);
 
 	results.billingTriggers = await processBillingTriggers().catch((err) => {
@@ -599,10 +601,12 @@ export async function runAllCronJobs() {
 	});
 	console.log("[cron] Review request scheduling:", results.reviewRequests);
 
-	results.reviewDispatch = await dispatchPendingReviewRequests().catch((err) => {
-		console.error("[cron] review dispatch failed:", err);
-		return { error: String(err) };
-	});
+	results.reviewDispatch = await dispatchPendingReviewRequests().catch(
+		(err) => {
+			console.error("[cron] review dispatch failed:", err);
+			return { error: String(err) };
+		}
+	);
 	console.log("[cron] Review dispatch:", results.reviewDispatch);
 
 	results.certAlerts = await processCertExpirationAlerts().catch((err) => {
