@@ -7,7 +7,17 @@
 		"noEmit": false,
 		"outDir": "./dist"
 	},
-	"include": ["services/**/*", "db.ts"],
+	"include": [
+		"services/**/*",
+		"db/**/*",
+		"algo/**/*",
+		"dispatch/**/*",
+		"cron/**/*",
+		"rateLimit.ts",
+		"verifyCrypto.ts",
+		"middleware/**/*",
+		"utils/**/*"
+	],
 	"exclude": [
 		"node_modules",
 		"services/logging/**",

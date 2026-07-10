@@ -7,12 +7,18 @@ import { cn } from "@/lib/utils/index";
 
 type LandingFloatingHeaderProps = {
 	targetId: string;
+	onStateChange?: (isActive: boolean) => void;
 };
 
 export default function LandingFloatingHeader({
-	targetId
+	targetId,
+	onStateChange
 }: LandingFloatingHeaderProps) {
 	const [isScrolledPastBrand, setIsScrolledPastBrand] = useState(false);
+
+	useEffect(() => {
+		onStateChange?.(isScrolledPastBrand);
+	}, [isScrolledPastBrand, onStateChange]);
 
 	useEffect(() => {
 		const target = document.getElementById(targetId);

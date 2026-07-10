@@ -26,14 +26,7 @@ import {
 	toggleSet
 } from "./components/jobsFilterUtils";
 import { formatNumericDate } from "@/lib/utils";
-
-import {
-	Wrench,
-	ChevronRight,
-	ArrowUpDown,
-	ArrowUp,
-	ArrowDown
-} from "lucide-react";
+import { ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { FilterSearchBar } from "@/components/ui/FilterSearchBar";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import { CopyCell } from "@/components/ui/CopyCell";
@@ -87,7 +80,7 @@ const JobsPageContent = () => {
 	const [filterOpen, setFilterOpen] = useState(false);
 	const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 	const [sidePanelOpen, setSidePanelOpen] = useState(false);
-	const { smUp, mdUp, lgUp, smDown } = useBreakpoints();
+	const { smDown, mdDown } = useBreakpoints();
 	type SortKey =
 		| "customerName"
 		| "address"
@@ -97,6 +90,11 @@ const JobsPageContent = () => {
 		| "scheduledTime"
 		| "createdAt"
 		| null;
+
+	type Column = {
+		label: string;
+		key: SortKey;
+	};
 	const [sortKey, setSortKey] = useState<SortKey>(null);
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 	const [prevSort, setPrevSort] = useState<{
@@ -325,6 +323,30 @@ const JobsPageContent = () => {
 		}
 	};
 
+	const defaultCols: Column[] = [
+		{ label: "Customer", key: "customerName" },
+		{ label: "Address", key: "address" },
+		{ label: "Type", key: "jobType" },
+		{ label: "Status", key: "status" },
+		{ label: "Priority", key: "priority" },
+		{ label: "Scheduled", key: "scheduledTime" },
+		{ label: "Created", key: "createdAt" },
+		{ label: "", key: null }
+	];
+
+	const mdCols: Column[] = [
+		{ label: "Customer", key: "customerName" },
+		{ label: "Type", key: "jobType" },
+		{ label: "Scheduled", key: "scheduledTime" },
+		{ label: "", key: null }
+	];
+
+	const smCols: Column[] = [
+		{ label: "Customer", key: "customerName" },
+		{ label: "Type", key: "jobType" },
+		{ label: "Scheduled", key: "scheduledTime" }
+	];
+
 	return (
 		<APIProvider apiKey={MAPS_API_KEY} libraries={["places"]}>
 			<MainContent className={cn(`flex flex-col gap-4`)}>
@@ -398,21 +420,13 @@ const JobsPageContent = () => {
 
 					<div className="w-full rounded-xl border border-background-secondary bg-background-primary relative pt-12">
 						<div
-							className="border-b px-3 border-secondary/50 h-12 absolute top-0 inset-x-4 items-center grid grid-cols-[1.4fr_1.8fr_0.9fr_0.9fr_0.8fr_1fr_1fr_1.5rem]"
+							className={cn(
+								"border-b px-3 border-secondary/50 h-12 absolute top-0 inset-x-4 items-center grid grid-cols-[1.4fr_1.8fr_0.9fr_0.9fr_0.8fr_1fr_1fr_1.5rem]",
+								mdDown && "grid-cols-[1.4fr_0.9fr_1fr_1.5rem]"
+							)}
 							role="row"
 						>
-							{(
-								[
-									{ label: "Customer", key: "customerName" },
-									{ label: "Address", key: "address" },
-									{ label: "Type", key: "jobType" },
-									{ label: "Status", key: "status" },
-									{ label: "Priority", key: "priority" },
-									{ label: "Scheduled", key: "scheduledTime" },
-									{ label: "Created", key: "createdAt" },
-									{ label: "", key: null }
-								] as const
-							).map((col) => (
+							{(smDown ? smCols : mdDown ? mdCols : defaultCols).map((col) => (
 								<div
 									key={col.label}
 									role="columnheader"
@@ -421,7 +435,9 @@ const JobsPageContent = () => {
 									{col.key ? (
 										<button
 											type="button"
-											onClick={() => handleSort(col.key)}
+											onClick={() =>
+												handleSort(col.key as NonNullable<SortKey>)
+											}
 											className="group flex items-center gap-1.5 hover:text-foreground/80 transition-colors"
 											aria-label={`Sort by ${col.label}`}
 										>
@@ -468,7 +484,8 @@ const JobsPageContent = () => {
 									<li
 										key={job.id}
 										className={cn(
-											"grid group grid-cols-[1.4fr_1.8fr_0.9fr_0.9fr_0.8fr_1fr_1fr_1.5rem] items-center px-4 py-3 cursor-pointer hover:bg-background-secondary/30 first:rounded-t-lg last:rounded-b-lg transition-colors",
+											"grid group grid-cols-[1.4fr_1.8fr_0.9fr_0.9fr_0.8fr_1fr_1fr_1.5rem] items-center px-4 py-3 cursor-pointer hover:bg-background-secondary/30 first:rounded-t-lg last:rounded-b-lg transition-colors overflow-none",
+											mdDown && "grid-cols-[1.4fr_0.9fr_1fr_1.5rem]",
 											selectedJobId === job.id && "bg-accent-main/10"
 										)}
 										role="row"
@@ -498,7 +515,10 @@ const JobsPageContent = () => {
 												{job.customerName}
 											</button>
 										</div>
-										<div role="cell" className="min-w-0">
+										<div
+											role="cell"
+											className={cn("min-w-0", mdDown && "hidden")}
+										>
 											<button
 												type="button"
 												onClick={(event) => {
@@ -517,10 +537,10 @@ const JobsPageContent = () => {
 										>
 											{job.jobType.replaceAll("_", " ")}
 										</div>
-										<div role="cell">
+										<div className={cn(mdDown && "hidden")} role="cell">
 											<StatusBadge status={job.status} />
 										</div>
-										<div role="cell">
+										<div className={cn(mdDown && "hidden")} role="cell">
 											<PriorityBadge priority={job.priority} />
 										</div>
 										<CopyCell
@@ -534,7 +554,10 @@ const JobsPageContent = () => {
 										<CopyCell
 											value={formatNumericDate(job.createdAt)}
 											copyText={formatNumericDate(job.createdAt)}
-											className="text-xs text-text-tertiary"
+											className={cn(
+												"text-xs text-text-tertiary",
+												mdDown && "hidden"
+											)}
 											textClassName="truncate"
 											ariaLabel="Copy created date"
 											onCopy={copyToClipboard}

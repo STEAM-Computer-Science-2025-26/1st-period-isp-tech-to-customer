@@ -1,6 +1,5 @@
 // services/server.ts
 import fastifyRawBody from "fastify-raw-body";
-import fastifyFormbody from "@fastify/formbody";
 import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
@@ -23,6 +22,8 @@ import { leaderboardRoutes } from "./routes/analytics/leaderboardRoutes";
 import { forecastRoutes } from "./routes/analytics/forecastRoutes";
 import { analyticsRoutes } from "./routes/analytics/analyticsRoutes";
 import { reportingRoutes } from "./routes/analytics/reportingRoutes";
+import { metricsEndpoint } from "./routes/analytics/metricsRoutes";
+
 // Dispatch
 import { dispatchRoutes } from "./routes/dispatch/dispatchRoutes";
 import { dispatchAuditRoutes } from "./routes/dispatch/dispatchAuditRoutes";
@@ -48,6 +49,9 @@ import { purchaseOrderRoutes } from "./routes/operational/purchaseOrderRoutes";
 import { warehouseRoutes } from "./routes/operational/warehouseRoutes";
 import { replacementRoutes } from "./routes/operational/replacementRoutes";
 import { refrigerantLogRoutes } from "./routes/operational/refrigerantLogRoutes";
+import { payrollRoutes } from "./routes/operational/payrollRoutes";
+import { accountsPayableRoutes } from "./routes/operational/accountsPayableRoutes";
+import { expenseRoutes } from "./routes/operational/expenseRoutes";
 
 // Platform
 import { healthRoutes } from "./routes/platform/healthRoutes";
@@ -57,14 +61,21 @@ import { devRoutes } from "./routes/platform/devRoutes";
 import { leadsRoutes } from "./routes/platform/leadsRoutes";
 import { auditRoutes } from "./routes/platform/auditRoutes";
 import { certificationRoutes } from "./routes/platform/certificationRoutes";
-import { cronRoutes } from "./routes/platform/cronRoutes";
+import { automationRoutes } from "./routes/platform/automationRoutes";
 
-// Remaining (misc features)
+// Remaining
 import locationRoutes from "./routes/locationRoutes";
 import { competitorPricingRoutes } from "./routes/competitorPricingRoutes";
 import { multiRegionRoutes } from "./routes/multiRegionRoutes";
 import { tipRoutes } from "./routes/tipRoutes";
 import { terminalRoutes } from "./routes/terminalRoutes";
+import { reviewRoutes } from "./routes/reviewRoutes";
+import { financingRoutes } from "./routes/financingRoutes";
+import { bookingWidgetRoutes } from "./routes/bookingWidgetRoutes";
+import { emailMarketingRoutes } from "./routes/emailMarketingRoutes";
+import { callTrackingRoutes } from "./routes/callTrackingRoutes";
+import { communicationLogRoutes } from "./routes/communicationLogRoutes";
+import { customerPortalRoutes } from "./routes/customerPortalRoutes";
 
 import { getGeocodingWorker } from "./workers/geocodingWorker";
 import {
@@ -79,6 +90,7 @@ if (fs.existsSync(envLocalPath)) {
 } else {
 	dotenv.config();
 }
+
 // ============================================================
 // Environment validation
 // ============================================================
@@ -101,29 +113,23 @@ validateEnvironment();
 // Workers
 // ============================================================
 
-let geocodingWorker: ReturnType<typeof getGeocodingWorker> | null = null;
-let customerGeocodingInterval: ReturnType<typeof setInterval> | null = null;
-let retryGeocodingInterval: ReturnType<typeof setInterval> | null = null;
-
-if (process.env.NODE_ENV !== "test") {
-	geocodingWorker = getGeocodingWorker();
-	try {
-		await geocodingWorker.start();
-	} catch (err) {
-		console.error(
-			"⚠️ Geocoding worker failed to start — server continuing:",
-			err
-		);
-	}
-
-	customerGeocodingInterval = setInterval(async () => {
-		await runCustomerGeocodingWorker();
-	}, 30_000);
-
-	retryGeocodingInterval = setInterval(async () => {
-		await retryFailedGeocoding();
-	}, 60 * 60_000);
+const geocodingWorker = getGeocodingWorker();
+try {
+	await geocodingWorker.start();
+} catch (err) {
+	console.error(
+		"⚠️ Geocoding worker failed to start — server continuing:",
+		err
+	);
 }
+
+const customerGeocodingInterval = setInterval(async () => {
+	await runCustomerGeocodingWorker();
+}, 30_000);
+
+const retryGeocodingInterval = setInterval(async () => {
+	await retryFailedGeocoding();
+}, 60 * 60_000);
 
 // ============================================================
 // Server setup
@@ -151,8 +157,6 @@ const fastify = Fastify({
 		})
 	}
 });
-
-await fastify.register(fastifyFormbody);
 
 // ============================================================
 // Plugins
@@ -193,7 +197,7 @@ fastify.setErrorHandler(errorHandler);
 fastify.setNotFoundHandler(notFoundHandler);
 
 // ============================================================
-// Routes — existing
+// Routes — Core
 // ============================================================
 
 await fastify.register(paymentCollectionRoutes);
@@ -205,42 +209,84 @@ await registerEmployeeRoutes(fastify);
 await dispatchRoutes(fastify);
 await employeeLocationRoutes(fastify);
 await fastify.register(locationRoutes);
+await fastify.register(customerRoutes);
+await fastify.register(branchRoutes);
+
+// ============================================================
+// Routes — Operational
+// ============================================================
+
 await fastify.register(pricebookRoutes);
 await fastify.register(estimateRoutes);
 await fastify.register(invoiceRoutes);
-await fastify.register(customerRoutes);
-await fastify.register(branchRoutes);
-await fastify.register(onboardingRoutes);
-await fastify.register(certificationRoutes);
-await fastify.register(cronRoutes);
-await fastify.register(durationRoutes);
-await fastify.register(stripeRoutes);
-await fastify.register(qbRoutes);
-await fastify.register(partsRoutes);
-await fastify.register(analyticsRoutes);
 await fastify.register(jobTimeTrackingRoutes);
-await fastify.register(kpiRoutes);
-await fastify.register(dispatchAuditRoutes);
-await fastify.register(refrigerantLogRoutes);
-await fastify.register(replacementRoutes);
-await fastify.register(forecastRoutes);
-await fastify.register(auditRoutes);
-await fastify.register(etaRoutes);
-await fastify.register(leaderboardRoutes);
-await fastify.register(smsRoutes);
-await fastify.register(competitorPricingRoutes);
-await fastify.register(preStaffingAlertRoutes);
-await fastify.register(multiRegionRoutes);
-await fastify.register(warehouseRoutes);
+await fastify.register(durationRoutes);
+await fastify.register(partsRoutes);
 await fastify.register(truckInventoryRoutes);
 await fastify.register(purchaseOrderRoutes);
-await fastify.register(crmRoutes);
+await fastify.register(warehouseRoutes);
+await fastify.register(replacementRoutes);
+await fastify.register(refrigerantLogRoutes);
+await fastify.register(payrollRoutes);
+await fastify.register(accountsPayableRoutes);
+await fastify.register(expenseRoutes);
+
+// ============================================================
+// Routes — Analytics
+// ============================================================
+
+await fastify.register(analyticsRoutes);
+await fastify.register(kpiRoutes);
+await fastify.register(leaderboardRoutes);
+await fastify.register(forecastRoutes);
 await fastify.register(reportingRoutes);
-await fastify.register(tipRoutes);
-await fastify.register(terminalRoutes);
+metricsEndpoint(fastify);
+
+// ============================================================
+// Routes — Dispatch
+// ============================================================
+
+await fastify.register(dispatchAuditRoutes);
+await fastify.register(etaRoutes);
+await fastify.register(preStaffingAlertRoutes);
+
+// ============================================================
+// Routes — Integrations
+// ============================================================
+
+await fastify.register(stripeRoutes);
+await fastify.register(qbRoutes);
+await fastify.register(crmRoutes);
+await fastify.register(smsRoutes);
+
+// ============================================================
+// Routes — Platform
+// ============================================================
+
+await fastify.register(onboardingRoutes);
+await fastify.register(certificationRoutes);
+await fastify.register(auditRoutes);
 await fastify.register(verifyRoutes);
 await fastify.register(leadsRoutes, { prefix: "/public" });
 await fastify.register(devRoutes);
+await fastify.register(automationRoutes);
+
+// ============================================================
+// Routes — Remaining / Misc
+// ============================================================
+
+await fastify.register(competitorPricingRoutes);
+await fastify.register(multiRegionRoutes);
+await fastify.register(tipRoutes);
+await fastify.register(terminalRoutes);
+await fastify.register(reviewRoutes);
+await fastify.register(financingRoutes);
+await fastify.register(bookingWidgetRoutes);
+await fastify.register(emailMarketingRoutes);
+await fastify.register(callTrackingRoutes);
+await fastify.register(communicationLogRoutes);
+await fastify.register(customerPortalRoutes);
+
 // ============================================================
 // Root
 // ============================================================
@@ -267,61 +313,41 @@ const start = async () => {
 		console.log(`   Environment: ${process.env.NODE_ENV || "development"}`);
 		console.log(`   Log level:   ${process.env.LOG_LEVEL || "info"}`);
 
-		console.log("\n📍 Existing Endpoints:");
-		console.log("   GET  /health");
-		console.log("   POST /login");
-		console.log("   GET  /jobs");
-		console.log("   POST /jobs");
-		console.log("   POST /jobs/:id/dispatch");
-		console.log("   POST /jobs/:id/assign");
-		console.log("   POST /jobs/:id/complete");
-
-		console.log("\n Analytics:");
-		console.log("   GET  /analytics/revenue");
-		console.log("   GET  /analytics/tech-performance");
-		console.log("   GET  /analytics/job-kpis");
-		console.log("   GET  /analytics/first-time-fix");
-		console.log("   GET  /analytics/callback-rate");
-		console.log("   GET  /analytics/time-breakdown");
-
-		console.log("\n Time Tracking:");
-		console.log("   POST   /jobs/:jobId/time-tracking");
-		console.log("   PATCH  /jobs/:jobId/time-tracking/departed");
-		console.log("   PATCH  /jobs/:jobId/time-tracking/arrived");
-		console.log("   PATCH  /jobs/:jobId/time-tracking/work-started");
-		console.log("   PATCH  /jobs/:jobId/time-tracking/work-ended");
-		console.log("   PATCH  /jobs/:jobId/time-tracking/departed-job");
-		console.log("   GET    /jobs/:jobId/time-tracking");
-
-		console.log("\n KPI Thresholds & Alerts:");
-		console.log("   GET    /kpi/thresholds");
-		console.log("   POST   /kpi/thresholds");
-		console.log("   PATCH  /kpi/thresholds/:id");
-		console.log("   DELETE /kpi/thresholds/:id");
-		console.log("   GET    /kpi/alerts");
-		console.log("   PATCH  /kpi/alerts/:id/read");
-		console.log("   PATCH  /kpi/alerts/:id/resolve");
-		console.log("   POST   /kpi/check");
-
-		console.log("\n Dispatch Audit:");
-		console.log("   POST   /jobs/:jobId/dispatch-override");
-		console.log("   GET    /jobs/:jobId/dispatch-override");
-		console.log("   POST   /jobs/:jobId/reassign");
-		console.log("   GET    /jobs/:jobId/reassignments");
-		console.log("   GET    /analytics/dispatch-overrides");
-
-		console.log("\n Refrigerant Logs (EPA 608):");
-		console.log("   POST   /refrigerant-logs");
-		console.log("   GET    /refrigerant-logs");
-		console.log("   GET    /refrigerant-logs/summary");
-		console.log("   GET    /refrigerant-logs/:logId");
-		console.log("   POST   /refrigerant-logs/:logId/amend");
+		console.log("\n📍 Route modules registered:");
+		console.log(
+			"   Core:         jobs, users, company, employees, customers, branches"
+		);
+		console.log(
+			"   Operational:  pricebook, estimates, invoices, parts, warehouse,"
+		);
+		console.log(
+			"                 truck inventory, purchase orders, payroll, AP, expenses,"
+		);
+		console.log(
+			"                 job time tracking, duration, refrigerant, replacements"
+		);
+		console.log(
+			"   Analytics:    analytics, KPI, leaderboard, forecast, reporting, metrics"
+		);
+		console.log(
+			"   Dispatch:     dispatch, audit, ETA, pre-staffing, location"
+		);
+		console.log("   Integrations: Stripe, QuickBooks, CRM, SMS");
+		console.log(
+			"   Platform:     onboarding, certs, audit, verify, leads, dev, automation"
+		);
+		console.log(
+			"   Misc:         competitor pricing, regions, tips, terminal, reviews,"
+		);
+		console.log(
+			"                 financing, booking widget, email marketing, call tracking,"
+		);
+		console.log("                 communication log, customer portal");
 
 		console.log("\n📍 Workers running:");
-		console.log("   Job geocoding        — existing");
+		console.log("   Job geocoding        — on startup + polling");
 		console.log("   Customer geocoding   — every 30s");
 		console.log("   Geocoding retry      — every 1h");
-		console.log("   Cert expiration      — via cron endpoint");
 		console.log("\n");
 	} catch (err) {
 		fastify.log.error(err);
@@ -337,9 +363,9 @@ start();
 
 function shutdown(signal: string) {
 	console.log(`\n${signal} received, shutting down gracefully...`);
-	geocodingWorker?.stop();
-	if (customerGeocodingInterval) clearInterval(customerGeocodingInterval);
-	if (retryGeocodingInterval) clearInterval(retryGeocodingInterval);
+	geocodingWorker.stop();
+	clearInterval(customerGeocodingInterval);
+	clearInterval(retryGeocodingInterval);
 	fastify.close(() => {
 		console.log("Server closed");
 		process.exit(0);
