@@ -1,21 +1,52 @@
 // db/index.ts
-// Neon HTTP driver only — clean, minimal, typed.
+// PostgreSQL connection — works with Supabase or any standard PostgreSQL.
+// Uses pg.Pool for connection management.
 
-import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
+import { Pool, type QueryResult, type QueryResultRow } from "pg";
 
-let cachedSql: NeonQueryFunction<false, false> | null = null;
+let cachedPool: Pool | null = null;
 
-export function getSql(): NeonQueryFunction<false, false> {
+export function getPool(): Pool {
+	if (cachedPool) return cachedPool;
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
 		throw new Error("DATABASE_URL environment variable is not set.");
 	}
+	cachedPool = new Pool({
+		connectionString: databaseUrl,
+		max: 10,
+		idleTimeoutMillis: 30_000,
+		connectionTimeoutMillis: 10_000
+	});
+	return cachedPool;
+}
 
-	if (!cachedSql) {
-		cachedSql = neon(databaseUrl);
-	}
+/**
+ * Tagged template SQL function — drop-in replacement for Neon's `sql` tagged template.
+ * Values are automatically parameterized — no SQL injection risk.
+ */
+export function getSql() {
+	const pool = getPool();
 
-	return cachedSql;
+	const sql = async (
+		strings: TemplateStringsArray,
+		...values: unknown[]
+	): Promise<QueryResultRow[]> => {
+		let queryText = "";
+		for (let i = 0; i < strings.length; i++) {
+			queryText += strings[i];
+			if (i < values.length) {
+				queryText += `$${i + 1}`;
+			}
+		}
+		const result: QueryResult = await pool.query(
+			queryText,
+			values as unknown[]
+		);
+		return result.rows;
+	};
+
+	return sql;
 }
 
 /**
@@ -89,7 +120,12 @@ export function rowsToCamelCase<T extends Record<string, unknown>>(
  * Query one row
  */
 export async function queryOne<T>(
-	queryFn: (sql: NeonQueryFunction<false, false>) => Promise<T[]>
+	queryFn: (
+		sql: (
+			strings: TemplateStringsArray,
+			...values: unknown[]
+		) => Promise<QueryResultRow[]>
+	) => Promise<T[]>
 ): Promise<T | null> {
 	const sql = getSql();
 	const rows = await queryFn(sql);
@@ -100,7 +136,12 @@ export async function queryOne<T>(
  * Query all rows
  */
 export async function queryAll<T>(
-	queryFn: (sql: NeonQueryFunction<false, false>) => Promise<T[]>
+	queryFn: (
+		sql: (
+			strings: TemplateStringsArray,
+			...values: unknown[]
+		) => Promise<QueryResultRow[]>
+	) => Promise<T[]>
 ): Promise<T[]> {
 	const sql = getSql();
 	return queryFn(sql);
@@ -108,50 +149,13 @@ export async function queryAll<T>(
 
 /**
  * Execute raw SQL with positional parameters ($1, $2, ...).
- * Parameters must appear in order ($1 first, $2 second, etc.).
- * Reconstructs the call as a tagged template literal so Neon actually executes it.
+ * Uses pg.Pool directly — parameters are passed as-is.
  */
 export async function query(
 	sqlString: string,
 	params: unknown[] = []
 ): Promise<unknown[]> {
-	const client = getSql();
-
-	// Build a TemplateStringsArray + values array by scanning for $1, $2, ...
-	// This reconstructs the original tagged template invocation so Neon
-	// correctly interprets `sql.unsafe()` fragments embedded in values.
-	const placeholderRe = /\$([0-9]+)/g;
-	const parts: string[] = [];
-	const values: unknown[] = [];
-	let lastIndex = 0;
-	let match: RegExpExecArray | null;
-
-	while ((match = placeholderRe.exec(sqlString)) !== null) {
-		const idx = Number(match[1]) - 1; // $1 -> params[0]
-		parts.push(sqlString.slice(lastIndex, match.index));
-		values.push(params[idx]);
-		lastIndex = placeholderRe.lastIndex;
-	}
-
-	// push remaining tail
-	parts.push(sqlString.slice(lastIndex));
-
-	// TemplateStringsArray requires a `raw` property that's an array of raw strings
-	const template = Object.assign(parts, {
-		raw: parts.slice()
-	}) as unknown as TemplateStringsArray;
-
-	const result = await (
-		client as unknown as (...args: unknown[]) => Promise<unknown>
-	)(template, ...values);
-
-	if (Array.isArray(result)) return result;
-	if (
-		result &&
-		typeof result === "object" &&
-		Array.isArray((result as any).rows)
-	)
-		return (result as any).rows;
-
-	return [];
+	const pool = getPool();
+	const result = await pool.query(sqlString, params as unknown[]);
+	return result.rows;
 }

@@ -1,38 +1,72 @@
 // db/connection.ts
 //
-// Neon serverless HTTP driver — used by the test script (db/test-connection.ts)
-// and any edge/serverless contexts where a persistent Pool is not appropriate.
-//
-// For the main Fastify server, use db/index.ts (Pool + WebSocket transport).
+// PostgreSQL connection — uses pg.Pool for both serverless and server contexts.
+// Works with Supabase, Neon (via pooled connection string), or any standard
+// PostgreSQL instance.
 
-import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import { Agent, setGlobalDispatcher } from "undici";
+import { Pool, type QueryResult, type QueryResultRow } from "pg";
 
-let cachedSql: NeonQueryFunction<false, false> | null = null;
+let cachedPool: Pool | null = null;
 
 function maybeAllowSelfSignedCerts(): void {
 	const allow = process.env.ALLOW_SELF_SIGNED_CERTS === "true";
 	const isProd = process.env.NODE_ENV === "production";
 	if (allow && !isProd) {
 		process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-		try {
-			const agent = new Agent({ connect: { rejectUnauthorized: false } });
-			setGlobalDispatcher(agent);
-		} catch {
-			// undici might not be used in this environment, so ignore if it fails
-		}
 	}
 }
 
-export function getSql() {
-	if (cachedSql) return cachedSql;
+/**
+ * Get the shared pg.Pool instance.
+ * In serverless/edge contexts, each warm invocation reuses the pool.
+ */
+export function getPool(): Pool {
+	if (cachedPool) return cachedPool;
 	maybeAllowSelfSignedCerts();
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
-		throw new Error("DATABASE_URL is not set. Cannot create SQL client.");
+		throw new Error("DATABASE_URL is not set. Cannot create connection pool.");
 	}
-	cachedSql = neon(databaseUrl);
-	return cachedSql;
+	cachedPool = new Pool({
+		connectionString: databaseUrl,
+		max: 10,
+		idleTimeoutMillis: 30_000,
+		connectionTimeoutMillis: 10_000
+	});
+	return cachedPool;
+}
+
+/**
+ * Tagged template SQL function — drop-in replacement for Neon's `sql` tagged template.
+ *
+ * Usage:
+ *   const sql = getSql();
+ *   const rows = await sql`SELECT * FROM users WHERE id = ${userId}`;
+ *
+ * Values are automatically parameterized — no SQL injection risk.
+ */
+export function getSql() {
+	const pool = getPool();
+
+	const sql = async (
+		strings: TemplateStringsArray,
+		...values: unknown[]
+	): Promise<QueryResultRow[]> => {
+		let queryText = "";
+		for (let i = 0; i < strings.length; i++) {
+			queryText += strings[i];
+			if (i < values.length) {
+				queryText += `$${i + 1}`;
+			}
+		}
+		const result: QueryResult = await pool.query(
+			queryText,
+			values as unknown[]
+		);
+		return result.rows;
+	};
+
+	return sql;
 }
 
 export async function testConnection(): Promise<{
@@ -41,11 +75,11 @@ export async function testConnection(): Promise<{
 	currentTime?: string;
 }> {
 	try {
-		const sql = getSql();
-		const result = await sql`SELECT NOW() as current_time`;
+		const pool = getPool();
+		const result = await pool.query("SELECT NOW() as current_time");
 		console.log("✅ Database connected successfully!");
-		console.log("Current database time:", result[0].current_time);
-		return { success: true, currentTime: result[0].current_time };
+		console.log("Current database time:", result.rows[0].current_time);
+		return { success: true, currentTime: result.rows[0].current_time };
 	} catch (error) {
 		console.error("❌ Database connection failed:", error);
 		return { success: false, error };
@@ -86,7 +120,12 @@ export function rowsToCamelCase<T extends Record<string, unknown>>(
 }
 
 export async function queryOne<T extends Record<string, unknown>>(
-	queryFn: (sql: NeonQueryFunction<false, false>) => Promise<T[]>
+	queryFn: (
+		sql: (
+			strings: TemplateStringsArray,
+			...values: unknown[]
+		) => Promise<QueryResultRow[]>
+	) => Promise<T[]>
 ): Promise<T | null> {
 	const sql = getSql();
 	const rows = await queryFn(sql);
@@ -94,11 +133,16 @@ export async function queryOne<T extends Record<string, unknown>>(
 }
 
 export async function queryAll<T extends Record<string, unknown>>(
-	queryFn: (sql: NeonQueryFunction<false, false>) => Promise<T[]>
+	queryFn: (
+		sql: (
+			strings: TemplateStringsArray,
+			...values: unknown[]
+		) => Promise<QueryResultRow[]>
+	) => Promise<T[]>
 ): Promise<T[]> {
 	const sql = getSql();
 	return queryFn(sql);
 }
 export function resetSqlClient() {
-	cachedSql = null;
+	cachedPool = null;
 }

@@ -12,6 +12,7 @@
 .playwright-mcp
 .claude
 .vscode
+pg-tools/
 # testing
 /coverage
 
